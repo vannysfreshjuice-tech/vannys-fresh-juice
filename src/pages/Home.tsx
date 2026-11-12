@@ -1,8 +1,9 @@
 // Home: the day at a glance, and what needs doing.
-import { AlertTriangle, Bell, Blend, Boxes, Droplet, Sparkles, Thermometer, Truck } from 'lucide-react';
+import { AlertTriangle, Bell, Blend, Boxes, Droplet, Lock, Sparkles, Thermometer, Truck } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, JuiceBadge, useJuice } from '../components/bits';
+import { useLock } from '../components/Lock';
 import { useSheets } from '../components/SheetHost';
 import { Button, StatCard, useNotice, useSaver } from '../components/ui';
 import { useData } from '../data/DataContext';
@@ -50,6 +51,7 @@ export function Home() {
   const notify = useNotice();
   const starter = useSaver();
   const owner = role === 'owner';
+  const lock = useLock();
   const counter = role === 'owner' || role === 'sales';
   const day = dayFigures(d, today);
   const madeToday = batches.filter((b) => b.date === today);
@@ -121,6 +123,15 @@ export function Home() {
             </Button>
           </div>
           {starter.error && <p className="mt-2 text-sm text-cherry">{starter.error}</p>}
+        </Card>
+      )}
+
+      {owner && !lock.on && d.storeKind === 'device' && (
+        <Card title="Protect the app with a PIN" icon={<Lock size={18} className="text-accent-dark" aria-hidden />}>
+          <p className="text-[15px] text-muted">Right now anyone holding this phone can open the app. Set your PIN in Settings: the app will then open only with a PIN, and each person can have their own.</p>
+          <Button className="mt-3" icon={Lock} onClick={() => navigate('/settings')}>
+            Set a PIN
+          </Button>
         </Card>
       )}
 

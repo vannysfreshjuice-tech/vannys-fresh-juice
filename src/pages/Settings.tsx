@@ -1,15 +1,109 @@
 // Settings: business details, bottle sizes and prices, lists, freshness rules, backup and restore.
 // Only the fields a person changes are saved (defaults are never written back).
-import { Download, Upload } from 'lucide-react';
+import { Download, Lock, Upload } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Card } from '../components/bits';
+import { PinInput, ownerPinKey, useLock } from '../components/Lock';
 import { Button, Field, FormError, MoneyInput, PageHead, Select, TextArea, TextInput, useConfirm, useNotice, useSaver } from '../components/ui';
 import { useData } from '../data/DataContext';
 import { backupFileName, countRows, deleteAllOps, giveFile, makeBackup, readBackup, restoreOps } from '../lib/backup';
 import { showDate } from '../lib/dates';
+import { OWNER_KEY, PIN_LENGTH, findPin, pinKeys, removeAllPins, removePin, setPin } from '../lib/pinLock';
 import type { Settings as S, Size } from '../lib/types';
 
 const lines = (t: string) => t.split('\n').map((x) => x.trim()).filter(Boolean);
+
+function PinLock() {
+  const { staff, staffById } = useData();
+  const lock = useLock();
+  const notify = useNotice();
+  const confirm = useConfirm();
+  const key = ownerPinKey(staff);
+  const [mode, setMode] = useState<'' | 'set' | 'change' | 'off'>('');
+  const [oldPin, setOld] = useState('');
+  const [pin, setP] = useState('');
+  const [again, setAgain] = useState('');
+  const { busy, error, run, setError } = useSaver();
+  const reset = () => {
+    setMode('');
+    setOld('');
+    setP('');
+    setAgain('');
+    setError('');
+  };
+  const who = pinKeys().map((k) => (k === OWNER_KEY ? 'Owner' : (staffById.get(k)?.name ?? 'someone who has left')));
+  const save = () =>
+    run(async () => {
+      if (mode === 'change' || mode === 'off') {
+        const mine = await findPin(oldPin);
+        if (mine !== key && mine !== OWNER_KEY) throw new Error('Your present PIN is not right.');
+      }
+      if (mode === 'off') {
+        if (!(await confirm({ title: 'Turn the PIN lock off?', body: 'Every PIN on this phone is removed (the staff PINs too). Anyone holding the phone can then open the app.', yes: 'Turn off', danger: true }))) return;
+        removeAllPins();
+        lock.refresh();
+        notify('The PIN lock is off', 'info');
+        return reset();
+      }
+      if (pin !== again) throw new Error('The two PINs are not the same.');
+      if (key !== OWNER_KEY) removePin(OWNER_KEY);
+      await setPin(key, pin);
+      lock.refresh();
+      notify(mode === 'set' ? 'PIN set: the app now opens with your PIN' : 'PIN changed');
+      reset();
+    });
+  return (
+    <Card title="PIN lock" icon={<Lock size={18} className="text-accent-dark" aria-hidden />}>
+      <FormError message={error} />
+      {!lock.on ? (
+        <p className="text-sm text-muted">Off. Set a PIN of {PIN_LENGTH} digits and the app opens only with it, and locks itself after 5 minutes away. You can then give each person their own PIN in Staff, so the PIN decides what they can open.</p>
+      ) : (
+        <p className="text-sm text-muted">
+          On. The app opens with a PIN and locks after 5 minutes away. PINs set on this phone: <b>{who.join(', ')}</b>. Give the staff their PINs in Staff (open a person).
+        </p>
+      )}
+      {mode === '' ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {!lock.on ? (
+            <Button icon={Lock} onClick={() => setMode('set')}>
+              Set my PIN
+            </Button>
+          ) : (
+            <>
+              <Button variant="plain" onClick={lock.lock}>
+                Lock now
+              </Button>
+              <Button variant="plain" onClick={() => setMode('change')}>
+                Change my PIN
+              </Button>
+              <Button variant="danger" onClick={() => setMode('off')}>
+                Turn off
+              </Button>
+            </>
+          )}
+        </div>
+      ) : (
+        <div className="mt-3 space-y-3">
+          {(mode === 'change' || mode === 'off') && <PinInput label="Your present PIN" value={oldPin} onChange={setOld} />}
+          {mode !== 'off' && (
+            <div className="grid grid-cols-2 gap-3">
+              <PinInput label={mode === 'change' ? 'New PIN' : `PIN (${PIN_LENGTH} digits)`} value={pin} onChange={setP} />
+              <PinInput label="Type it again" value={again} onChange={setAgain} />
+            </div>
+          )}
+          <div className="flex gap-2">
+            <Button variant="plain" onClick={reset}>
+              Cancel
+            </Button>
+            <Button busy={busy} variant={mode === 'off' ? 'danger' : 'primary'} onClick={save}>
+              {mode === 'off' ? 'Turn off the lock' : 'Save PIN'}
+            </Button>
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
 
 function Business() {
   const { settings, actions } = useData();
@@ -200,6 +294,7 @@ export function SettingsPage() {
     <div>
       <PageHead title="Settings" eyebrow={`Version ${__APP_VERSION__}`} />
       <div className="grid gap-4 lg:grid-cols-2">
+        <PinLock />
         <Business />
         <Sizes />
         <Lists />

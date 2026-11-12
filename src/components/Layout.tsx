@@ -1,12 +1,13 @@
 // The frame around every page.
 // Laptop: a sidebar with the pages (only those the person may open). Phone: a top bar, bottom tabs,
 // a More tab and a + button, all kept clear of the notch and the home bar.
-import { Cloud, CloudOff, Ellipsis, Plus, RefreshCw, Smartphone } from 'lucide-react';
+import { Cloud, CloudOff, Ellipsis, Lock, Plus, RefreshCw, Smartphone } from 'lucide-react';
 import { useEffect, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useData, type SyncState } from '../data/DataContext';
 import { GROUPS, pagesFor } from '../lib/nav';
 import { ROLE_NAMES } from '../lib/types';
+import { useLock } from './Lock';
 import { useSheets } from './SheetHost';
 import { Button, cx } from './ui';
 
@@ -39,7 +40,17 @@ function activePage(pathname: string, list: { to: string }[]): string {
 export function WhoChip() {
   const { me, role, staff, storeKind } = useData();
   const sheets = useSheets();
-  if (storeKind !== 'device' || staff.filter((s) => !s.archived).length === 0) return null;
+  const lock = useLock();
+  if (storeKind !== 'device') return null;
+  // With a PIN set, changing person means locking: the next PIN typed says who it is.
+  if (lock.on)
+    return (
+      <button type="button" onClick={lock.lock} className="chip min-h-8 max-w-44 truncate px-2.5 text-xs" title="Lock the app">
+        <Lock size={13} aria-hidden />
+        {me ? me.name : 'Owner'} · Lock
+      </button>
+    );
+  if (staff.filter((s) => !s.archived).length === 0) return null;
   return (
     <button type="button" onClick={() => sheets.open({ t: 'who' })} className="chip min-h-8 max-w-44 truncate px-2.5 text-xs">
       {me ? `${me.name} · ${ROLE_NAMES[role]}` : 'Owner'}

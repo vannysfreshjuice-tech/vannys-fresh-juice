@@ -5,6 +5,8 @@ import { PayBadge, StageBadge } from '../components/bits';
 import { useSheets } from '../components/SheetHost';
 import { Button, DateInput, Field, FormError, Line, MoneyInput, Select, Sheet, SheetButtons, TextArea, TextInput, cx, useConfirm, useNotice, useSaver } from '../components/ui';
 import { giveFile } from '../lib/backup';
+import { PinInput, useLock } from '../components/Lock';
+import { pinKeys, removePin, setPin } from '../lib/pinLock';
 import { useData } from '../data/DataContext';
 import { addDays, showDate, showDay } from '../lib/dates';
 import { orderTotals, saleTotals } from '../lib/juice';
@@ -239,6 +241,7 @@ export function StaffForm({ id, onClose }: { id?: string; onClose: () => void })
   const [rate, setRate] = useState(s?.rate ?? 0);
   const [phone, setPhone] = useState(s?.phone ?? '');
   const { busy, error, run } = useSaver();
+  const lock = useLock();
   return (
     <Sheet
       title={s ? `Change ${s.name}` : 'New person'}
@@ -251,6 +254,10 @@ export function StaffForm({ id, onClose }: { id?: string; onClose: () => void })
               onClick={async () => {
                 if (!(await confirm({ title: s.archived ? `Bring ${s.name} back?` : `${s.name} has left?`, body: s.archived ? undefined : 'They leave the staff list. Their attendance and wages stay on the record.', yes: s.archived ? 'Bring back' : 'Has left' }))) return;
                 await actions.archiveStaff(s.id, !s.archived);
+                if (!s.archived) {
+                  removePin(s.id);
+                  lock.refresh();
+                }
                 onClose();
               }}
             >
@@ -297,8 +304,68 @@ export function StaffForm({ id, onClose }: { id?: string; onClose: () => void })
         <Field label="Phone (for WhatsApp reminders)">
           <TextInput inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
         </Field>
+        {s && !s.archived && s.role !== 'owner' && <PersonPin staffId={s.id} name={s.name} />}
+        {s && s.role === 'owner' && lock.on && <p className="text-xs text-muted">The owner's PIN is set and changed in Settings.</p>}
       </div>
     </Sheet>
+  );
+}
+
+/** The owner gives a person their own PIN (only once the owner's own PIN is set). */
+function PersonPin({ staffId, name }: { staffId: string; name: string }) {
+  const lock = useLock();
+  const notify = useNotice();
+  const [pin, setP] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const has = pinKeys().includes(staffId);
+  if (!lock.on) return <p className="rounded-xl bg-butter-soft px-3 py-2 text-sm">To give {name} a PIN, first set your own PIN in Settings &gt; PIN lock.</p>;
+  return (
+    <div className="rounded-xl border border-line p-3">
+      <p className="mb-2 text-sm font-semibold">
+        {name}'s PIN {has ? <span className="font-normal text-leaf">(set)</span> : <span className="font-normal text-muted">(not set)</span>}
+      </p>
+      {err && <p className="mb-2 text-sm text-cherry">{err}</p>}
+      <div className="flex items-end gap-2">
+        <div className="flex-1">
+          <PinInput label={has ? 'New PIN' : 'PIN (6 digits)'} value={pin} onChange={setP} />
+        </div>
+        <Button
+          busy={busy}
+          onClick={async () => {
+            setErr('');
+            setBusy(true);
+            try {
+              await setPin(staffId, pin);
+              lock.refresh();
+              setP('');
+              notify(`${name} can now open the app with that PIN`);
+            } catch (e) {
+              setErr((e as Error).message);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          Save PIN
+        </Button>
+      </div>
+      {has && (
+        <Button
+          small
+          variant="plain"
+          className="mt-2"
+          onClick={() => {
+            removePin(staffId);
+            lock.refresh();
+            notify(`${name}'s PIN removed`);
+          }}
+        >
+          Remove PIN
+        </Button>
+      )}
+      <p className="mt-2 text-xs text-muted">Tell {name} the PIN yourself. It opens only {name}'s part of the app.</p>
+    </div>
   );
 }
 

@@ -4,6 +4,7 @@
 import { Component, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
+import { LockGate } from './components/Lock';
 import { SheetProvider } from './components/SheetHost';
 import { Button, ConfirmProvider, NoticeProvider, useNotice } from './components/ui';
 import { DataProvider, useData } from './data/DataContext';
@@ -104,9 +105,11 @@ function WithRecords() {
   const store = useMemo(() => makeLocalStore(), []);
   return (
     <DataProvider store={store} onWriteError={(m) => notify(m, 'bad')}>
-      <HashRouter>
-        <Pages />
-      </HashRouter>
+      <LockGate>
+        <HashRouter>
+          <Pages />
+        </HashRouter>
+      </LockGate>
     </DataProvider>
   );
 }

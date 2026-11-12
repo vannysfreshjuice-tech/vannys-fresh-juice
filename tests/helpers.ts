@@ -10,6 +10,7 @@ export function memoryStorage() {
   return {
     getItem: (k: string) => m.get(k) ?? null,
     setItem: (k: string, v: string) => void m.set(k, v),
+    removeItem: (k: string) => void m.delete(k),
     raw: m,
   };
 }
