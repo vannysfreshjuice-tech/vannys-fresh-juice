@@ -1,0 +1,4 @@
+assets-src/
+*.backup.json
+backups/
+Thumbs.db

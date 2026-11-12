@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F7931E">
+<title>Vanny's Fresh Juice - prototype</title>
+<style>
+:root{
+  --or:#F7931E; --or-d:#DD6A00; --or-s:#FFF0DC; --or-l:#FBD3A0;
+  --ye:#FFC425; --ye-s:#FFF7D6;
+  --gr:#3BA935; --gr-d:#23801F; --gr-s:#E5F5E1;
+  --pu:#7A2C8F; --pu-s:#F3E6F7;
+  --red:#D2382D; --red-s:#FDEBE8;
+  --ink:#3A2716; --mut:#8C7660; --faint:#BBA892; --line:#F1E3D0;
+  --page:#FFF8EE; --card:rgba(255,255,255,.9);
+  --sh:0 1px 2px rgba(120,70,10,.06),0 4px 14px rgba(120,70,10,.06);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--page);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-tap-highlight-color:transparent;font-size:15px}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background:url(assets/mark.jpg) no-repeat center 60%/min(70vw,380px) auto;opacity:.07;mix-blend-mode:multiply}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.proto{position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:80;background:var(--pu);color:#fff;font-size:11px;font-weight:600;padding:3px 12px;border-radius:0 0 10px 10px;letter-spacing:.3px}
+
+/* layout */
+.app{position:relative;z-index:1;display:flex;min-height:100dvh}
+.side{width:248px;flex:none;background:rgba(255,255,255,.75);backdrop-filter:blur(8px);border-right:1px solid var(--line);padding:18px 12px;position:sticky;top:0;height:100dvh;overflow:auto}
+.side .logo{display:block;width:100%;border-radius:14px;margin-bottom:14px;mix-blend-mode:multiply}
+.side h6{margin:14px 10px 6px;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--faint)}
+.nav{display:flex;align-items:center;gap:11px;width:100%;border:0;background:none;padding:10px 12px;border-radius:12px;color:var(--mut);font-weight:600;text-align:left;min-height:44px}
+.nav:hover{background:var(--or-s);color:var(--ink)}
+.nav.on{background:var(--or);color:#fff;box-shadow:0 4px 12px rgba(247,147,30,.35)}
+.main{flex:1;min-width:0;padding:22px 28px 40px}
+.top{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.top h1{font-size:24px;margin:0;flex:1}
+.top .sub{color:var(--mut);font-size:13px;font-weight:500;display:block;margin-top:2px}
+.ptop,.tabs,.fab{display:none}
+.role{border:1px solid var(--line);background:#fff;border-radius:12px;padding:8px 10px;min-height:40px;font-size:14px}
+
+/* phone */
+@media (max-width:899px){
+  .side{display:none}
+  .main{padding:0 14px calc(96px + env(safe-area-inset-bottom))}
+  .ptop{display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:20;background:rgba(255,248,238,.92);backdrop-filter:blur(10px);margin:0 -14px 12px;padding:calc(22px + env(safe-area-inset-top)) 14px 10px;border-bottom:1px solid var(--line)}
+  .ptop .role{max-width:150px;font-size:13px}
+  .proto{font-size:10px;padding:2px 10px;white-space:nowrap}
+  .ptop img{width:34px;height:42px;object-fit:cover;border-radius:8px;mix-blend-mode:multiply}
+  .ptop b{flex:1;font-size:18px}
+  .top{display:none}
+  .tabs{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:30;background:rgba(255,255,255,.96);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+  .tab{flex:1;border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;font-weight:600;color:var(--faint);padding:6px 0;min-height:52px}
+  .tab.on{color:var(--or-d)}
+  .fab{display:flex;position:fixed;right:16px;bottom:calc(78px + env(safe-area-inset-bottom));z-index:31;width:58px;height:58px;border-radius:50%;border:0;background:linear-gradient(135deg,var(--or),var(--or-d));color:#fff;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(221,106,0,.45)}
+  .fab svg.i{width:26px;height:26px}
+}
+
+/* building blocks */
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-width:1100px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:899px){.g2,.g3{grid-template-columns:1fr}.g4{gap:10px}}
+.card{background:var(--card);backdrop-filter:blur(4px);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:var(--sh)}
+.card h3{margin:0 0 12px;font-size:16px;display:flex;align-items:center;gap:8px}
+.card h3 .r{margin-left:auto}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:var(--sh)}
+.tile .l{font-size:12px;color:var(--mut);font-weight:600}
+.tile .v{font-size:22px;font-weight:800;margin:4px 0 2px;letter-spacing:-.3px}
+.tile .s{font-size:12px;color:var(--mut)}
+@media (max-width:899px){.tile .v{font-size:18px}}
+.hero{border-radius:22px;padding:20px;color:#fff;background:linear-gradient(120deg,#F7931E 0%,#FBB040 55%,#FFC425 100%);box-shadow:0 10px 26px rgba(247,147,30,.35);display:flex;align-items:center;gap:16px;overflow:hidden;position:relative}
+.hero h2{margin:0;font-size:22px}
+.hero p{margin:4px 0 0;opacity:.95}
+.hero .big{font-size:30px;font-weight:800;margin-top:10px}
+.hero img{width:120px;border-radius:16px;margin-left:auto;box-shadow:0 6px 16px rgba(0,0,0,.15)}
+@media (max-width:899px){.hero img{width:76px}.hero .big{font-size:24px}}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid var(--line);background:#fff;border-radius:12px;padding:9px 14px;font-weight:700;min-height:44px;font-size:14px;white-space:nowrap}
+.btn:hover{border-color:var(--or-l)}
+.btn.pri{background:var(--or);border-color:var(--or);color:#fff}
+.btn.pri:hover{background:var(--or-d)}
+.btn.grn{background:var(--gr);border-color:var(--gr);color:#fff}
+.btn.sm{min-height:34px;padding:5px 10px;font-size:13px;border-radius:10px}
+.btn.wide{width:100%}
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px;scrollbar-width:none}
+.chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 14px;font-weight:600;font-size:13px;white-space:nowrap;min-height:36px;color:var(--mut)}
+.chip.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.bd{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:3px 9px;font-size:12px;font-weight:700;white-space:nowrap}
+.ok{background:var(--gr-s);color:var(--gr-d)} .warn{background:var(--ye-s);color:#946200} .bad{background:var(--red-s);color:var(--red)} .info{background:var(--or-s);color:var(--or-d)} .pur{background:var(--pu-s);color:var(--pu)} .grey{background:#F3EEE7;color:var(--mut)}
+.row{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--line)}
+.row:first-of-type{border-top:0}
+.row.click{cursor:pointer;border-radius:10px}
+.row.click:hover{background:var(--or-s);margin:0 -8px;padding-left:8px;padding-right:8px}
+.row .t{flex:1;min-width:0}
+.row .t b{display:block;font-size:15px}
+.row .t small{color:var(--mut);font-size:13px}
+.row .amt{font-weight:800;text-align:right;white-space:nowrap}
+.row .amt small{display:block;font-weight:600;font-size:12px;color:var(--mut)}
+.fl{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:21px;flex:none}
+.ic{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none}
+.muted{color:var(--mut)} .small{font-size:13px} .red{color:var(--red)} .green{color:var(--gr-d)}
+table.t{width:100%;border-collapse:collapse;font-size:14px}
+table.t th{text-align:left;font-size:12px;color:var(--mut);font-weight:700;padding:8px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.t td{padding:10px 8px;border-bottom:1px solid var(--line)}
+table.t td.n,table.t th.n{text-align:right;white-space:nowrap}
+table.t tr:last-child td{border-bottom:0}
+table.t tfoot td{font-weight:800;border-top:2px solid var(--line)}
+.scroll{overflow-x:auto;margin:0 -4px;padding:0 4px}
+.bar{height:8px;background:#F4EADC;border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:99px}
+.sec{margin-top:16px}
+.note{background:var(--pu-s);color:var(--pu);border-radius:14px;padding:12px 14px;font-size:13px;line-height:1.45}
+.dots{display:flex;gap:5px}
+.dots span{width:22px;height:22px;border-radius:7px;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center}
+
+h3.kind{margin:18px 0 10px;font-size:14px;color:var(--mut);text-transform:uppercase;letter-spacing:.6px}
+h3.kind:first-of-type{margin-top:4px}
+.mixtag{display:block;font-size:12px;font-weight:500;color:var(--mut);margin-top:1px}
+table.t tr.grp td{background:var(--or-s);font-size:12px;font-weight:800;color:var(--or-d);text-transform:uppercase;letter-spacing:.5px;padding:6px 8px}
+table.t tr.sub td{font-weight:700;color:var(--mut);background:#FFFBF5}
+h4.kindsm{margin:14px 0 2px;font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--or-d)}
+h4.kindsm:first-of-type{margin-top:0}
+.manual{max-width:860px}
+.manual .toc{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px}
+.manual .toc a{display:block;padding:9px 12px;border-radius:10px;background:var(--or-s);color:var(--ink);font-weight:600;text-decoration:none;font-size:14px}
+.manual h3{font-size:19px;margin:26px 0 8px;padding-top:10px;border-top:1px solid var(--line)}
+.manual h3:first-child{margin-top:0;border-top:0;padding-top:0}
+.manual h4{font-size:16px;margin:18px 0 6px}
+.manual p,.manual li{line-height:1.55}
+.manual ul,.manual ol{padding-left:22px}
+.manual .note{margin:10px 0}
+/* sell */
+.sell{display:grid;grid-template-columns:1fr 360px;gap:16px;align-items:start}
+@media (max-width:1100px){.sell{grid-template-columns:1fr}}
+.fcard{background:#fff;border:1px solid var(--line);border-radius:18px;padding:12px;box-shadow:var(--sh)}
+.fcard .hd{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.fcard .hd b{flex:1}
+.sizes{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.sz{border:1px solid var(--line);border-radius:12px;background:var(--page);padding:7px 2px;text-align:center;min-height:56px}
+.sz b{display:block;font-size:13px}
+.sz small{display:block;font-size:11px;color:var(--mut)}
+.sz:hover{border-color:var(--or)}
+.sz:disabled{opacity:.4;cursor:not-allowed}
+.sz .q{font-size:10px;font-weight:700;color:var(--gr-d)}
+.cart{position:sticky;top:20px}
+.qty{display:flex;align-items:center;gap:6px}
+.qty button{width:34px;height:34px;border-radius:10px;border:1px solid var(--line);background:#fff;font-weight:800;font-size:18px;line-height:1}
+.cbar{display:none}
+@media (max-width:1100px){
+  .cart{display:none}
+  .cbar{display:flex;position:fixed;left:14px;right:14px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:32;background:var(--ink);color:#fff;border-radius:16px;padding:12px 14px;align-items:center;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.25);border:0;text-align:left}
+}
+@media (min-width:900px) and (max-width:1100px){.cbar{bottom:20px;left:276px}}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px}
+.seg button{border:1px solid var(--line);background:#fff;border-radius:12px;padding:10px 4px;font-weight:700;font-size:13px;min-height:44px}
+.seg button.on{background:var(--or-s);border-color:var(--or);color:var(--or-d)}
+
+/* forms + sheets */
+label.f{display:block;margin-bottom:12px}
+label.f span{display:block;font-size:13px;font-weight:700;color:var(--mut);margin-bottom:5px}
+input.in,select.in,textarea.in{width:100%;border:1px solid var(--line);background:#fff;border-radius:12px;padding:10px 12px;font-size:16px;min-height:46px}
+input.in:focus,select.in:focus,textarea.in:focus{outline:2px solid var(--or-l);border-color:var(--or)}
+.ov{position:fixed;inset:0;z-index:60;background:rgba(45,25,5,.45);display:flex;align-items:flex-end;justify-content:center;animation:fade .15s}
+.sheet{background:#fff;width:100%;max-width:580px;max-height:92dvh;overflow:auto;border-radius:24px 24px 0 0;padding:18px 18px calc(20px + env(safe-area-inset-bottom));animation:up .2s ease-out}
+.sheet .sh{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.sheet .sh h2{margin:0;font-size:19px;flex:1}
+.x{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:#fff;display:flex;align-items:center;justify-content:center}
+@media (min-width:900px){.ov{align-items:center}.sheet{border-radius:22px}}
+@keyframes up{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+@keyframes fade{from{opacity:0}}
+.toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:90;background:var(--ink);color:#fff;padding:11px 16px;border-radius:14px;font-weight:600;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);max-width:90vw;text-align:center}
+@media (min-width:900px){.toast{bottom:30px}}
+.steps{display:flex;gap:4px;margin:6px 0 14px}
+.steps div{flex:1;text-align:center;font-size:11px;font-weight:700;color:var(--faint)}
+.steps div i{display:block;height:6px;border-radius:9px;background:#F1E6D6;margin-bottom:5px}
+.steps div.done{color:var(--gr-d)} .steps div.done i{background:var(--gr)}
+.steps div.now{color:var(--or-d)} .steps div.now i{background:var(--or)}
+.check{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line);font-size:14px}
+.check input{width:22px;height:22px;accent-color:var(--gr)}
+.more{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.more button{border:1px solid var(--line);background:#fff;border-radius:16px;padding:16px 12px;display:flex;flex-direction:column;align-items:flex-start;gap:8px;font-weight:700;text-align:left;min-height:90px;box-shadow:var(--sh)}
+.more button small{font-weight:500;color:var(--mut);font-size:12px}
+
+/* lock */
+.lock{position:fixed;inset:0;z-index:100;background:var(--page);display:flex}
+.lock .ph{flex:1;background:url(assets/juice-photo.jpg) center/cover;display:none}
+@media (min-width:900px){.lock .ph{display:block}}
+.lock .pane{width:100%;max-width:460px;margin:auto;padding:24px;text-align:center}
+.lock img.lg{width:260px;max-width:80%;mix-blend-mode:multiply}
+.pin{display:flex;gap:12px;justify-content:center;margin:20px 0 22px}
+.pin i{width:15px;height:15px;border-radius:50%;border:2px solid var(--or)}
+.pin i.f{background:var(--or)}
+.pad{display:grid;grid-template-columns:repeat(3,76px);gap:14px;justify-content:center}
+.pad button{width:76px;height:76px;border-radius:50%;border:1px solid var(--line);background:#fff;font-size:26px;font-weight:600;box-shadow:var(--sh)}
+.pad button:active{background:var(--or-s)}
+</style>
+</head>
+<body>
+<div class="proto">PROTOTYPE · sample figures · nothing is saved</div>
+<div id="lock" class="lock"></div>
+<div class="app">
+  <aside class="side" id="side"></aside>
+  <main class="main">
+    <div class="ptop"><img src="assets/mark.jpg" alt=""><b id="ptitle">Home</b><select class="role" id="role2" onchange="setRole(this.value)"></select></div>
+    <div class="top"><h1 id="title">Home</h1><select class="role" id="role1" onchange="setRole(this.value)"></select><button class="btn pri" onclick="quickMenu()"><svg class="i"><use href="#plus"/></svg>New</button></div>
+    <div id="page"></div>
+  </main>
+</div>
+<nav class="tabs" id="tabs"></nav>
+<button class="fab" onclick="quickMenu()" aria-label="New"><svg class="i"><use href="#plus"/></svg></button>
+<div id="layer"></div>
+
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="home" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a2 2 0 0 1-2 2h-4v-7h-6v7H5a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="cart" viewBox="0 0 24 24"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2 2h3l2.7 12.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></symbol>
+  <symbol id="truck" viewBox="0 0 24 24"><path d="M10 17h4V5H2v12h3"/><path d="M14 8h4l4 4v5h-3"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="16.5" cy="17.5" r="2.5"/></symbol>
+  <symbol id="make" viewBox="0 0 24 24"><path d="M6 8h12l-1.6 13H7.6z"/><path d="M14 8l2-6 3 1"/><path d="M6.6 13h10.8"/></symbol>
+  <symbol id="book" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V2H6.5A2.5 2.5 0 0 0 4 4.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></symbol>
+  <symbol id="box" viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5 9 5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></symbol>
+  <symbol id="basket" viewBox="0 0 24 24"><path d="M3 10h18l-2 10H5z"/><path d="M8 10l4-7 4 7"/><path d="M9 14v3M15 14v3"/></symbol>
+  <symbol id="users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0"/><path d="M16 4a4 4 0 0 1 0 8"/><path d="M22 21a7 7 0 0 0-4-6.3"/></symbol>
+  <symbol id="receipt" viewBox="0 0 24 24"><path d="M5 2h14v20l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M9 7h6M9 11h6M9 15h4"/></symbol>
+  <symbol id="staff" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="11" r="2.5"/><path d="M5.5 17a3.5 3.5 0 0 1 7 0"/><path d="M15 10h3M15 14h3"/></symbol>
+  <symbol id="chart" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M8 17v-6M13 17V7M18 17v-4"/></symbol>
+  <symbol id="gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+  <symbol id="grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+  <symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+  <symbol id="x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="alert" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></symbol>
+  <symbol id="check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  <symbol id="thermo" viewBox="0 0 24 24"><path d="M14 14.8V4a2 2 0 0 0-4 0v10.8a4 4 0 1 0 4 0z"/></symbol>
+  <symbol id="down" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
+  <symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="padlock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+  <symbol id="drop" viewBox="0 0 24 24"><path d="M12 2.7 5.6 9.1a8 8 0 1 0 12.8 0z"/></symbol>
+  <symbol id="share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></symbol>
+  <symbol id="cal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol>
+  <symbol id="cash" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/></symbol>
+  <symbol id="phone" viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></symbol>
+  <symbol id="bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></symbol>
+  <symbol id="help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></symbol>
+  <symbol id="leaf" viewBox="0 0 24 24"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.5 19 2c1 2 2 4.2 2 8 0 5.5-4.8 10-10 10Z"/><path d="M2 21c0-3 1.9-5.4 5.1-6"/></symbol>
+</svg>
+
+<script>
+/* ============ sample data (for the look only) ============ */
+const TODAY = 'Thursday 12 November 2026';
+const TODAY_YMD = '2026-11-12';
+let REMINDERS = [
+  {id:1, when:'2026-11-12T16:00', what:'Buy 10 kg of passion fruit for the Kato Supermarket order', who:'Vanny', src:'Stock', how:['app','calendar']},
+  {id:2, when:'2026-11-12T17:30', what:'Pack 60 × Tropical Sunrise 300 ml for Kampala Parents\' School', who:'Joan', src:'VJ-0230', how:['app']},
+  {id:3, when:'2026-11-13T06:00', what:'Make 20 × Mango 500 ml and 20 × Passion fruit 500 ml for Kato Supermarket', who:'Brian', src:'VJ-0231', how:['app','whatsapp']},
+  {id:4, when:'2026-11-13T09:00', what:'Deliver VJ-0230 to Kampala Parents\' School, Naguru (collect UGX 60,000)', who:'Musa', src:'VJ-0230', how:['app','whatsapp']},
+  {id:5, when:'2026-11-13T14:00', what:'Make 3 × Mango Passion, 3 × Tropical Sunrise and 2 × Watermelon Mint Cooler (5 litre) for the Grace Events wedding', who:'Brian', src:'VJ-0229', how:['app','calendar']},
+  {id:6, when:'2026-11-14T07:00', what:'Deliver the wedding juice to Grace Events, Bukoto, and collect the balance', who:'Musa', src:'VJ-0229', how:['app','calendar','whatsapp']},
+  {id:7, when:'2026-11-14T17:00', what:'Pay this week\'s wages', who:'Vanny', src:'Staff', how:['calendar']},
+  {id:8, when:'2026-11-13T07:30', what:'Read and record both fridge temperatures', who:'Joan', src:'Every day', repeat:'daily', how:['app']},
+  {id:9, when:'2026-11-16T08:00', what:'Back up all records', who:'Vanny', src:'Every Monday', repeat:'weekly', how:['calendar']},
+];
+const ROLE_PERSON = {owner:null, production:'Brian', sales:'Joan', rider:'Musa'};
+const myReminders = () => REMINDERS.filter(r => !ROLE_PERSON[state.role] || r.who === ROLE_PERSON[state.role]);
+const HOW = {app:'Phone notification', calendar:'Phone calendar', whatsapp:'WhatsApp'};
+const F = [
+  {id:'mango',    kind:'single',  name:'Mango',                  icon:'🥭', c:'#FFA41B'},
+  {id:'passion',  kind:'single',  name:'Passion fruit',          icon:'🟣', c:'#8E3FA0'},
+  {id:'pine',     kind:'single',  name:'Pineapple',              icon:'🍍', c:'#E9B800'},
+  {id:'water',    kind:'single',  name:'Watermelon',             icon:'🍉', c:'#E8445A'},
+  {id:'orange',   kind:'single',  name:'Orange',                 icon:'🍊', c:'#F7811E', premium:true},
+  {id:'cocktail', kind:'cocktail',name:'Tropical Sunrise',       icon:'🍹', c:'#3BA935', mix:['#FFA41B','#E9B800','#8E3FA0'], tag:'Mango, pineapple, passion'},
+  {id:'mangopass',kind:'cocktail',name:'Mango Passion',          icon:'🥭', c:'#C2571A', mix:['#FFA41B','#8E3FA0'], tag:'Mango, passion fruit'},
+  {id:'zing',     kind:'cocktail',name:'Pineapple Ginger Zing',  icon:'🍍', c:'#B58A00', mix:['#E9B800','#C9A27A'], tag:'Pineapple, ginger, lemon'},
+  {id:'cooler',   kind:'cocktail',name:'Watermelon Mint Cooler', icon:'🍉', c:'#D33A55', mix:['#E8445A','#3BA935'], tag:'Watermelon, mint, lemon'},
+  {id:'glow',     kind:'cocktail',name:'Orange Carrot Glow',     icon:'🥕', c:'#E86A10', mix:['#F7811E','#FF8C42'], tag:'Orange, carrot', premium:true},
+  {id:'beet',     kind:'cocktail',name:'Beetroot Power',         icon:'🔴', c:'#A3203F', mix:['#A3203F','#E9B800'], tag:'Beetroot, pineapple, ginger'},
+  {id:'green',    kind:'cocktail',name:'Green Fresh',            icon:'🥒', c:'#2F8F3A', mix:['#3BA935','#E9B800'], tag:'Cucumber, pineapple, mint, lemon'},
+];
+const KINDS = [['single','Single fruit'],['cocktail','Juice cocktails']];
+const fl = id => F.find(f => f.id === id);
+const SIZES = [{id:300,label:'300 ml',l:.3},{id:500,label:'500 ml',l:.5},{id:1000,label:'1 litre',l:1},{id:5000,label:'5 litre',l:5}];
+const sz = id => SIZES.find(s => s.id == id);
+const BASE = {300:2000,500:3000,1000:5500,5000:25000};
+const PREMIUM = {300:500,500:1000,1000:1500,5000:5000};
+const price = (fid,s) => BASE[s] + (fl(fid).premium ? PREMIUM[s] : 0);
+const PACK = {300:300,500:400,1000:650,5000:2500}; // bottle + cap + label
+const BOTTLE_ITEM = {300:'Bottles 300 ml',500:'Bottles 500 ml',1000:'Bottles 1 litre',5000:'Jerrycans 5 litre'};
+
+const ING = [
+  {name:'Mangoes',unit:'kg',qty:38,re:30,cost:2000},
+  {name:'Passion fruit',unit:'kg',qty:4,re:15,cost:6000},
+  {name:'Pineapples',unit:'pcs',qty:22,re:15,cost:3000},
+  {name:'Watermelons',unit:'pcs',qty:6,re:5,cost:7000},
+  {name:'Oranges',unit:'kg',qty:25,re:20,cost:3500},
+  {name:'Ginger',unit:'kg',qty:2.5,re:1,cost:8000},
+  {name:'Lemons',unit:'kg',qty:3,re:2,cost:5000},
+  {name:'Mint',unit:'bunches',qty:6,re:4,cost:1000},
+  {name:'Carrots',unit:'kg',qty:9,re:8,cost:2500},
+  {name:'Beetroot',unit:'kg',qty:5,re:4,cost:3000},
+  {name:'Cucumbers',unit:'kg',qty:3,re:6,cost:2000},
+  {name:'Sugar',unit:'kg',qty:18,re:10,cost:4800},
+];
+const PKG = [
+  {name:'Bottles 300 ml',unit:'pcs',qty:420,re:300,cost:220},
+  {name:'Bottles 500 ml',unit:'pcs',qty:160,re:300,cost:300},
+  {name:'Bottles 1 litre',unit:'pcs',qty:90,re:100,cost:520},
+  {name:'Jerrycans 5 litre',unit:'pcs',qty:12,re:6,cost:2300},
+  {name:'Caps',unit:'pcs',qty:1400,re:500,cost:30},
+  {name:'Labels (stickers)',unit:'pcs',qty:900,re:500,cost:50},
+  {name:'Straws',unit:'pcs',qty:600,re:300,cost:20},
+  {name:'Cups with lids',unit:'pcs',qty:250,re:200,cost:180},
+];
+const RECIPES = {
+  mango:   {y:10, water:4, ing:[['Mangoes',12],['Sugar',1]], bb:3},
+  passion: {y:10, water:7, ing:[['Passion fruit',4],['Sugar',1.5]], bb:3},
+  pine:    {y:10, water:3, ing:[['Pineapples',8],['Sugar',.8]], bb:3},
+  water:   {y:10, water:0, ing:[['Watermelons',4],['Lemons',.3]], bb:2},
+  orange:  {y:10, water:0, ing:[['Oranges',16]], bb:3},
+  cocktail:{y:10, water:3, ing:[['Mangoes',4],['Pineapples',3],['Passion fruit',2],['Sugar',1]], bb:3},
+  mangopass:{y:10, water:4, ing:[['Mangoes',8],['Passion fruit',2],['Sugar',1]], bb:3},
+  zing:    {y:10, water:3, ing:[['Pineapples',7],['Ginger',.5],['Lemons',.3],['Sugar',.8]], bb:3},
+  cooler:  {y:10, water:0, ing:[['Watermelons',4],['Mint',2],['Lemons',.3]], bb:2},
+  glow:    {y:10, water:0, ing:[['Oranges',10],['Carrots',4]], bb:2},
+  beet:    {y:10, water:3, ing:[['Beetroot',3],['Pineapples',4],['Ginger',.3],['Sugar',.5]], bb:3},
+  green:   {y:10, water:2, ing:[['Cucumbers',4],['Pineapples',4],['Lemons',.4],['Mint',1]], bb:2},
+};
+const ingCost = n => ING.find(i => i.name === n).cost;
+const costPerL = fid => RECIPES[fid].ing.reduce((s,[n,q]) => s + q*ingCost(n), 0) / RECIPES[fid].y;
+const costBottle = (fid,s) => costPerL(fid)*sz(s).l + PACK[s];
+
+let BATCHES = [
+  {no:'B-0144',fid:'mangopass',date:'12/11/2026',status:'In the fridge',by:'Brian',filled:{300:16,500:12},left:{300:12,500:10},waste:.2, bb:'15/11',days:3},
+  {no:'B-0143',fid:'passion', date:'12/11/2026',status:'Making',  by:'Aisha',filled:{},                         left:{},                               waste:0,  bb:'15/11',days:3, plan:10},
+  {no:'B-0142',fid:'mango',   date:'12/11/2026',status:'In the fridge',by:'Brian',filled:{300:20,500:20,1000:4},left:{300:14,500:16,1000:4},       waste:.4, bb:'15/11',days:3},
+  {no:'B-0141',fid:'cocktail',date:'11/11/2026',status:'In the fridge',by:'Aisha',filled:{300:20,500:12,1000:2,5000:1},left:{300:12,500:6,1000:2,5000:1},waste:.3,bb:'14/11',days:2},
+  {no:'B-0140',fid:'zing',    date:'11/11/2026',status:'In the fridge',by:'Brian',filled:{300:10,500:10,1000:2},left:{300:8,500:9,1000:1},         waste:.2, bb:'14/11',days:2},
+  {no:'B-0139',fid:'water',   date:'10/11/2026',status:'In the fridge',by:'Aisha',filled:{300:10,500:10},       left:{300:6,500:8},                waste:.5, bb:'13/11',days:1},
+  {no:'B-0138',fid:'orange',  date:'10/11/2026',status:'In the fridge',by:'Brian',filled:{300:10,500:6},        left:{300:4,500:3},                waste:.2, bb:'13/11',days:1},
+  {no:'B-0137',fid:'passion', date:'09/11/2026',status:'Sold out',by:'Aisha',filled:{300:20,500:16,1000:2},     left:{},                           waste:.3, bb:'12/11',days:0},
+  {no:'B-0136',fid:'cooler',  date:'09/11/2026',status:'Sold out',by:'Brian',filled:{300:20,500:16},     left:{},                           waste:.4, bb:'12/11',days:0},
+  {no:'B-0135',fid:'water',   date:'08/11/2026',status:'6 spoiled',by:'Aisha',filled:{300:10,500:10},           left:{},                           waste:.6, bb:'10/11',days:0, spoiled:6},
+];
+const litres = b => Object.entries(b.filled).reduce((s,[k,n]) => s + sz(k).l*n, 0);
+const fridge = (fid,s) => BATCHES.filter(b => b.fid===fid && b.status==='In the fridge').reduce((t,b) => t + (b.left[s]||0), 0);
+const fridgeAll = fid => SIZES.reduce((t,s) => t + fridge(fid,s.id), 0);
+const dueSoon = () => BATCHES.filter(b => b.status==='In the fridge' && b.days<=1);
+const bLeft = b => Object.values(b.left).reduce((t,n) => t + n, 0);
+
+let SALES = [
+  {t:'07:40',cust:'Walk-in',lines:[['mango',500,2]],m:'Cash'},
+  {t:'08:05',cust:'Walk-in',lines:[['cocktail',300,3]],m:'MTN MoMo'},
+  {t:'08:30',cust:'Mama Sarah\'s Canteen',lines:[['mango',300,10],['pine',300,6]],m:'Cash'},
+  {t:'09:12',cust:'Walk-in',lines:[['water',500,2],['orange',300,1]],m:'Airtel Money'},
+  {t:'10:20',cust:'Nakawa Fresh Mart',lines:[['mango',500,12],['cocktail',500,6],['zing',500,6]],m:'MTN MoMo'},
+  {t:'11:45',cust:'Walk-in',lines:[['mango',1000,1]],m:'Cash'},
+  {t:'12:30',cust:'Walk-in',lines:[['cocktail',300,4],['water',300,2]],m:'Cash'},
+  {t:'13:15',cust:'Walk-in',lines:[['orange',500,2]],m:'MTN MoMo'},
+  {t:'14:05',cust:'Walk-in',lines:[['zing',500,1],['mango',500,3]],m:'Cash'},
+  {t:'14:40',cust:'Walk-in',lines:[['mangopass',300,4],['mangopass',500,2]],m:'MTN MoMo'},
+];
+const lineAmt = l => price(l[0],l[1])*l[2];
+const saleAmt = s => s.lines.reduce((t,l) => t + lineAmt(l), 0);
+const saleBottles = s => s.lines.reduce((t,l) => t + l[2], 0);
+
+const CUSTOMERS = [
+  {name:'Kato Supermarket',type:'Shop',area:'Ntinda',phone:'0700 000 101',empties:36},
+  {name:'Kampala Parents\' School',type:'School',area:'Naguru',phone:'0700 000 102',empties:0},
+  {name:'Grace Events',type:'Events',area:'Bukoto',phone:'0700 000 103',empties:0},
+  {name:'Bright Offices Ltd',type:'Office',area:'Kololo',phone:'0700 000 104',empties:12},
+  {name:'Nakawa Fresh Mart',type:'Shop',area:'Nakawa',phone:'0700 000 105',empties:18},
+  {name:'Mama Sarah\'s Canteen',type:'Canteen',area:'Kyambogo',phone:'0700 000 106',empties:8},
+];
+let ORDERS = [
+  {no:'VJ-0231',cust:'Kato Supermarket',lines:[['mango',500,20],['passion',500,20]],due:'Fri 13/11',status:'To make',paid:0,fee:0,rider:'Musa'},
+  {no:'VJ-0230',cust:'Kampala Parents\' School',lines:[['cocktail',300,60]],due:'Fri 13/11',status:'Ready',paid:60000,fee:0,rider:'Musa'},
+  {no:'VJ-0229',cust:'Grace Events',lines:[['mangopass',5000,3],['cocktail',5000,3],['cooler',5000,2]],due:'Sat 14/11 (wedding)',status:'To make',paid:100000,fee:10000,rider:'Musa'},
+  {no:'VJ-0228',cust:'Bright Offices Ltd',lines:[['zing',500,12],['mango',500,12]],due:'Today 12/11',status:'Out for delivery',paid:0,fee:5000,rider:'Musa'},
+  {no:'VJ-0227',cust:'Nakawa Fresh Mart',lines:[['mango',500,24],['orange',500,12]],due:'Wed 11/11',status:'Delivered',paid:120000,fee:0,rider:'Musa'},
+  {no:'VJ-0226',cust:'Kato Supermarket',lines:[['water',500,20],['mango',300,30]],due:'Sun 08/11',status:'Delivered',paid:50000,fee:0,rider:'Musa'},
+  {no:'VJ-0225',cust:'Mama Sarah\'s Canteen',lines:[['passion',300,40]],due:'Sat 07/11',status:'Delivered',paid:80000,fee:0,rider:'Musa'},
+];
+const orderVal = o => o.lines.reduce((t,l) => t + lineAmt(l), 0) + o.fee;
+const orderBal = o => o.status==='Cancelled' ? 0 : Math.max(0, orderVal(o) - o.paid);
+const custBal = name => ORDERS.filter(o => o.cust===name).reduce((t,o) => t + orderBal(o), 0);
+
+const PURCHASES = [
+  {date:'12/11',sup:'Mama Rose (Owino)',item:'Mangoes',qty:40,unit:'kg',price:2000,paid:80000,q:'Good'},
+  {date:'11/11',sup:'Ssekandi (Kayunga farm)',item:'Pineapples',qty:30,unit:'pcs',price:3000,paid:60000,q:'Good'},
+  {date:'10/11',sup:'Kampala Packaging Ltd',item:'Bottles 500 ml',qty:500,unit:'pcs',price:300,paid:0,q:'Good'},
+  {date:'10/11',sup:'Kampala Packaging Ltd',item:'Labels (stickers)',qty:1000,unit:'pcs',price:50,paid:0,q:'Good'},
+  {date:'10/11',sup:'Mama Rose (Owino)',item:'Watermelons',qty:8,unit:'pcs',price:7000,paid:56000,q:'Fair'},
+  {date:'09/11',sup:'Joseph (Kalerwe)',item:'Passion fruit',qty:15,unit:'kg',price:6000,paid:90000,q:'Good'},
+  {date:'08/11',sup:'Nakasero market',item:'Oranges',qty:20,unit:'kg',price:3500,paid:70000,q:'Good'},
+  {date:'08/11',sup:'Kikuubo wholesale',item:'Sugar',qty:25,unit:'kg',price:4800,paid:120000,q:'Good'},
+];
+const SUPPLIERS = [
+  {name:'Mama Rose (Owino)',what:'Mangoes, watermelons',phone:'0700 000 201'},
+  {name:'Joseph (Kalerwe)',what:'Passion fruit',phone:'0700 000 202'},
+  {name:'Ssekandi (Kayunga farm)',what:'Pineapples',phone:'0700 000 203'},
+  {name:'Kampala Packaging Ltd',what:'Bottles, caps, labels',phone:'0700 000 204'},
+  {name:'Nakasero market',what:'Oranges, lemons, ginger',phone:'-'},
+  {name:'Kikuubo wholesale',what:'Sugar',phone:'-'},
+];
+const supOwed = n => PURCHASES.filter(p => p.sup===n).reduce((t,p) => t + p.qty*p.price - p.paid, 0);
+
+const EXPENSES = [
+  {date:'01/11',cat:'Rent',what:'Shop and kitchen, November',amt:600000},
+  {date:'03/11',cat:'Power and water',what:'Yaka electricity',amt:120000},
+  {date:'05/11',cat:'Gas and fuel',what:'Gas refill (washing water)',amt:95000},
+  {date:'06/11',cat:'Power and water',what:'NWSC water bill',amt:45000},
+  {date:'08/11',cat:'Transport',what:'Boda fuel, deliveries',amt:30000},
+  {date:'10/11',cat:'Market and licences',what:'Market dues',amt:20000},
+  {date:'10/11',cat:'Cleaning',what:'Sanitiser, soap, gloves, hairnets',amt:38000},
+  {date:'11/11',cat:'Repairs',what:'Fridge 2 gas top-up',amt:85000},
+  {date:'12/11',cat:'Transport',what:'Boda fuel, deliveries',amt:30000},
+];
+const STAFF = [
+  {name:'Vanny',role:'Owner',pay:'-',rate:0,kind:'',att:[1,1,1,1,null,null],adv:0},
+  {name:'Brian',role:'Production lead',pay:'UGX 450,000 a month',rate:0,kind:'month',att:[1,1,1,1,null,null],adv:0},
+  {name:'Aisha',role:'Juice maker',pay:'UGX 15,000 a day',rate:15000,kind:'day',att:[1,1,0,1,null,null],adv:20000},
+  {name:'Musa',role:'Delivery rider',pay:'UGX 20,000 a day',rate:20000,kind:'day',att:[1,1,1,1,null,null],adv:0},
+  {name:'Joan',role:'Sales attendant',pay:'UGX 350,000 a month',rate:0,kind:'month',att:[1,1,1,1,null,null],adv:30000},
+];
+const WEEK = [{d:'Fri',v:520000},{d:'Sat',v:780000},{d:'Sun',v:610000},{d:'Mon',v:430000},{d:'Tue',v:465000},{d:'Wed',v:498000}];
+const MONTH_SOLD = {mango:{300:270,500:390,1000:60,5000:9},passion:{300:225,500:285,1000:30,5000:3},pine:{300:70,500:90,1000:10},water:{300:120,500:165},orange:{300:60,500:90,1000:12},cocktail:{300:240,500:210,1000:30,5000:8},mangopass:{300:150,500:170,1000:16,5000:3},zing:{300:80,500:100,1000:12},cooler:{300:70,500:90,5000:2},glow:{300:40,500:55},beet:{300:30,500:40},green:{300:35,500:45}};
+const MANGO_PRICE = [1700,1800,1800,2200,2400,2100,1900,2000];
+
+/* who sees what */
+const ROLES = {
+  owner:{label:'Vanny (Owner)',pages:'all'},
+  production:{label:'Brian (Production)',pages:['home','make','recipes','stock','buying']},
+  sales:{label:'Joan (Sales)',pages:['home','sell','orders','customers','stock']},
+  rider:{label:'Musa (Rider)',pages:['home','orders']},
+};
+const NAV = [
+  {g:'Daily work',items:[
+    {id:'home',label:'Home',icon:'home'},
+    {id:'sell',label:'Sell',icon:'cart'},
+    {id:'orders',label:'Orders and deliveries',short:'Orders',icon:'truck'},
+    {id:'reminders',label:'Reminders',icon:'bell'}]},
+  {g:'Making juice',items:[
+    {id:'make',label:'Production',short:'Make',icon:'make'},
+    {id:'recipes',label:'Recipes and prices',icon:'book'},
+    {id:'stock',label:'Stock',icon:'box'},
+    {id:'buying',label:'Buying and suppliers',icon:'basket'}]},
+  {g:'The business',items:[
+    {id:'customers',label:'Customers',icon:'users'},
+    {id:'expenses',label:'Expenses',icon:'receipt'},
+    {id:'staff',label:'Staff and wages',icon:'staff'},
+    {id:'reports',label:'Reports',icon:'chart'},
+    {id:'settings',label:'Settings',icon:'gear'},
+    {id:'help',label:'Help (user manual)',short:'Help',icon:'help'}]},
+];
+const ALL = NAV.flatMap(g => g.items);
+
+/* ============ helpers ============ */
+const $ = s => document.querySelector(s);
+const n0 = n => Math.round(n).toLocaleString('en-US');
+const ugx = n => 'UGX ' + n0(n);
+const ic = (id,cls='') => `<svg class="i ${cls}"><use href="#${id}"/></svg>`;
+const flb = (fid,size=40) => { const f = fl(fid); const bg = f.mix ? `linear-gradient(135deg,${f.mix.map((c,i)=>`${c}40 ${Math.round(i/f.mix.length*100)}%,${c}40 ${Math.round((i+1)/f.mix.length*100)}%`).join(',')})` : f.c+'22';
+  return `<div class="fl" style="background:${bg};width:${size}px;height:${size}px">${f.icon}</div>`; };
+const kindHead = (k,l) => `<h3 class="kind">${k==='cocktail'?'🍹':'🍊'} ${l}</h3>`;
+const lineTxt = l => `${l[2]} × ${fl(l[0]).name} ${sz(l[1]).label}`;
+const sum = (a,f) => a.reduce((t,x) => t + f(x), 0);
+const pct = (a,b) => b ? Math.round(a/b*100) : 0;
+const marginBd = m => `<span class="bd ${m>=30?'ok':m>=20?'warn':'bad'}">${m}%</span>`;
+const state = {role:'owner', page:'home', cart:{}, pay:'Cash', ordFilter:'All', stockTab:'juice', custFilter:'All', recKind:'all', period:'This month', nb:{fid:'mango'}};
+
+function allowed(id){ const p = ROLES[state.role].pages; return id==='reminders' || id==='help' || p==='all' || p.includes(id); }
+function go(id){ location.hash = id; }
+function toast(msg){ const t = document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2600); }
+function proto(msg){ closeSheet(); toast(msg || 'Prototype: this will be saved once the real app is built'); }
+function sheet(title, body){
+  $('#layer').innerHTML = `<div class="ov" onclick="if(event.target===this)closeSheet()"><div class="sheet"><div class="sh"><h2>${title}</h2><button class="x" onclick="closeSheet()" aria-label="Close">${ic('x')}</button></div>${body}</div></div>`;
+}
+function closeSheet(){ $('#layer').innerHTML=''; }
+function setRole(r){ state.role = r; if(!allowed(state.page)) go('home'); else render(); }
+
+function bars(data, color='#F7931E', h=150){
+  const max = Math.max(...data.map(d => d.v)) * 1.15, w = 100/data.length;
+  return `<svg viewBox="0 0 350 ${h+24}" style="width:100%;height:auto">${data.map((d,i) => {
+    const bh = d.v/max*h, x = i*350/data.length + 8, bw = 350/data.length - 16;
+    return `<rect x="${x}" y="${h-bh}" width="${bw}" height="${bh}" rx="7" fill="${d.today?'#3BA935':color}" opacity="${d.today?1:.85}"/>
+    <text x="${x+bw/2}" y="${h-bh-5}" font-size="10" text-anchor="middle" fill="#8C7660" font-weight="700">${Math.round(d.v/1000)}k</text>
+    <text x="${x+bw/2}" y="${h+16}" font-size="11" text-anchor="middle" fill="#8C7660" font-weight="600">${d.d}</text>`; }).join('')}</svg>`;
+}
+function line(vals, labels){
+  const max = Math.max(...vals)*1.1, min = Math.min(...vals)*.85, W=330, H=110;
+  const pts = vals.map((v,i) => [10 + i*(W-20)/(vals.length-1), H - (v-min)/(max-min)*H + 6]);
+  return `<svg viewBox="0 0 ${W} ${H+28}" style="width:100%;height:auto">
+    <polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="#F7931E" stroke-width="3" stroke-linejoin="round"/>
+    ${pts.map((p,i)=>`<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="#fff" stroke="#F7931E" stroke-width="2.5"/><text x="${p[0]}" y="${H+24}" font-size="9" text-anchor="middle" fill="#8C7660">${labels[i]}</text>`).join('')}
+  </svg>`;
+}
+
+/* ============ pages ============ */
+const PAGES = {};
+
+PAGES.home = () => {
+  const soldToday = sum(SALES, saleAmt), bottlesToday = sum(SALES, saleBottles);
+  const cash = sum(SALES.filter(s=>s.m==='Cash'), saleAmt);
+  const owed = sum(CUSTOMERS, c => custBal(c.name));
+  const madeToday = sum(BATCHES.filter(b=>b.date==='12/11/2026'), litres);
+  const week = [...WEEK, {d:'Today', v:soldToday, today:true}];
+  const best = F.map(f => ({f, n: sum(SALES, s => sum(s.lines.filter(l=>l[0]===f.id), l=>l[2]))})).sort((a,b)=>b.n-a.n);
+  const owner = state.role==='owner';
+  const remToday = myReminders().filter(r => !r.done && r.when.slice(0,10) <= TODAY_YMD);
+  const alerts = [
+    ...(remToday.length ? [{c:'pur', i:'bell', t:`${remToday.length} reminder${remToday.length>1?'s':''} for today`, s:remToday.map(r=>`${r.when.slice(11)} ${r.what}`).join(' · '), a:`<button class="btn sm" onclick="go('reminders')">Open</button>`}] : []),
+    {c:'bad', i:'leaf', t:'Passion fruit is low: 4 kg left', s:'Tomorrow\'s orders need about 10 kg (VJ-0231, 20 × 500 ml)', a:`<button class="btn sm" onclick="newPurchase('Passion fruit')">Buy</button>`},
+    {c:'warn', i:'drop', t:`${sum(dueSoon(),bLeft)} bottles reach their best-before tomorrow`, s:dueSoon().map(b=>`${fl(b.fid).name} ${b.no} (${bLeft(b)})`).join(' and ')+'. Sell these first.', a:`<button class="btn sm" onclick="go('stock')">See</button>`},
+    {c:'warn', i:'box', t:'500 ml bottles: 160 left', s:'Below your reorder level of 300', a:`<button class="btn sm" onclick="newPurchase('Bottles 500 ml')">Buy</button>`},
+    {c:'info', i:'truck', t:'2 orders due tomorrow, 1 not yet made', s:'VJ-0231 Kato Supermarket (40 × 500 ml)', a:`<button class="btn sm" onclick="go('make')">Plan</button>`},
+    {c:'bad', i:'thermo', t:'Fridge 2 read 7 °C this morning', s:'Keep juice at 0 to 5 °C. Fridge 1 is fine at 4 °C.', a:''},
+  ];
+  return `
+  <div class="hero"><div><h2>Good afternoon, ${ROLES[state.role].label.split(' ')[0]}</h2><p>${TODAY}</p>
+    ${owner ? `<div class="big">${ugx(soldToday)}</div><p>sold today · ${bottlesToday} bottles · ${SALES.length} sales</p>` : `<div class="big">${bottlesToday} bottles</div><p>sold today · ${SALES.length} sales</p>`}
+  </div><img src="assets/logo.jpg" alt="Vanny's Fresh Juice"></div>
+
+  <div class="grid g4 sec">
+    ${owner ? `<div class="tile"><div class="l">Money in today</div><div class="v">${ugx(soldToday)}</div><div class="s">Cash ${n0(cash)} · Mobile money ${n0(soldToday-cash)}</div></div>` : ''}
+    <div class="tile"><div class="l">Made today</div><div class="v">${madeToday} L</div><div class="s">${BATCHES.filter(b=>b.date==='12/11/2026').length} batches · ${BATCHES.filter(b=>b.status==='Making').length} still being made</div></div>
+    <div class="tile"><div class="l">Juice in the fridge</div><div class="v">${sum(F, f=>fridgeAll(f.id))} bottles</div><div class="s">${sum(dueSoon(),bLeft)} reach best-before tomorrow</div></div>
+    ${owner ? `<div class="tile"><div class="l">Customers owe you</div><div class="v red">${ugx(owed)}</div><div class="s">${CUSTOMERS.filter(c=>custBal(c.name)>0).length} customers</div></div>`
+            : `<div class="tile"><div class="l">Deliveries today</div><div class="v">1</div><div class="s">VJ-0228 is on the way</div></div>`}
+  </div>
+
+  <div class="grid g2 sec">
+    <div class="card"><h3>${ic('alert')} Needs attention <span class="r bd bad">${alerts.length}</span></h3>
+      ${alerts.map(a => `<div class="row"><div class="ic ${a.c}">${ic(a.i)}</div><div class="t"><b>${a.t}</b><small>${a.s}</small></div>${a.a}</div>`).join('')}
+    </div>
+    <div class="card"><h3>${ic('make')} Today's production plan <button class="r btn sm" onclick="go('make')">Open</button></h3>
+      <div class="row"><div>${flb('mango')}</div><div class="t"><b>Mango · 20 L</b><small>B-0142 · Brian · in the fridge</small></div><span class="bd ok">${ic('check')} Done</span></div>
+      <div class="row"><div>${flb('passion')}</div><div class="t"><b>Passion fruit · 10 L</b><small>B-0143 · Aisha · bottling now</small></div><span class="bd info">Making</span></div>
+      <div class="row"><div>${flb('cocktail')}</div><div class="t"><b>Tropical Sunrise · 15 L</b><small>For VJ-0230 top-up and the counter</small></div><span class="bd grey">To do</span></div>
+      <div class="row"><div>${flb('mango')}</div><div class="t"><b>Mango · 10 L</b><small>For VJ-0231 (Kato, tomorrow)</small></div><span class="bd grey">To do</span></div>
+    </div>
+  </div>
+
+  <div class="grid g2 sec">
+    ${owner ? `<div class="card"><h3>${ic('chart')} Sales this week</h3>${bars(week)}</div>` : ''}
+    <div class="card"><h3>${ic('cart')} Best sellers today</h3>
+      ${best.map(b => `<div class="row">${flb(b.f.id,34)}<div class="t"><b>${b.f.name}</b><div class="bar" style="margin-top:6px"><i style="width:${pct(b.n,best[0].n)}%;background:${b.f.c}"></i></div></div><div class="amt">${b.n}<small>bottles</small></div></div>`).join('')}
+    </div>
+  </div>`;
+};
+
+/* ---- SELL ---- */
+PAGES.sell = () => `
+  <div class="sell">
+    <div>
+      <div class="note" style="margin-bottom:12px">Tap a size to add it. Bottles come off the oldest batch first, so juice near its best-before goes out first.</div>
+      ${KINDS.map(([k,l]) => `${kindHead(k,l)}<div class="grid g2">
+      ${F.filter(f=>f.kind===k).map(f => `<div class="fcard"><div class="hd">${flb(f.id)}<b>${f.name}${f.premium?' <span class="bd pur">Premium</span>':''}${f.tag?`<small class="mixtag">${f.tag}</small>`:''}</b><span class="small muted">${fridgeAll(f.id)} in fridge</span></div>
+        <div class="sizes">${SIZES.map(s => { const q = fridge(f.id,s.id) - (state.cart[f.id+'|'+s.id]||0);
+          return `<button class="sz" ${q<=0?'disabled':''} onclick="addCart('${f.id}',${s.id})"><b>${s.label}</b><small>${n0(price(f.id,s.id))}</small><span class="q">${q>0?q+' left':'none'}</span></button>`; }).join('')}</div></div>`).join('')}
+      </div>`).join('')}
+    </div>
+    <div class="card cart" id="cart">${cartHtml()}</div>
+  </div>
+  ${cartCount() ? `<button class="cbar" onclick="checkout()"><span style="flex:1"><b>${cartCount()} bottles</b><br><span style="opacity:.8;font-size:13px">${ugx(cartTotal())}</span></span><span class="btn pri sm">Take payment</span></button>` : ''}`;
+
+const cartLines = () => Object.entries(state.cart).filter(([,q])=>q>0).map(([k,q]) => { const [fid,s] = k.split('|'); return [fid,+s,q]; });
+const cartTotal = () => sum(cartLines(), lineAmt);
+const cartCount = () => sum(cartLines(), l=>l[2]);
+function cartHtml(){
+  const ls = cartLines();
+  if(!ls.length) return `<h3>${ic('cart')} This sale</h3><p class="muted small">Nothing yet. Tap a flavour and size.</p>`;
+  return `<h3>${ic('cart')} This sale <button class="r btn sm" onclick="state.cart={};render()">Clear</button></h3>
+    ${ls.map(l => `<div class="row">${flb(l[0],34)}<div class="t"><b>${fl(l[0]).name}</b><small>${sz(l[1]).label} · ${n0(price(l[0],l[1]))}</small></div>
+      <div class="qty"><button onclick="addCart('${l[0]}',${l[1]},-1)">−</button><b>${l[2]}</b><button onclick="addCart('${l[0]}',${l[1]})">+</button></div></div>`).join('')}
+    <div class="row"><div class="t"><b>Total</b></div><div class="amt" style="font-size:20px">${ugx(cartTotal())}</div></div>
+    <button class="btn pri wide" onclick="checkout()">Take payment</button>`;
+}
+function addCart(fid,s,d=1){
+  const k = fid+'|'+s, have = state.cart[k]||0;
+  if(d>0 && have >= fridge(fid,s)) return toast(`Only ${fridge(fid,s)} ${fl(fid).name} ${sz(s).label} in the fridge`);
+  state.cart[k] = Math.max(0, have + d); render();
+}
+function checkout(){
+  const total = cartTotal();
+  sheet('Take payment', `
+    ${cartLines().map(l=>`<div class="row"><div class="t">${lineTxt(l)}</div><div class="amt">${n0(lineAmt(l))}</div></div>`).join('')}
+    <div class="row"><div class="t"><b>Total</b></div><div class="amt" style="font-size:22px">${ugx(total)}</div></div>
+    <label class="f"><span>Customer</span><select class="in" id="ckCust"><option>Walk-in</option>${CUSTOMERS.map(c=>`<option>${c.name}</option>`).join('')}</select></label>
+    <label class="f"><span>Paid by</span></label>
+    <div class="seg" style="margin:-6px 0 12px">${['Cash','MTN MoMo','Airtel Money','On credit'].map(m=>`<button class="${state.pay===m?'on':''}" onclick="state.pay='${m}';checkout()">${m}</button>`).join('')}</div>
+    ${state.pay==='Cash' ? `<label class="f"><span>Cash received</span><input class="in" inputmode="numeric" id="ckRec" placeholder="${n0(total)}" oninput="$('#ckChg').textContent=ugx(Math.max(0,(+this.value.replace(/,/g,''))-${total}))"></label><p class="small">Change to give: <b id="ckChg">UGX 0</b></p>` : ''}
+    ${state.pay==='On credit' ? `<p class="note">The balance goes on the customer's account and shows on Home until it is paid.</p>` : ''}
+    ${state.pay.includes('Money')||state.pay.includes('MoMo') ? `<label class="f"><span>Transaction ID (optional)</span><input class="in" placeholder="e.g. 1234567890"></label>` : ''}
+    <label class="check"><input type="checkbox"> Customer returned empty bottles (deposit back)</label>
+    <button class="btn grn wide" style="margin-top:12px" onclick="completeSale()">${ic('check')} Complete sale</button>`);
+}
+function completeSale(){
+  const lines = cartLines(), cust = $('#ckCust').value;
+  lines.forEach(([fid,s,q]) => { // oldest batch first
+    BATCHES.filter(b=>b.fid===fid && b.status==='In the fridge').sort((a,b)=>a.days-b.days).forEach(b => { const take = Math.min(q, b.left[s]||0); if(take){ b.left[s]-=take; q-=take; } });
+  });
+  const sale = {t:new Date().toTimeString().slice(0,5), cust, lines, m:state.pay};
+  SALES.push(sale); state.cart = {}; render();
+  sheet('Sale done', `<div style="text-align:center"><img src="assets/logo.jpg" style="width:200px;mix-blend-mode:multiply"><p class="muted small">Receipt · ${TODAY} · ${sale.t}</p></div>
+    ${lines.map(l=>`<div class="row"><div class="t">${lineTxt(l)}</div><div class="amt">${n0(lineAmt(l))}</div></div>`).join('')}
+    <div class="row"><div class="t"><b>Total · ${sale.m}</b></div><div class="amt" style="font-size:20px">${ugx(saleAmt(sale))}</div></div>
+    <p class="small muted" style="text-align:center">Thank you! Order on WhatsApp: +256 785 965536</p>
+    <div class="grid g2"><button class="btn" onclick="proto('Prototype: opens WhatsApp with this receipt')">${ic('share')} Send on WhatsApp</button><button class="btn pri" onclick="closeSheet()">Next sale</button></div>`);
+}
+
+/* ---- ORDERS ---- */
+const ST = ['To make','Ready','Out for delivery','Delivered'];
+const stBd = s => `<span class="bd ${s==='Delivered'?'ok':s==='Out for delivery'?'pur':s==='Ready'?'info':s==='Cancelled'?'grey':'warn'}">${s}</span>`;
+PAGES.orders = () => {
+  const fs = ['All','To make','Ready','Out for delivery','Delivered','Unpaid'];
+  const list = ORDERS.filter(o => state.ordFilter==='All' || (state.ordFilter==='Unpaid' ? orderBal(o)>0 : o.status===state.ordFilter));
+  const rider = state.role==='rider';
+  return `
+  <div class="grid g4">
+    <div class="tile"><div class="l">To make</div><div class="v">${ORDERS.filter(o=>o.status==='To make').length}</div><div class="s">next due Fri 13/11</div></div>
+    <div class="tile"><div class="l">Ready to go</div><div class="v">${ORDERS.filter(o=>o.status==='Ready').length}</div><div class="s">packed in the fridge</div></div>
+    <div class="tile"><div class="l">On the road</div><div class="v">${ORDERS.filter(o=>o.status==='Out for delivery').length}</div><div class="s">with Musa</div></div>
+    ${rider?'':`<div class="tile"><div class="l">Unpaid on orders</div><div class="v red">${ugx(sum(ORDERS,orderBal))}</div><div class="s">${ORDERS.filter(o=>orderBal(o)>0).length} orders</div></div>`}
+  </div>
+  <div class="sec" style="display:flex;gap:10px;align-items:center"><div class="chips" style="flex:1;margin:0">${fs.map(f=>`<button class="chip ${state.ordFilter===f?'on':''}" onclick="state.ordFilter='${f}';render()">${f}</button>`).join('')}</div>
+    ${rider?'':`<button class="btn pri" onclick="newOrder()">${ic('plus')} New order</button>`}</div>
+  <div class="card sec">${list.map(o => `<div class="row click" onclick="openOrder('${o.no}')">
+      <div class="ic info">${ic('truck')}</div>
+      <div class="t"><b>${o.cust}</b><small>${o.no} · ${o.lines.map(lineTxt).join(', ')}</small><br><small>${ic('cal','" style="width:13px;height:13px;vertical-align:-2px')} ${o.due} · ${stBd(o.status)}</small></div>
+      ${rider?'':`<div class="amt">${n0(orderVal(o))}<small class="${orderBal(o)?'red':'green'}">${orderBal(o)?'owes '+n0(orderBal(o)):'paid'}</small></div>`}
+    </div>`).join('') || '<p class="muted">No orders here.</p>'}</div>`;
+};
+function openOrder(no){
+  const o = ORDERS.find(x=>x.no===no), si = ST.indexOf(o.status), c = CUSTOMERS.find(c=>c.name===o.cust);
+  const next = ST[si+1];
+  sheet(`${o.no} · ${o.cust}`, `
+    <div class="steps">${ST.map((s,i)=>`<div class="${i<si?'done':i===si?'now':''}"><i></i>${s}</div>`).join('')}</div>
+    ${o.lines.map(l=>`<div class="row">${flb(l[0],34)}<div class="t"><b>${fl(l[0]).name}</b><small>${l[2]} × ${sz(l[1]).label} at ${n0(price(l[0],l[1]))}</small></div><div class="amt">${n0(lineAmt(l))}</div></div>`).join('')}
+    ${o.fee?`<div class="row"><div class="t">Delivery</div><div class="amt">${n0(o.fee)}</div></div>`:''}
+    <div class="row"><div class="t"><b>Order value</b></div><div class="amt">${ugx(orderVal(o))}</div></div>
+    <div class="row"><div class="t">Paid</div><div class="amt green">${ugx(o.paid)}</div></div>
+    <div class="row"><div class="t"><b>Balance</b></div><div class="amt ${orderBal(o)?'red':''}">${ugx(orderBal(o))}</div></div>
+    <p class="small muted">Deliver ${o.due} to ${c.area} · ${c.phone} · rider ${o.rider} · empty bottles held: ${c.empties}</p>
+    <div class="grid g2">
+      ${next?`<button class="btn pri" onclick="ORDERS.find(x=>x.no==='${o.no}').status='${next}';closeSheet();render();toast('${o.no}: ${next}')">Mark ${next.toLowerCase()}</button>`:''}
+      ${orderBal(o)?`<button class="btn" onclick="recordPayment('${o.no}')">${ic('cash')} Record payment</button>`:''}
+      <button class="btn" onclick="proto('Prototype: sends a delivery note to the customer on WhatsApp')">${ic('share')} Delivery note</button>
+      <button class="btn" onclick="newReminder('${o.no}')">${ic('bell')} Remind me</button>
+    </div>`);
+}
+function recordPayment(no){
+  const o = ORDERS.find(x=>x.no===no);
+  sheet(`Payment for ${no}`, `<p>Balance: <b>${ugx(orderBal(o))}</b></p>
+    <label class="f"><span>Amount</span><input class="in" id="payAmt" inputmode="numeric" value="${orderBal(o)}"></label>
+    <label class="f"><span>Paid by</span><select class="in"><option>Cash</option><option>MTN MoMo</option><option>Airtel Money</option><option>Bank</option></select></label>
+    <label class="f"><span>Date</span><input class="in" value="12/11/2026"></label>
+    <button class="btn grn wide" onclick="const a=+$('#payAmt').value.replace(/,/g,'');const o=ORDERS.find(x=>x.no==='${no}');if(!(a>0))return toast('Type an amount above zero');if(a>orderBal(o))return toast('That is more than the balance of '+ugx(orderBal(o)));o.paid+=a;closeSheet();render();toast('Payment recorded')">Save payment</button>`);
+}
+function newOrder(){
+  sheet('New order', `
+    <label class="f"><span>Customer</span><select class="in">${CUSTOMERS.map(c=>`<option>${c.name}</option>`).join('')}<option>+ New customer…</option></select></label>
+    <div class="grid g2"><label class="f"><span>Deliver on</span><input class="in" type="date" value="2026-11-14"></label><label class="f"><span>Rider</span><select class="in"><option>Musa</option><option>Customer collects</option></select></label></div>
+    <label class="f"><span>What they want</span></label>
+    ${[['mango',500,24],['passion',300,12]].map(l=>`<div class="grid g3" style="grid-template-columns:2fr 1.3fr 1fr;margin-bottom:8px"><select class="in">${F.map(f=>`<option ${f.id===l[0]?'selected':''}>${f.name}</option>`).join('')}</select><select class="in">${SIZES.map(s=>`<option ${s.id===l[1]?'selected':''}>${s.label}</option>`).join('')}</select><input class="in" value="${l[2]}" inputmode="numeric"></div>`).join('')}
+    <button class="btn sm" style="margin-bottom:12px">${ic('plus')} Add a line</button>
+    <div class="grid g2"><label class="f"><span>Delivery charge</span><input class="in" value="5,000"></label><label class="f"><span>Deposit paid now</span><input class="in" placeholder="0"></label></div>
+    <label class="f" style="margin-bottom:4px"><span>Reminders</span></label>
+    <label class="check"><input type="checkbox" checked> Remind Brian to make it the day before at 6:00 am</label>
+    <label class="check"><input type="checkbox" checked> Remind Musa on the delivery morning at 7:00 am</label>
+    <label class="check" style="margin-bottom:10px"><input type="checkbox"> Remind me to collect the balance on delivery</label>
+    <p class="note">The app checks the fridge and adds what is missing to the production plan for the day before delivery.</p>
+    <button class="btn pri wide" style="margin-top:12px" onclick="proto()">Save order</button>`);
+}
+
+/* ---- PRODUCTION ---- */
+PAGES.make = () => {
+  const week = BATCHES;
+  const L = sum(week, litres), waste = sum(week, b=>b.waste);
+  const avgCost = sum(week, b=>costPerL(b.fid)*litres(b)) / L;
+  return `
+  <div class="grid g4">
+    <div class="tile"><div class="l">Made this week</div><div class="v">${L} L</div><div class="s">${week.length} batches</div></div>
+    <div class="tile"><div class="l">Juice cost per litre</div><div class="v">${n0(avgCost)}</div><div class="s">fruit, sugar, ginger (average)</div></div>
+    <div class="tile"><div class="l">Lost while making</div><div class="v">${(waste/(L+waste)*100).toFixed(1)}%</div><div class="s">${waste.toFixed(1)} L spilt or left over</div></div>
+    <div class="tile"><div class="l">Spoiled in the fridge</div><div class="v red">6 bottles</div><div class="s">B-0135 Watermelon</div></div>
+  </div>
+  <div class="grid g2 sec">
+    <div class="card"><h3>${ic('cal')} What to make for tomorrow <span class="r small muted">from orders and the fridge</span></h3>
+      <table class="t"><tr><th>Flavour</th><th class="n">Orders need</th><th class="n">In fridge</th><th class="n">Make</th></tr>
+      <tr><td>${fl('mango').icon} Mango 500 ml</td><td class="n">20</td><td class="n">16</td><td class="n"><b>4 + counter</b></td></tr>
+      <tr><td>${fl('passion').icon} Passion 500 ml</td><td class="n">20</td><td class="n">0</td><td class="n"><b>20 (10 L)</b></td></tr>
+      <tr><td>${fl('cocktail').icon} Tropical Sunrise 300 ml</td><td class="n">60</td><td class="n">12 + 60 packed</td><td class="n"><b>-</b></td></tr>
+      <tr><td>${fl('mango').icon} Mango 5 L</td><td class="n">3 (Sat)</td><td class="n">0</td><td class="n"><b>Fri</b></td></tr></table>
+      <div style="margin-top:12px"><span class="bd bad">${ic('alert','" style="width:14px;height:14px')} Passion fruit short by 6 kg</span></div>
+    </div>
+    <div class="card"><h3>${ic('check')} Hygiene before each batch</h3>
+      ${['Hands washed, hairnet and apron on','Fruit washed in clean water','Blender, strainer and jugs sanitised','Bottles rinsed and dried','Fridge at 0 to 5 °C'].map((t,i)=>`<label class="check"><input type="checkbox" ${i<4?'checked':''}> ${t}</label>`).join('')}
+      <p class="small muted">Ticked once per batch by whoever makes it. Shows in the batch record.</p>
+    </div>
+  </div>
+  <div class="card sec"><h3>${ic('make')} Batches <button class="r btn pri sm" onclick="newBatch()">${ic('plus')} New batch</button></h3>
+    <div class="scroll"><table class="t"><tr><th>Batch</th><th>Flavour</th><th>Made</th><th class="n">Litres</th><th>Bottles</th><th class="n">Cost / L</th><th>Best before</th><th>Status</th></tr>
+    ${BATCHES.map(b=>`<tr class="click" style="cursor:pointer" onclick="openBatch('${b.no}')"><td><b>${b.no}</b><br><small class="muted">${b.by}</small></td><td>${fl(b.fid).icon} ${fl(b.fid).name}</td><td>${b.date.slice(0,5)}</td><td class="n">${b.status==='Making'?b.plan+' (plan)':litres(b)}</td>
+      <td class="small">${Object.entries(b.filled).map(([s,n])=>`${n}×${sz(s).label}`).join(', ')||'-'}</td><td class="n">${n0(costPerL(b.fid))}</td><td>${b.bb}</td>
+      <td><span class="bd ${b.status==='Making'?'info':b.status==='In the fridge'?(b.days<=1?'warn':'ok'):b.spoiled?'bad':'grey'}">${b.status}</span></td></tr>`).join('')}
+    </table></div></div>`;
+};
+function openBatch(no){
+  const b = BATCHES.find(x=>x.no===no), r = RECIPES[b.fid], L = litres(b) || b.plan, k = L/r.y;
+  const juice = costPerL(b.fid)*L, pack = sum(Object.entries(b.filled), ([s,n])=>PACK[s]*n);
+  sheet(`${b.no} · ${fl(b.fid).name}`, `
+    <p class="muted small">Made ${b.date} by ${b.by} · best before ${b.bb}/2026 (${r.bb} days in the fridge)</p>
+    <h4 style="margin:10px 0 4px">Used</h4>
+    ${r.ing.map(([n,q])=>{const it=ING.find(i=>i.name===n);return `<div class="row"><div class="t">${n}</div><div class="amt">${+(q*k).toFixed(2)} ${it.unit}<small>${n0(q*k*it.cost)}</small></div></div>`}).join('')}
+    ${r.water?`<div class="row"><div class="t">Clean water</div><div class="amt">${+(r.water*k).toFixed(1)} L</div></div>`:''}
+    <h4 style="margin:14px 0 4px">Filled</h4>
+    ${Object.entries(b.filled).map(([s,n])=>`<div class="row"><div class="t">${sz(s).label}</div><div class="amt">${n} bottles<small>${b.left[s]||0} still in fridge</small></div></div>`).join('') || '<p class="muted small">Not bottled yet.</p>'}
+    <h4 style="margin:14px 0 4px">Cost</h4>
+    <div class="row"><div class="t">Fruit and sugar</div><div class="amt">${ugx(juice)}</div></div>
+    <div class="row"><div class="t">Bottles, caps, labels</div><div class="amt">${ugx(pack)}</div></div>
+    <div class="row"><div class="t"><b>Batch cost</b></div><div class="amt">${ugx(juice+pack)}</div></div>
+    <div class="row"><div class="t">If all sold, sales would be</div><div class="amt green">${ugx(sum(Object.entries(b.filled),([s,n])=>price(b.fid,s)*n))}</div></div>
+    <p class="small"><span class="bd ok">${ic('check','" style="width:14px;height:14px')} Hygiene checks done</span> <span class="bd ok">Taste OK</span> <span class="bd ok">Sweetness 12 °Bx</span></p>`);
+}
+function newBatch(){
+  const f = state.nb.fid;
+  sheet('New batch', `
+    <label class="f"><span>Flavour</span></label>
+    <div class="chips">${F.map(x=>`<button class="chip ${x.id===f?'on':''}" onclick="state.nb.fid='${x.id}';newBatch()">${x.icon} ${x.name}</button>`).join('')}</div>
+    <div class="grid g2"><label class="f"><span>Litres to make</span><input class="in" id="nbL" value="10" inputmode="decimal" oninput="nbSuggest();nbCalc()"></label><label class="f"><span>Made by</span><select class="in"><option>Brian</option><option>Aisha</option></select></label></div>
+    <label class="f"><span>Bottles to fill</span></label>
+    <div class="grid g4" style="grid-template-columns:repeat(4,1fr);gap:8px">${SIZES.map(s=>`<label class="f" style="margin:0"><span>${s.label}</span><input class="in" id="nb${s.id}" inputmode="numeric" oninput="nbCalc()"></label>`).join('')}</div>
+    <div id="nbOut" style="margin-top:12px"></div>
+    <button class="btn pri wide" style="margin-top:12px" onclick="proto('Prototype: the batch is saved, fruit and bottles come off stock, bottles go into the fridge')">Save batch</button>`);
+  nbSuggest(); nbCalc();
+}
+function nbSuggest(){
+  const L = parseFloat($('#nbL').value)||0;
+  $('#nb300').value = Math.floor(L*.3/.3); $('#nb500').value = Math.floor(L*.5/.5); $('#nb1000').value = Math.floor(L*.2); $('#nb5000').value = 0;
+}
+function nbCalc(){
+  const fid = state.nb.fid, r = RECIPES[fid], L = parseFloat($('#nbL').value)||0, k = L/r.y;
+  const n = Object.fromEntries(SIZES.map(s=>[s.id, parseInt($('#nb'+s.id).value)||0]));
+  const bottled = sum(SIZES, s=>n[s.id]*s.l);
+  const rows = r.ing.map(([nm,q]) => { const it = ING.find(i=>i.name===nm), need = q*k; return {nm, need, it, ok: it.qty>=need, cost: need*it.cost}; });
+  const juice = sum(rows, x=>x.cost), pack = sum(SIZES, s=>n[s.id]*PACK[s.id]);
+  const pk = SIZES.filter(s=>n[s.id]).map(s => { const it = PKG.find(p=>p.name===BOTTLE_ITEM[s.id]); return {s, it, ok: it.qty>=n[s.id]}; });
+  $('#nbOut').innerHTML = `
+    <div class="card" style="padding:12px">
+      <b class="small">Fruit and sugar needed</b>
+      ${rows.map(x=>`<div class="row"><div class="t">${x.nm}</div><div class="amt">${+x.need.toFixed(2)} ${x.it.unit}<small class="${x.ok?'green':'red'}">${x.ok?'have '+x.it.qty:'only '+x.it.qty+' in stock'}</small></div></div>`).join('')}
+      ${r.water?`<div class="row"><div class="t">Clean water</div><div class="amt">${+(r.water*k).toFixed(1)} L</div></div>`:''}
+      ${pk.map(p=>`<div class="row"><div class="t">${p.it.name}</div><div class="amt">${n[p.s.id]}<small class="${p.ok?'green':'red'}">${p.ok?'have '+p.it.qty:'only '+p.it.qty}</small></div></div>`).join('')}
+      <div class="row"><div class="t">Bottled</div><div class="amt ${Math.abs(bottled-L)>.5?'red':''}">${+bottled.toFixed(1)} of ${L} L</div></div>
+      <div class="row"><div class="t"><b>Batch cost</b><small>juice ${n0(juice)} + bottles ${n0(pack)}</small></div><div class="amt">${ugx(juice+pack)}</div></div>
+      <div class="row"><div class="t">Cost per litre of juice</div><div class="amt">${n0(L?juice/L:0)}</div></div>
+      <div class="row"><div class="t">Best before</div><div class="amt">${12 + r.bb}/11/2026</div></div>
+    </div>`;
+}
+
+/* ---- RECIPES ---- */
+PAGES.recipes = () => `
+  <div class="note">Each recipe makes 10 litres. The cost of a bottle is worked out from today's fruit prices (from your last purchases) plus the bottle, cap and label. When mango prices go up, the profit on every juice and cocktail with mango shows it straight away.</div>
+  <div class="sec" style="display:flex;gap:10px;align-items:center"><div class="chips" style="flex:1;margin:0">${[['all','All'],...KINDS].map(([k,l])=>`<button class="chip ${state.recKind===k?'on':''}" onclick="state.recKind='${k}';render()">${l} (${k==='all'?F.length:F.filter(f=>f.kind===k).length})</button>`).join('')}</div>
+    <button class="btn pri" onclick="newCocktail()">${ic('plus')} New cocktail</button></div>
+  <div class="grid g2 sec">${F.filter(f=>state.recKind==='all'||f.kind===state.recKind).map(f => { const r = RECIPES[f.id]; return `
+    <div class="card"><h3>${flb(f.id,36)} <span>${f.name}${f.kind==='cocktail'?' <span class="bd ok">Cocktail</span>':''}</span> <span class="r small muted">${n0(costPerL(f.id))} / litre</span></h3>
+      <div class="small muted" style="margin-bottom:6px">${r.ing.map(([n,q])=>`${q} ${ING.find(i=>i.name===n).unit} ${n.toLowerCase()}`).join(' · ')}${r.water?` · ${r.water} L water`:''} · keeps ${r.bb} days</div>
+      <table class="t"><tr><th>Size</th><th class="n">Cost</th><th class="n">Price</th><th class="n">Profit</th><th class="n">Margin</th></tr>
+      ${SIZES.map(s=>{const c=costBottle(f.id,s.id),p=price(f.id,s.id);return `<tr><td>${s.label}</td><td class="n">${n0(c)}</td><td class="n">${n0(p)}</td><td class="n"><b>${n0(p-c)}</b></td><td class="n">${marginBd(pct(p-c,p))}</td></tr>`}).join('')}
+      </table>
+      <div style="margin-top:10px;display:flex;gap:8px"><button class="btn sm" onclick="proto()">Edit recipe</button><button class="btn sm" onclick="proto()">Change prices</button></div>
+    </div>`; }).join('')}</div>`;
+
+/* New cocktail: pick the fruits and how much of each, see the cost straight away */
+function newCocktail(){
+  state.nc = state.nc || [['Mangoes',6],['Pineapples',3],['Ginger',.3]];
+  const fruits = ING.map(i=>i.name);
+  sheet('New juice cocktail', `
+    <div class="grid g2"><label class="f"><span>Name</span><input class="in" id="ncName" value="Mango Pine Ginger"></label><label class="f"><span>Keeps in the fridge</span><select class="in"><option>2 days</option><option selected>3 days</option></select></label></div>
+    <label class="f"><span>What goes into 10 litres</span></label>
+    ${state.nc.map(([n,q],i)=>`<div class="grid" style="grid-template-columns:2fr 1fr 44px;gap:8px;margin-bottom:8px">
+      <select class="in" onchange="state.nc[${i}][0]=this.value;newCocktail()">${fruits.map(f=>`<option ${f===n?'selected':''}>${f}</option>`).join('')}</select>
+      <input class="in" inputmode="decimal" value="${q}" oninput="state.nc[${i}][1]=parseFloat(this.value)||0;ncCalc()">
+      <button class="x" onclick="state.nc.splice(${i},1);newCocktail()" aria-label="Remove">${ic('x')}</button></div>`).join('')}
+    <button class="btn sm" style="margin-bottom:12px" onclick="state.nc.push(['Lemons',.3]);newCocktail()">${ic('plus')} Add a fruit</button>
+    <div class="grid g2"><label class="f"><span>Water (litres)</span><input class="in" value="3" inputmode="decimal"></label><label class="f"><span>Premium price?</span><select class="in"><option>No, normal prices</option><option>Yes, premium</option></select></label></div>
+    <div id="ncOut"></div>
+    <button class="btn pri wide" style="margin-top:12px" onclick="proto('Prototype: the cocktail is added to Sell, Production, Stock and Reports')">Save cocktail</button>`);
+  ncCalc();
+}
+function ncCalc(){
+  const per = sum(state.nc, ([n,q]) => q*ingCost(n)) / 10;
+  $('#ncOut').innerHTML = `<div class="card" style="padding:12px"><div class="row"><div class="t"><b>Juice cost per litre</b><small>${state.nc.map(([n,q])=>`${q} ${ING.find(i=>i.name===n).unit} ${n.toLowerCase()}`).join(' · ')}</small></div><div class="amt">${n0(per)}</div></div>
+    <table class="t"><tr><th>Size</th><th class="n">Cost</th><th class="n">Price</th><th class="n">Margin</th></tr>
+    ${SIZES.map(s=>{const c=per*s.l+PACK[s.id],p=BASE[s.id];return `<tr><td>${s.label}</td><td class="n">${n0(c)}</td><td class="n">${n0(p)}</td><td class="n">${marginBd(pct(p-c,p))}</td></tr>`}).join('')}</table></div>`;
+}
+
+/* ---- STOCK ---- */
+PAGES.stock = () => {
+  const tabs = [['juice','Juice in the fridge'],['fruit','Fruit and ingredients'],['pack','Bottles and packaging']];
+  let body = '';
+  if(state.stockTab==='juice'){
+    const inFridge = BATCHES.filter(b=>b.status==='In the fridge').sort((a,b)=>a.days-b.days);
+    body = `
+    <div class="grid g2">
+      <div class="card"><h3>${ic('box')} Bottles ready to sell</h3><div class="scroll"><table class="t"><tr><th>Flavour</th>${SIZES.map(s=>`<th class="n">${s.label}</th>`).join('')}<th class="n">Total</th></tr>
+        ${KINDS.map(([k,l])=>`<tr class="grp"><td colspan="${SIZES.length+2}">${l}</td></tr>`+F.filter(f=>f.kind===k).map(f=>`<tr><td>${f.icon} ${f.name}</td>${SIZES.map(s=>{const q=fridge(f.id,s.id);return `<td class="n ${q===0?'red':''}">${q}</td>`}).join('')}<td class="n"><b>${fridgeAll(f.id)}</b></td></tr>`).join('')).join('')}
+        <tfoot><tr><td>All</td>${SIZES.map(s=>`<td class="n">${sum(F,f=>fridge(f.id,s.id))}</td>`).join('')}<td class="n">${sum(F,f=>fridgeAll(f.id))}</td></tr></tfoot></table></div>
+        <p class="small muted">Worked out from the batches below: bottles filled minus bottles sold, spoiled or given away.</p></div>
+      <div class="card"><h3>${ic('thermo')} Fridge temperatures today</h3>
+        <div class="row"><div class="ic ok">${ic('thermo')}</div><div class="t"><b>Fridge 1 · 4 °C</b><small>07:30 · Joan</small></div><span class="bd ok">OK</span></div>
+        <div class="row"><div class="ic bad">${ic('thermo')}</div><div class="t"><b>Fridge 2 · 7 °C</b><small>07:30 · Joan · gas topped up 11/11</small></div><span class="bd bad">Too warm</span></div>
+        <button class="btn sm" style="margin-top:8px" onclick="proto()">Record a reading</button>
+        <h3 style="margin-top:16px">${ic('drop')} Empty bottles</h3>
+        <div class="row"><div class="t"><b>With customers</b><small>Kato 36, Nakawa 18, Bright 12, Mama Sarah 8</small></div><div class="amt">74</div></div>
+        <div class="row"><div class="t"><b>Returned, waiting to be washed</b></div><div class="amt">40</div></div>
+      </div>
+    </div>
+    <div class="card sec"><h3>${ic('cal')} By batch · sell the oldest first <button class="r btn sm" onclick="writeOff()">Write off spoiled</button></h3>
+      ${inFridge.map(b=>`<div class="row">${flb(b.fid)}<div class="t"><b>${fl(b.fid).name} · ${b.no}</b><small>${Object.entries(b.left).filter(([,n])=>n).map(([s,n])=>`${n} × ${sz(s).label}`).join(', ')}</small></div>
+        <span class="bd ${b.days<=1?'bad':b.days===2?'warn':'ok'}">${b.days<=1?'Best before tomorrow':b.days+' days left'}</span></div>`).join('')}
+    </div>`;
+  } else {
+    const list = state.stockTab==='fruit' ? ING : PKG;
+    body = `<div class="card"><h3>${ic(state.stockTab==='fruit'?'leaf':'box')} ${state.stockTab==='fruit'?'Fruit and ingredients':'Bottles and packaging'} <button class="r btn sm" onclick="proto()">Count stock</button></h3>
+      ${list.map(it=>{const low=it.qty<it.re;return `<div class="row"><div class="ic ${low?'bad':'ok'}">${ic(state.stockTab==='fruit'?'leaf':'box')}</div><div class="t"><b>${it.name}</b>
+        <div class="bar" style="margin:6px 0 3px"><i style="width:${Math.min(100,pct(it.qty,it.re*2))}%;background:${low?'var(--red)':'var(--gr)'}"></i></div><small>Reorder at ${it.re} ${it.unit} · ${n0(it.cost)} per ${it.unit} · worth ${n0(it.qty*it.cost)}</small></div>
+        <div class="amt ${low?'red':''}">${it.qty} ${it.unit}<small>${low?'low':'enough'}</small></div>${low?`<button class="btn sm" onclick="newPurchase('${it.name}')">Buy</button>`:''}</div>`}).join('')}
+      <div class="row"><div class="t"><b>Value of this stock</b></div><div class="amt">${ugx(sum(list,i=>i.qty*i.cost))}</div></div></div>`;
+  }
+  return `<div class="chips">${tabs.map(([k,l])=>`<button class="chip ${state.stockTab===k?'on':''}" onclick="state.stockTab='${k}';render()">${l}</button>`).join('')}</div>${body}`;
+};
+function writeOff(){
+  sheet('Write off spoiled juice', `
+    <label class="f"><span>Batch</span><select class="in">${BATCHES.filter(b=>b.status==='In the fridge').map(b=>`<option>${b.no} · ${fl(b.fid).name}</option>`).join('')}</select></label>
+    <div class="grid g2"><label class="f"><span>Size</span><select class="in">${SIZES.map(s=>`<option>${s.label}</option>`).join('')}</select></label><label class="f"><span>How many bottles</span><input class="in" inputmode="numeric"></label></div>
+    <label class="f"><span>Why</span><select class="in"><option>Past best-before</option><option>Went sour / fermented</option><option>Bottle broke or leaked</option><option>Given away (samples)</option></select></label>
+    <button class="btn pri wide" onclick="proto()">Write off</button>`);
+}
+
+/* ---- BUYING ---- */
+PAGES.buying = () => {
+  const spent = sum(PURCHASES, p=>p.qty*p.price), owed = sum(SUPPLIERS, s=>supOwed(s.name));
+  return `
+  <div class="grid g4">
+    <div class="tile"><div class="l">Bought this month</div><div class="v">${ugx(spent)}</div><div class="s">${PURCHASES.length} purchases</div></div>
+    <div class="tile"><div class="l">You owe suppliers</div><div class="v red">${ugx(owed)}</div><div class="s">${SUPPLIERS.filter(s=>supOwed(s.name)>0).length} suppliers</div></div>
+    <div class="tile"><div class="l">Mango price this week</div><div class="v">${n0(MANGO_PRICE.at(-1))}/kg</div><div class="s">up from 1,900 last week</div></div>
+    <div class="tile"><div class="l">Fruit bought vs used</div><div class="v">96%</div><div class="s">4% thrown away (rotten)</div></div>
+  </div>
+  <div class="grid g2 sec">
+    <div class="card"><h3>${ic('basket')} Recent purchases <button class="r btn pri sm" onclick="newPurchase()">${ic('plus')} Buy</button></h3>
+      ${PURCHASES.map(p=>{const t=p.qty*p.price;return `<div class="row"><div class="ic info">${ic(p.unit==='pcs'&&p.item.startsWith('B')||p.item.startsWith('L')?'box':'leaf')}</div><div class="t"><b>${p.item} · ${p.qty} ${p.unit}</b><small>${p.date} · ${p.sup} · ${n0(p.price)}/${p.unit} · quality ${p.q}</small></div><div class="amt">${n0(t)}<small class="${t>p.paid?'red':'green'}">${t>p.paid?'owe '+n0(t-p.paid):'paid'}</small></div></div>`}).join('')}
+    </div>
+    <div>
+      <div class="card"><h3>${ic('users')} Suppliers</h3>
+        ${SUPPLIERS.map(s=>`<div class="row"><div class="t"><b>${s.name}</b><small>${s.what} · ${s.phone}</small></div><div class="amt ${supOwed(s.name)?'red':''}">${supOwed(s.name)?n0(supOwed(s.name)):'-'}<small>${supOwed(s.name)?'you owe':''}</small></div></div>`).join('')}
+      </div>
+      <div class="card sec"><h3>${ic('chart')} Mango price per kg, last 8 weeks</h3>${line(MANGO_PRICE,['21/9','28/9','5/10','12/10','19/10','26/10','2/11','9/11'])}
+        <p class="small muted">Helps you see the season: buy more when prices drop, and know when to change your juice prices.</p></div>
+    </div>
+  </div>`;
+};
+function newPurchase(item){
+  sheet('Buy fruit or supplies', `
+    <label class="f"><span>Item</span><select class="in">${[...ING,...PKG].map(i=>`<option ${i.name===item?'selected':''}>${i.name}</option>`).join('')}</select></label>
+    <label class="f"><span>Supplier</span><select class="in">${SUPPLIERS.map(s=>`<option>${s.name}</option>`).join('')}<option>+ New supplier…</option></select></label>
+    <div class="grid g2"><label class="f"><span>Quantity</span><input class="in" id="puQ" inputmode="decimal" value="10" oninput="puCalc()"></label><label class="f"><span>Price per unit</span><input class="in" id="puP" inputmode="numeric" value="6000" oninput="puCalc()"></label></div>
+    <p>Total: <b id="puT">UGX 60,000</b></p>
+    <div class="grid g2"><label class="f"><span>Paid now</span><input class="in" placeholder="Leave blank if on credit"></label><label class="f"><span>Quality</span><select class="in"><option>Good</option><option>Fair</option><option>Poor</option></select></label></div>
+    <button class="btn pri wide" onclick="proto('Prototype: the stock goes up and the new price is used in the recipe costs')">Save purchase</button>`);
+}
+function puCalc(){ $('#puT').textContent = ugx((parseFloat($('#puQ').value)||0)*(parseFloat($('#puP').value)||0)); }
+
+/* ---- CUSTOMERS ---- */
+PAGES.customers = () => {
+  const types = ['All','Shop','School','Office','Events','Canteen'];
+  const list = CUSTOMERS.filter(c=>state.custFilter==='All'||c.type===state.custFilter);
+  return `
+  <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px"><div style="position:relative;flex:1"><input class="in" placeholder="Search customers" style="padding-left:40px"><span style="position:absolute;left:12px;top:13px;color:var(--faint)">${ic('search')}</span></div><button class="btn pri" onclick="proto()">${ic('plus')} Customer</button></div>
+  <div class="chips">${types.map(t=>`<button class="chip ${state.custFilter===t?'on':''}" onclick="state.custFilter='${t}';render()">${t}</button>`).join('')}</div>
+  <div class="card">${list.map(c=>{const b=custBal(c.name),os=ORDERS.filter(o=>o.cust===c.name);return `<div class="row click" onclick="openCust('${c.name.replace(/'/g,"\\'")}')"><div class="ic info">${ic('users')}</div>
+    <div class="t"><b>${c.name}</b><small>${c.type} · ${c.area} · ${os.length} orders · ${c.empties} empty bottles with them</small></div>
+    <div class="amt ${b?'red':'green'}">${b?n0(b):'0'}<small>${b?'owes':'nothing owed'}</small></div></div>`}).join('')}</div>`;
+};
+function openCust(name){
+  const c = CUSTOMERS.find(x=>x.name===name), os = ORDERS.filter(o=>o.cust===name);
+  sheet(name, `<p class="muted small">${c.type} · ${c.area} · ${c.phone}</p>
+    <div class="grid g2" style="grid-template-columns:1fr 1fr"><div class="tile"><div class="l">Owes</div><div class="v red">${ugx(custBal(name))}</div></div><div class="tile"><div class="l">Empty bottles held</div><div class="v">${c.empties}</div></div></div>
+    <h4 style="margin:14px 0 4px">Orders</h4>
+    ${os.map(o=>`<div class="row"><div class="t"><b>${o.no}</b><small>${o.due} · ${o.lines.map(lineTxt).join(', ')}</small></div><div class="amt">${n0(orderVal(o))}<small>${stBd(o.status)}</small></div></div>`).join('')}
+    <div class="grid g2" style="margin-top:12px"><button class="btn" onclick="proto('Prototype: sends a statement of what is owed on WhatsApp')">${ic('share')} Send statement</button><button class="btn pri" onclick="closeSheet();newOrder()">New order</button></div>`);
+}
+
+/* ---- EXPENSES ---- */
+PAGES.expenses = () => {
+  const cats = [...new Set(EXPENSES.map(e=>e.cat))].map(c=>({c, v:sum(EXPENSES.filter(e=>e.cat===c),e=>e.amt)})).sort((a,b)=>b.v-a.v);
+  const tot = sum(EXPENSES,e=>e.amt);
+  return `
+  <div class="grid g2">
+    <div class="card"><h3>${ic('receipt')} November so far <span class="r" style="font-size:18px">${ugx(tot)}</span></h3>
+      ${cats.map(c=>`<div class="row"><div class="t"><b>${c.c}</b><div class="bar" style="margin-top:6px"><i style="width:${pct(c.v,cats[0].v)}%;background:var(--or)"></i></div></div><div class="amt">${n0(c.v)}<small>${pct(c.v,tot)}%</small></div></div>`).join('')}
+      <p class="small muted">Fruit, bottles and wages are kept apart (Buying, Staff), so this page is the running costs only.</p>
+    </div>
+    <div class="card"><h3>${ic('cal')} All expenses <button class="r btn pri sm" onclick="newExpense()">${ic('plus')} Expense</button></h3>
+      ${EXPENSES.slice().reverse().map(e=>`<div class="row"><div class="t"><b>${e.what}</b><small>${e.date} · ${e.cat}</small></div><div class="amt">${n0(e.amt)}</div></div>`).join('')}
+    </div>
+  </div>`;
+};
+function newExpense(){
+  sheet('New expense', `
+    <label class="f"><span>What for</span><input class="in" placeholder="e.g. Gas refill"></label>
+    <div class="grid g2"><label class="f"><span>Amount</span><input class="in" inputmode="numeric"></label><label class="f"><span>Date</span><input class="in" type="date" value="2026-11-12"></label></div>
+    <label class="f"><span>Group</span><select class="in">${[...new Set(EXPENSES.map(e=>e.cat))].map(c=>`<option>${c}</option>`).join('')}</select></label>
+    <label class="f"><span>Paid by</span><select class="in"><option>Cash</option><option>MTN MoMo</option><option>Airtel Money</option><option>Bank</option></select></label>
+    <label class="f"><span>Photo of the receipt (optional)</span><input class="in" type="file" accept="image/*"></label>
+    <button class="btn pri wide" onclick="proto()">Save expense</button>`);
+}
+
+/* ---- STAFF ---- */
+PAGES.staff = () => `
+  <div class="note">Daily workers are paid for the days ticked, less any advance. Monthly staff are paid at month end. Each person gets their own PIN and only sees their part of the app (switch "viewing as" at the top to try it). Reminders for a person go to their phone.</div>
+  <div class="card sec"><h3>${ic('staff')} This week · Mon to Sat <span class="r small muted">wages paid Saturday</span></h3>
+    ${STAFF.map(s=>{const days=s.att.filter(a=>a===1).length,due=s.kind==='day'?days*s.rate-s.adv:null;return `<div class="row"><div class="ic pur">${ic('staff')}</div>
+      <div class="t"><b>${s.name} · ${s.role}</b><small>${s.pay}${s.adv?` · advance ${n0(s.adv)}`:''}</small>
+      <div class="dots" style="margin-top:6px">${['M','T','W','T','F','S'].map((d,i)=>`<span class="${s.att[i]===1?'ok':s.att[i]===0?'bad':'grey'}">${d}</span>`).join('')}</div></div>
+      <div class="amt">${due!==null?n0(due):'-'}<small>${due!==null?'due so far':s.kind==='month'?'monthly':''}</small></div></div>`}).join('')}
+    <div class="grid g2" style="margin-top:12px"><button class="btn" onclick="proto()">Mark today's attendance</button><button class="btn pri" onclick="proto()">${ic('cash')} Pay wages</button></div>
+  </div>`;
+
+/* ---- REPORTS ---- */
+PAGES.reports = () => {
+  const rows = F.map(f => { const s = MONTH_SOLD[f.id]||{}; const n = sum(Object.values(s),x=>x);
+    const rev = sum(Object.entries(s),([k,q])=>price(f.id,k)*q), cost = sum(Object.entries(s),([k,q])=>costBottle(f.id,k)*q);
+    return {f, n, rev, cost, p: rev-cost}; }).sort((a,b)=>b.p-a.p);
+  const sales = sum(rows,r=>r.rev), cogs = sum(rows,r=>r.cost), exp = sum(EXPENSES,e=>e.amt), wages = 820000, spoiled = 186000;
+  const profit = sales - cogs - exp - wages - spoiled;
+  const ps = ['Today','This week','This month','Last month','Pick dates'];
+  return `
+  <div style="display:flex;gap:10px;align-items:center"><div class="chips" style="flex:1;margin:0">${ps.map(p=>`<button class="chip ${state.period===p?'on':''}" onclick="state.period='${p}';render()">${p}</button>`).join('')}</div>
+    <button class="btn" onclick="proto('Prototype: makes an A4 PDF with the logo, to print or share')">${ic('down')} PDF</button><button class="btn" onclick="proto('Prototype: downloads an Excel file')">${ic('down')} Excel</button></div>
+  <div class="grid g2 sec">
+    <div class="card"><h3>${ic('chart')} Profit · 1 to 12 November</h3>
+      <div class="row"><div class="t"><b>Sales</b><small>${n0(sum(rows,r=>r.n))} bottles</small></div><div class="amt">${ugx(sales)}</div></div>
+      <div class="row"><div class="t">Fruit, sugar and bottles used</div><div class="amt red">− ${n0(cogs)}</div></div>
+      <div class="row"><div class="t">Running costs (expenses)</div><div class="amt red">− ${n0(exp)}</div></div>
+      <div class="row"><div class="t">Wages</div><div class="amt red">− ${n0(wages)}</div></div>
+      <div class="row"><div class="t">Spoiled juice</div><div class="amt red">− ${n0(spoiled)}</div></div>
+      <div class="row" style="border-top:2px solid var(--line)"><div class="t"><b>Profit</b><small>${pct(profit,sales)}% of sales</small></div><div class="amt green" style="font-size:22px">${ugx(profit)}</div></div>
+    </div>
+    <div class="card"><h3>${ic('cash')} How customers paid</h3>
+      ${[['Cash',46,'#3BA935'],['MTN MoMo',34,'#FFC425'],['Airtel Money',9,'#D2382D'],['On credit (orders)',11,'#7A2C8F']].map(([l,p,c])=>`<div class="row"><div class="t"><b>${l}</b><div class="bar" style="margin-top:6px"><i style="width:${p*2}%;background:${c}"></i></div></div><div class="amt">${p}%</div></div>`).join('')}
+      <h3 style="margin-top:16px">${ic('users')} Where sales came from</h3>
+      ${[['Counter (walk-in)',52],['Shops and canteens',31],['Schools and offices',11],['Events',6]].map(([l,p])=>`<div class="row"><div class="t"><b>${l}</b><div class="bar" style="margin-top:6px"><i style="width:${p*1.8}%;background:var(--or)"></i></div></div><div class="amt">${p}%</div></div>`).join('')}
+    </div>
+  </div>
+  <div class="card sec"><h3>${ic('make')} Profit by flavour</h3><div class="scroll"><table class="t">
+    <tr><th>Flavour</th><th class="n">Bottles</th><th class="n">Sales</th><th class="n">Cost</th><th class="n">Profit</th><th class="n">Margin</th></tr>
+    ${KINDS.map(([k,l])=>{const g=rows.filter(r=>r.f.kind===k);return `<tr class="grp"><td colspan="6">${l} · ${pct(sum(g,r=>r.rev),sales)}% of sales</td></tr>`+g.map(r=>`<tr><td>${r.f.icon} ${r.f.name}</td><td class="n">${n0(r.n)}</td><td class="n">${n0(r.rev)}</td><td class="n">${n0(r.cost)}</td><td class="n"><b>${n0(r.p)}</b></td><td class="n">${marginBd(pct(r.p,r.rev))}</td></tr>`).join('')
+      +`<tr class="sub"><td>All ${l.toLowerCase()}</td><td class="n">${n0(sum(g,r=>r.n))}</td><td class="n">${n0(sum(g,r=>r.rev))}</td><td class="n">${n0(sum(g,r=>r.cost))}</td><td class="n">${n0(sum(g,r=>r.p))}</td><td class="n">${pct(sum(g,r=>r.p),sum(g,r=>r.rev))}%</td></tr>`}).join('')}
+    <tfoot><tr><td>All</td><td class="n">${n0(sum(rows,r=>r.n))}</td><td class="n">${n0(sales)}</td><td class="n">${n0(cogs)}</td><td class="n">${n0(sales-cogs)}</td><td class="n">${pct(sales-cogs,sales)}%</td></tr></tfoot></table></div>
+    <p class="small muted">Orange makes the least on each bottle because oranges cost the most per litre. Mixing orange with carrot (Orange Carrot Glow) brings the cost down. The app points this out so prices can be checked.</p></div>`;
+};
+
+/* ---- SETTINGS ---- */
+PAGES.settings = () => `
+  <div class="grid g2">
+    <div class="card"><h3>${ic('gear')} Business</h3>
+      <label class="f"><span>Name</span><input class="in" value="Vanny's Fresh Juice"></label>
+      <div class="grid g2"><label class="f"><span>WhatsApp</span><input class="in" value="+256 785 965536"></label><label class="f"><span>Phone</span><input class="in" value="+256 751 349633"></label></div>
+      <label class="f"><span>Receipt footer</span><input class="in" value="Thank you! Fresh every day."></label>
+      <label class="f"><span>MoMo merchant code (shown on receipts)</span><input class="in" placeholder="optional"></label>
+    </div>
+    <div class="card"><h3>${ic('cash')} Bottle sizes and prices</h3>
+      <table class="t"><tr><th>Size</th><th class="n">Price</th><th class="n">Premium</th><th class="n">Bottle + cap + label</th></tr>
+      ${SIZES.map(s=>`<tr><td>${s.label}</td><td class="n">${n0(BASE[s.id])}</td><td class="n">${n0(BASE[s.id]+PREMIUM[s.id])}</td><td class="n">${n0(PACK[s.id])}</td></tr>`).join('')}</table>
+      <p class="small muted" style="margin:10px 0 0">Premium: ${F.filter(f=>f.premium).map(f=>f.name).join(', ')}</p>
+      <label class="f" style="margin-top:12px"><span>Deposit on a returnable bottle</span><input class="in" value="500"></label>
+    </div>
+    <div class="card"><h3>${ic('padlock')} People and what they can open</h3>
+      ${Object.entries(ROLES).map(([k,r])=>`<div class="row"><div class="ic pur">${ic('padlock')}</div><div class="t"><b>${r.label}</b><small>${r.pages==='all'?'Everything, including profit and wages':r.pages.filter(p=>p!=='home').map(p=>ALL.find(a=>a.id===p).label).join(', ')}</small></div><button class="btn sm" onclick="proto()">PIN</button></div>`).join('')}
+    </div>
+    <div class="card"><h3>${ic('thermo')} Freshness rules</h3>
+      ${F.map(f=>`<div class="row"><div class="t">${f.icon} ${f.name}</div><div class="amt">${RECIPES[f.id].bb} days</div></div>`).join('')}
+      <label class="f" style="margin-top:10px"><span>Fridge must stay between</span><input class="in" value="0 to 5 °C"></label>
+      <button class="btn wide" onclick="proto()">${ic('down')} Back up all records</button>
+    </div>
+  </div>`;
+
+/* ---- MORE (phone) ---- */
+/* ---- REMINDERS ---- */
+const DAYNAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+function remDay(ymd){
+  if(ymd < TODAY_YMD) return 'Overdue';
+  if(ymd === TODAY_YMD) return 'Today';
+  const d = new Date(ymd+'T12:00'), t = new Date(TODAY_YMD+'T12:00'), diff = Math.round((d-t)/864e5);
+  return diff === 1 ? 'Tomorrow' : `${DAYNAMES[d.getDay()]} ${ymd.slice(8)}/${ymd.slice(5,7)}`;
+}
+PAGES.reminders = () => {
+  const list = myReminders().filter(r=>!r.done).sort((a,b)=>a.when.localeCompare(b.when));
+  const once = list.filter(r=>!r.repeat), rep = list.filter(r=>r.repeat);
+  const groups = [...new Set(once.map(r=>remDay(r.when.slice(0,10))))];
+  const row = r => `<div class="row"><div class="ic ${r.repeat?'info':'pur'}">${ic('bell')}</div>
+    <div class="t"><b>${r.what}</b><small>${r.repeat?(r.repeat==='daily'?'Every day':'Every week')+' at '+r.when.slice(11):r.when.slice(11)} · for ${r.who} · ${r.src}</small><br>
+      ${r.how.map(h=>`<span class="bd ${h==='app'?'pur':h==='calendar'?'info':'ok'}" style="margin:4px 4px 0 0">${HOW[h]}</span>`).join('')}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="btn sm" onclick="downloadIcs(${r.id})" title="Add to phone calendar">${ic('cal')}</button><button class="btn sm" onclick="remDone(${r.id})" title="Done">${ic('check')}</button></div></div>`;
+  return `
+  <div class="note">A reminder can reach a phone three ways: a <b>notification from the app</b>, the phone's own <b>calendar</b> (with an alarm 15 minutes before, works without internet), or a <b>WhatsApp</b> message to the person it is for. Orders make their own reminders: make the juice the day before, deliver on the day.</div>
+  <div class="sec" style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn pri" onclick="newReminder()">${ic('plus')} New reminder</button><button class="btn" onclick="testNotify()">${ic('bell')} Send a test notification</button></div>
+  <div class="grid g2 sec">
+    <div class="card"><h3>${ic('cal')} Coming up</h3>
+      ${groups.map(g=>`<h4 class="kindsm">${g}</h4>`+once.filter(r=>remDay(r.when.slice(0,10))===g).map(row).join('')).join('') || '<p class="muted">Nothing coming up.</p>'}
+    </div>
+    <div class="card"><h3>${ic('bell')} Repeating</h3>${rep.map(row).join('') || '<p class="muted">None.</p>'}
+      <p class="small muted">Done reminders disappear from the list. A reminder made from an order goes when the order is delivered or cancelled.</p></div>
+  </div>`;
+};
+function remDone(id){ REMINDERS.find(r=>r.id===id).done = true; render(); toast('Reminder done'); }
+function newReminder(orderNo){
+  const o = orderNo && ORDERS.find(x=>x.no===orderNo);
+  const what = o ? `Make ${o.lines.map(lineTxt).join(', ')} for ${o.cust} (${o.no})` : '';
+  sheet('New reminder', `
+    <label class="f"><span>Remind about</span><textarea class="in" id="rmWhat" rows="2" placeholder="e.g. Make 40 × 500 ml mango for Kato">${what}</textarea></label>
+    <div class="grid g2"><label class="f"><span>Day</span><input class="in" type="date" id="rmDate" value="2026-11-13"></label><label class="f"><span>Time</span><input class="in" type="time" id="rmTime" value="06:00"></label></div>
+    <div class="grid g2"><label class="f"><span>For</span><select class="in" id="rmWho">${STAFF.map(s=>`<option ${o&&s.name==='Brian'?'selected':''}>${s.name}</option>`).join('')}</select></label>
+      <label class="f"><span>Repeat</span><select class="in" id="rmRep"><option value="">Once</option><option value="daily">Every day</option><option value="weekly">Every week</option></select></label></div>
+    <label class="f" style="margin-bottom:4px"><span>How should it reach the phone?</span></label>
+    <label class="check"><input type="checkbox" id="rmApp" checked> Notification from the app</label>
+    <label class="check"><input type="checkbox" id="rmCal" checked> Add to the phone's calendar (alarm 15 minutes before)</label>
+    <label class="check"><input type="checkbox" id="rmWa"> WhatsApp message to the person</label>
+    <button class="btn pri wide" style="margin-top:14px" onclick="saveReminder('${o?o.no:''}')">${ic('bell')} Save reminder</button>`);
+}
+function saveReminder(src){
+  const what = $('#rmWhat').value.trim();
+  if(!what) return toast('Type what the reminder is about');
+  const r = {id: Math.max(...REMINDERS.map(x=>x.id))+1, when:`${$('#rmDate').value}T${$('#rmTime').value||'06:00'}`, what, who:$('#rmWho').value, src: src || 'Added by hand', repeat:$('#rmRep').value, how:[$('#rmApp').checked&&'app', $('#rmCal').checked&&'calendar', $('#rmWa').checked&&'whatsapp'].filter(Boolean)};
+  if(!r.how.length) return toast('Choose at least one way to send it');
+  REMINDERS.push(r); closeSheet(); render();
+  if(r.how.includes('calendar')) downloadIcs(r.id);
+  toast(r.how.includes('calendar') ? 'Reminder saved. Open the file to add it to the calendar.' : 'Reminder saved');
+}
+/* A real calendar file (.ics) with an alarm: iPhone and Android calendars both open it. */
+function downloadIcs(id){
+  const r = REMINDERS.find(x=>x.id===id);
+  const esc = t => t.replace(/\\/g,'\\\\').replace(/[,;]/g, m=>'\\'+m).replace(/\n/g,'\\n');
+  const start = r.when.replace(/[-:]/g,'') + '00';
+  const lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Vannys Fresh Juice//Reminders//EN','CALSCALE:GREGORIAN','BEGIN:VEVENT',
+    `UID:vj-reminder-${r.id}@vannys-fresh-juice`, 'DTSTAMP:20261112T090000Z', `DTSTART:${start}`, 'DURATION:PT30M',
+    `SUMMARY:${esc("Vanny's: " + r.what)}`, `DESCRIPTION:${esc('For ' + r.who + ' · ' + r.src)}`,
+    ...(r.repeat ? [r.repeat==='daily' ? 'RRULE:FREQ=DAILY' : 'RRULE:FREQ=WEEKLY'] : []),
+    'BEGIN:VALARM','ACTION:DISPLAY',`DESCRIPTION:${esc(r.what)}`,'TRIGGER:-PT15M','END:VALARM','END:VEVENT','END:VCALENDAR'];
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([lines.join('\r\n')], {type:'text/calendar'}));
+  a.download = `reminder-${r.when.slice(0,10)}.ics`; document.body.appendChild(a); a.click(); a.remove();
+}
+async function testNotify(){
+  try {
+    if(!('Notification' in window)) return toast('This browser cannot show notifications. On iPhone, add the app to the Home Screen first.');
+    const ok = await Notification.requestPermission();
+    if(ok !== 'granted') return toast('Notifications are switched off for this app in the phone settings');
+    const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration();
+    const opts = {body:'06:00 · Make 20 × Mango 500 ml and 20 × Passion fruit 500 ml for Kato Supermarket', icon:'assets/mark.jpg'};
+    if(reg) reg.showNotification("Vanny's Fresh Juice", opts); else new Notification("Vanny's Fresh Juice", opts);
+  } catch(e) { toast('This browser cannot show notifications here'); }
+}
+
+/* ---- HELP: shows user-manual.md (the one copy of the manual) ---- */
+let MANUAL = null;
+PAGES.help = () => {
+  if(MANUAL === null){ fetch('user-manual.md').then(r=>r.ok?r.text():Promise.reject()).then(t=>{MANUAL=t; if(state.page==='help') render();}).catch(()=>{MANUAL=''; if(state.page==='help') render();}); return '<p class="muted">Opening the manual…</p>'; }
+  if(!MANUAL) return '<p class="muted">The manual could not be opened.</p>';
+  return mdToHtml(MANUAL);
+};
+function mdToHtml(md){
+  const inline = t => t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\*(.+?)\*/g,'<i>$1</i>');
+  const slug = t => 'm-' + t.toLowerCase().replace(/[^a-z0-9]+/g,'-');
+  const lines = md.split(/\r?\n/), out = [], toc = [];
+  let list = null, para = [], table = null;
+  const flush = () => {
+    if(para.length){ out.push(`<p>${inline(para.join(' '))}</p>`); para = []; }
+    if(list){ out.push(`<${list.t}>${list.items.map(i=>`<li>${inline(i)}</li>`).join('')}</${list.t}>`); list = null; }
+    if(table){ const [h,...rows] = table.filter(r=>!/^\|[\s|:-]+\|$/.test(r)).map(r=>r.slice(1,-1).split('|').map(c=>c.trim()));
+      out.push(`<div class="scroll"><table class="t"><tr>${h.map(c=>`<th>${inline(c)}</th>`).join('')}</tr>${rows.map(r=>`<tr>${r.map(c=>`<td>${inline(c)}</td>`).join('')}</tr>`).join('')}</table></div>`); table = null; }
+  };
+  for(const l of lines){
+    let m;
+    if(!l.trim()){ flush(); continue; }
+    if(l.startsWith('|')){ if(!table){ flush(); table = []; } table.push(l.trim()); continue; }
+    if((m = l.match(/^(#{1,3}) (.*)/))){ flush(); const lv = m[1].length, id = slug(m[2]);
+      if(lv===1) continue; if(lv===2) toc.push([id,m[2]]); out.push(`<h${lv+1} id="${id}">${inline(m[2])}</h${lv+1}>`); continue; }
+    if(l.startsWith('> ')){ flush(); out.push(`<div class="note">${inline(l.slice(2))}</div>`); continue; }
+    if((m = l.match(/^\s*- (.*)/))){ if(!list || list.t!=='ul'){ flush(); list = {t:'ul', items:[]}; } list.items.push(m[1]); continue; }
+    if((m = l.match(/^\s*\d+\. (.*)/))){ if(!list || list.t!=='ol'){ flush(); list = {t:'ol', items:[]}; } list.items.push(m[1]); continue; }
+    if(list && /^\s{2,}/.test(l)){ list.items[list.items.length-1] += ' ' + l.trim(); continue; }
+    para.push(l.trim());
+  }
+  flush();
+  return `<div class="manual"><div class="card"><h3>${ic('help')} Contents</h3><div class="toc">${toc.map(([id,t])=>`<a href="javascript:void(0)" onclick="document.getElementById('${id}').scrollIntoView({behavior:'smooth'})">${t}</a>`).join('')}</div></div>
+    <div class="card sec">${out.join('')}</div></div>`;
+}
+
+PAGES.more = () => `<div class="more">${ALL.filter(a=>allowed(a.id)&&!['home','sell','orders','make'].includes(a.id)).map(a=>`<button onclick="go('${a.id}')"><div class="ic info">${ic(a.icon)}</div>${a.label}</button>`).join('')}</div>
+  <div class="note sec">This is a look-and-feel prototype for Vanny's Fresh Juice. The figures are made up. Nothing is saved.</div>`;
+
+/* ============ quick menu ============ */
+function quickMenu(){
+  const items = [
+    ['sell','cart','New sale',"closeSheet();go('sell')"],
+    ['orders','truck','New order','newOrder()'],
+    ['make','make','New batch',"closeSheet();go('make');setTimeout(newBatch,50)"],
+    ['buying','basket','Buy fruit or supplies','newPurchase()'],
+    ['expenses','receipt','Expense','newExpense()'],
+    ['stock','drop','Write off spoiled','writeOff()'],
+    ['reminders','bell','Reminder','newReminder()'],
+  ].filter(i=>allowed(i[0]));
+  sheet('New', `<div class="more">${items.map(i=>`<button onclick="${i[3]}"><div class="ic info">${ic(i[1])}</div>${i[2]}</button>`).join('')}</div>`);
+}
+
+/* ============ shell ============ */
+function render(){
+  const id = state.page;
+  const navItem = ALL.find(a=>a.id===id) || {label:'More'};
+  $('#title').innerHTML = `${navItem.label}<span class="sub">${TODAY}</span>`;
+  $('#ptitle').textContent = navItem.short || navItem.label;
+  $('#side').innerHTML = `<img class="logo" src="assets/logo.jpg" alt="Vanny's Fresh Juice">` + NAV.map(g => {
+    const its = g.items.filter(a=>allowed(a.id)); if(!its.length) return '';
+    return `<h6>${g.g}</h6>` + its.map(a=>`<button class="nav ${a.id===id?'on':''}" onclick="go('${a.id}')">${ic(a.icon)}${a.label}</button>`).join('');
+  }).join('') + `<h6>Prototype</h6><button class="nav" onclick="lockNow()">${ic('padlock')}Lock</button>`;
+  const tabs = [['home','home','Home'],['sell','cart','Sell'],['orders','truck','Orders'],['make','make','Make'],['more','grid','More']].filter(t=>t[0]==='more'||allowed(t[0]));
+  $('#tabs').innerHTML = tabs.map(t=>`<button class="tab ${t[0]===id||(t[0]==='more'&&!['home','sell','orders','make'].includes(id))?'on':''}" onclick="go('${t[0]}')">${ic(t[1])}${t[2]}</button>`).join('');
+  const opts = Object.entries(ROLES).map(([k,r])=>`<option value="${k}" ${state.role===k?'selected':''}>Viewing as: ${r.label}</option>`).join('');
+  $('#role1').innerHTML = opts; $('#role2').innerHTML = opts.replace(/Viewing as: /g,'');
+  $('#page').innerHTML = (PAGES[id] || PAGES.home)();
+}
+function route(){ const h = location.hash.slice(1) || 'home'; state.page = (PAGES[h] && (h==='more'||allowed(h))) ? h : 'home'; closeSheet(); render(); window.scrollTo(0,0); }
+window.addEventListener('hashchange', route);
+
+/* ============ lock screen (prototype: any 6 digits) ============ */
+let pin = '';
+function lockHtml(){
+  return `<div class="ph"></div><div class="pane"><img class="lg" src="assets/logo.jpg" alt="Vanny's Fresh Juice">
+    <p style="font-weight:700;margin:14px 0 0">Enter your PIN</p><p class="small muted" style="margin:4px 0 0">Prototype: any 6 digits open it</p>
+    <div class="pin">${[0,1,2,3,4,5].map(i=>`<i class="${i<pin.length?'f':''}"></i>`).join('')}</div>
+    <div class="pad">${[1,2,3,4,5,6,7,8,9,'',0,'⌫'].map(k=>k===''?'<span></span>':`<button onclick="pinKey('${k}')">${k}</button>`).join('')}</div></div>`;
+}
+function pinKey(k){
+  if(k==='⌫') pin = pin.slice(0,-1); else if(pin.length<6) pin += k;
+  $('#lock').innerHTML = lockHtml();
+  if(pin.length===6) setTimeout(() => { $('#lock').style.display='none'; pin=''; }, 200);
+}
+function lockNow(){ $('#lock').style.display='flex'; $('#lock').innerHTML = lockHtml(); }
+document.addEventListener('keydown', e => { if($('#lock').style.display!=='none' && /^[0-9]$/.test(e.key)) pinKey(e.key); else if($('#lock').style.display!=='none' && e.key==='Backspace') pinKey('⌫'); });
+
+$('#lock').innerHTML = lockHtml();
+if(location.search.includes('open')) $('#lock').style.display='none'; // for screenshots only
+route();
+</script>
+</body>
+</html>
