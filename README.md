@@ -2,18 +2,28 @@
 
 An app for Vanny's Fresh Juice that covers the whole business: buying fruit, making juice, the fridge, selling, deliveries, money and staff. Started 12 Nov 2026 from the lessons of MANSOL Finance and Bake Away.
 
-**Stage now: look-and-feel prototype only.** No hosting, no sign-in, nothing saved. The figures are made up.
+**Stage now (12 Nov 2026): first working version of the app**, records kept on the device. Cloud sync with a PIN per person comes next. The rules for working on it are in `CLAUDE.md`; the user manual is `docs/user-manual.md` (shown in the app at Help).
 
-## Open the prototype
+## Work on the app
 
-- In the Claude app: `preview_start` name `vannys-prototype` (it runs `python -m http.server 5190` on `prototype/`), then http://localhost:5190
-- Phone view on a laptop: http://localhost:5190/phone.html (an iPhone-sized frame; add `?p=sell` etc. to open a page)
-- Lock screen: any 6 digits open it (prototype only)
-- "Viewing as" at the top switches between Owner, Production, Sales and Rider, to show what each person would see
-- Screenshots: `screenshots/` (laptop and phone)
-- Live copy: https://vannysfreshjuice-tech.github.io/vannys-fresh-juice/ (GitHub Pages, from the `main` branch)
+```bash
+npm install
+npm run dev      # http://localhost:5191 (records in this browser only)
+npm run check    # type check
+npm test         # money, stock and saving rules (tests/)
+npm run build    # production build into dist/
+npm run icons    # remake the icons from assets/business-card.jpg
+```
 
-## The parts of the app
+In the Claude app: `preview_start` name `vannys-dev`.
+
+## The prototype (the look agreed first)
+
+- Kept in `public/prototype/`; served at `/prototype/` by the app's build, or alone with `preview_start` name `vannys-prototype` (http://localhost:5190).
+- Live now: https://vannysfreshjuice-tech.github.io/vannys-fresh-juice/ (GitHub Pages "Deploy from a branch"). When the app is published, Pages switches to the GitHub Actions workflow and the prototype stays at `/prototype/`.
+- Screenshots: `screenshots/`.
+
+## The parts of the app (as in the prototype; the app follows it)
 
 | Part | What it does |
 |---|---|

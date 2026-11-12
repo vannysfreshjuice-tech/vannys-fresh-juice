@@ -1,4 +1,6 @@
-assets-src/
+node_modules/
+dist/
 *.backup.json
 backups/
 Thumbs.db
+*.log

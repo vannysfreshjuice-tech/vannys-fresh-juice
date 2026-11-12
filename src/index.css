@@ -1,0 +1,287 @@
+@import "tailwindcss";
+
+/* Colours taken from Vanny's logo: orange cup, mango yellow, leaf green, straw purple, cream. */
+@theme {
+  --color-ink: #3a2716;
+  --color-muted: #8c7660;
+  --color-faint: #bba892;
+  --color-page: #fff8ee;
+  --color-card: #ffffff;
+  --color-line: #f1e3d0;
+  --color-orange: #f7931e;
+  --color-mango: #ffc425;
+  --color-purple: #7a2c8f;
+  --color-purple-soft: #f3e6f7;
+  --color-choc: #4a3020;
+  --color-butter: #ffe08a;
+  --color-butter-soft: #fff7d6;
+  --color-cherry: #d2382d;
+  --color-cherry-soft: #fdebe8;
+  --color-leaf: #23801f;
+  --color-leaf-soft: #e5f5e1;
+  --color-amber: #946200;
+  --color-amber-soft: #fff1cc;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+:root {
+  --accent: #ef8410;
+  --accent-dark: #c86400;
+  --accent-soft: #fff0dc;
+  --accent-line: #fbd3a0;
+}
+@theme inline {
+  --color-accent: var(--accent);
+  --color-accent-dark: var(--accent-dark);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-line: var(--accent-line);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  background: var(--color-page);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
+}
+#root {
+  height: 100dvh;
+  position: relative;
+  z-index: 1;
+}
+/* The juice cup, faint, behind every page. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: url("./assets/mark.png") no-repeat center 62% / min(46vw, 260px) auto;
+  opacity: 0.07;
+}
+/* A soft orange glow where a finger or the mouse presses (added by main.tsx). */
+.tap-glow {
+  position: fixed;
+  width: 96px;
+  height: 96px;
+  margin: -48px 0 0 -48px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 95;
+  background: radial-gradient(circle, rgba(247, 147, 30, 0.34) 0%, rgba(247, 147, 30, 0.14) 42%, rgba(247, 147, 30, 0) 70%);
+  animation: tap-glow 0.6s ease-out forwards;
+}
+@keyframes tap-glow {
+  from {
+    transform: scale(0.3);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+/* iPhone zooms the whole page when a field's text is smaller than 16px. */
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+button {
+  cursor: pointer;
+  touch-action: manipulation;
+}
+button:disabled {
+  cursor: default;
+}
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+@layer components {
+  /* Room for the iPhone notch and home bar. */
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .px-safe {
+    padding-left: max(1rem, env(safe-area-inset-left, 0px));
+    padding-right: max(1rem, env(safe-area-inset-right, 0px));
+  }
+  .card {
+    @apply rounded-2xl border border-line;
+    background-color: rgb(255 255 255 / 0.88);
+    -webkit-backdrop-filter: blur(1.5px);
+    backdrop-filter: blur(1.5px);
+  }
+  .btn {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-[15px] font-semibold transition-colors select-none disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply bg-accent text-white hover:bg-accent-dark active:bg-accent-dark;
+  }
+  .btn-soft {
+    @apply bg-accent-soft text-accent-dark hover:bg-accent-line active:bg-accent-line;
+  }
+  .btn-plain {
+    @apply border border-line bg-card text-ink hover:bg-page active:bg-page;
+  }
+  .btn-danger {
+    @apply bg-cherry-soft text-cherry hover:bg-cherry hover:text-white active:bg-cherry active:text-white;
+  }
+  .btn-sm {
+    @apply min-h-9 rounded-lg px-3 text-sm;
+  }
+  .input {
+    @apply block min-h-11 w-full rounded-xl border border-line bg-card px-3 py-2 text-ink placeholder:text-faint focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-line;
+  }
+  .label {
+    @apply mb-1 block text-sm font-medium text-muted;
+  }
+  .chip {
+    @apply inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line bg-card px-3 text-sm font-medium text-muted whitespace-nowrap;
+  }
+  .chip-on {
+    @apply border-accent bg-accent text-white;
+  }
+  .row {
+    @apply flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-page active:bg-page;
+  }
+  .tbl {
+    @apply w-full border-collapse text-sm;
+  }
+  .tbl th {
+    @apply border-b border-line px-2 py-2 text-left text-xs font-semibold whitespace-nowrap text-muted;
+  }
+  .tbl td {
+    @apply border-b border-line px-2 py-2;
+  }
+  .tbl tr:last-child td {
+    @apply border-b-0;
+  }
+  .tbl .n {
+    @apply text-right whitespace-nowrap;
+  }
+  .tbl tr.grp td {
+    @apply bg-accent-soft py-1.5 text-xs font-bold tracking-wide text-accent-dark uppercase;
+  }
+}
+
+select.input {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238c7660' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  padding-right: 2.25rem;
+}
+/* iPhone draws date fields narrow and centred unless told otherwise. */
+input[type="date"].input,
+input[type="time"].input {
+  -webkit-appearance: none;
+  appearance: none;
+  min-width: 0;
+  text-align: left;
+}
+input[type="date"].input::-webkit-date-and-time-value {
+  text-align: left;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes pin-shake {
+  0%,
+  100% {
+    transform: none;
+  }
+  25% {
+    transform: translateX(-8px);
+  }
+  75% {
+    transform: translateX(8px);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.sheet-panel {
+  animation: sheet-up 0.2s ease-out;
+}
+.sheet-backdrop {
+  animation: fade-in 0.15s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sheet-panel,
+  .sheet-backdrop {
+    animation: none;
+  }
+}
+
+/* The user manual */
+.manual h1 {
+  @apply mb-2 text-2xl font-semibold;
+}
+.manual h2 {
+  @apply mt-8 mb-2 border-t border-line pt-6 text-xl font-semibold text-accent-dark;
+}
+.manual h3 {
+  @apply mt-5 mb-1 text-base font-semibold;
+}
+.manual p {
+  @apply my-2 leading-relaxed;
+}
+.manual ul {
+  @apply my-2 list-disc space-y-1 pl-5;
+}
+.manual ol {
+  @apply my-2 list-decimal space-y-1 pl-5;
+}
+.manual blockquote {
+  @apply my-3 rounded-xl bg-butter-soft px-4 py-3 text-[15px];
+}
+.manual table {
+  @apply my-3 w-full text-sm;
+}
+.manual th {
+  @apply border-b border-line py-1.5 pr-3 text-left font-semibold;
+}
+.manual td {
+  @apply border-b border-line py-1.5 pr-3;
+}
+
+@media print {
+  body::before,
+  .no-print {
+    display: none !important;
+  }
+  #root {
+    height: auto;
+  }
+}
