@@ -2,7 +2,7 @@
 
 An app for Vanny's Fresh Juice that covers the whole business: buying fruit, making juice, the fridge, selling, deliveries, money and staff. Started 12 Nov 2026 from the lessons of MANSOL Finance and Bake Away.
 
-**Stage now (12 Nov 2026): first working version of the app**, records kept on the device. Cloud sync with a PIN per person comes next. The rules for working on it are in `CLAUDE.md`; the user manual is `docs/user-manual.md` (shown in the app at Help).
+**Stage now (12 Nov 2026): first working version of the app, live at https://vannysfreshjuice-tech.github.io/vannys-fresh-juice/**, records kept on each device. Cloud sync with a PIN per person comes next. The rules for working on it are in `CLAUDE.md`; the user manual is `docs/user-manual.md` (shown in the app at Help).
 
 ## Work on the app
 
@@ -20,7 +20,7 @@ In the Claude app: `preview_start` name `vannys-dev`.
 ## The prototype (the look agreed first)
 
 - Kept in `public/prototype/`; served at `/prototype/` by the app's build, or alone with `preview_start` name `vannys-prototype` (http://localhost:5190).
-- Live now: https://vannysfreshjuice-tech.github.io/vannys-fresh-juice/ (GitHub Pages "Deploy from a branch"). When the app is published, Pages switches to the GitHub Actions workflow and the prototype stays at `/prototype/`.
+- Live at https://vannysfreshjuice-tech.github.io/vannys-fresh-juice/prototype/ (the app itself is at the site's main address, published by the GitHub Actions workflow on every push to main).
 - Screenshots: `screenshots/`.
 
 ## The parts of the app (as in the prototype; the app follows it)
