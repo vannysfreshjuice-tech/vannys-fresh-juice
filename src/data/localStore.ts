@@ -63,8 +63,10 @@ export function makeLocalStore(storage: KeyValue = window.localStorage): Store {
       // Work on copies, write them all, and only then swap them in: all or nothing.
       const next = new Map<Col, Table>();
       for (const o of ops) {
-        let t = next.get(o.col);
-        if (!t) next.set(o.col, (t = { ...table(o.col) }));
+        if (!(COLLECTIONS as readonly string[]).includes(o.col)) continue; // cloud access lists: nothing to keep here
+        const col = o.col as Col;
+        let t = next.get(col);
+        if (!t) next.set(col, (t = { ...table(col) }));
         if (o.op === 'delete') delete t[o.id];
         else if (o.op === 'set') t[o.id] = { ...clean(o.data), id: o.id };
         else t[o.id] = { ...(t[o.id] ?? {}), ...clean(o.data), id: o.id };

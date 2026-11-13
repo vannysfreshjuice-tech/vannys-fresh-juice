@@ -3,12 +3,14 @@
 // Only a slow salted fingerprint of each PIN is kept on this device, never the PIN itself.
 // The app locks when it starts and after LOCK_AFTER_MS in the background.
 //
-// While the records are kept on the device this is a screen lock for the device. When the app moves
-// to the cloud, each person's PIN becomes their server-checked password (see CLAUDE.md, Open work).
+// That is the device lock (records kept on the device: npm run dev). In the published app the
+// records are in the cloud and each person's PIN is their own Firebase password; after Firebase has
+// accepted it once on a device, rememberCloudPin keeps its fingerprint so it also opens offline.
 
 const KEY = 'vannys.pins';
 const HIDDEN_AT = 'vannys.hiddenAt';
 const TRIES = 'vannys.pinTries';
+const CLOUD_KEY = 'vannys.cloudPin';
 export const PIN_LENGTH = 6;
 export const LOCK_AFTER_MS = 5 * 60 * 1000;
 /** The key used for the owner when no staff record is marked Owner. */
@@ -53,6 +55,9 @@ function write(pins: Pins) {
 
 export const validPin = (pin: string) => new RegExp(`^\\d{${PIN_LENGTH}}$`).test(pin);
 
+/** 111111, 123456, 987654 and the like. */
+export const easyPin = (pin: string) => /^(\d)\1+$/.test(pin) || '0123456789'.includes(pin) || '9876543210'.includes(pin);
+
 /** Is the lock on (at least one PIN set on this device)? */
 export const lockIsOn = () => Object.keys(read()).length > 0;
 
@@ -69,7 +74,7 @@ export async function findPin(pin: string): Promise<string | null> {
 /** Sets (or changes) one person's PIN. Two people cannot share a PIN, since the PIN says who you are. */
 export async function setPin(who: string, pin: string): Promise<void> {
   if (!validPin(pin)) throw new Error(`The PIN must be ${PIN_LENGTH} digits.`);
-  if (/^(\d)\1+$/.test(pin) || '0123456789'.includes(pin) || '9876543210'.includes(pin)) throw new Error('That PIN is too easy to guess. Choose another.');
+  if (easyPin(pin)) throw new Error('That PIN is too easy to guess. Choose another.');
   const taken = await findPin(pin);
   if (taken && taken !== who) throw new Error('Someone else already uses that PIN. Choose another.');
   const salt = crypto.getRandomValues(new Uint8Array(16));
@@ -86,6 +91,38 @@ export function removePin(who: string): void {
 
 export function removeAllPins(): void {
   write({});
+}
+
+// ---------- cloud: the signed-in person's PIN, for opening with no signal ----------
+
+/** Keeps the fingerprint of the PIN Firebase has just accepted for this sign-in (uid). */
+export async function rememberCloudPin(uid: string, pin: string): Promise<void> {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const hash = await fingerprint(pin, salt);
+  try {
+    localStorage.setItem(CLOUD_KEY, JSON.stringify({ uid, salt: toHex(salt.buffer), hash }));
+  } catch {
+    /* private mode: the PIN then goes to Firebase each time */
+  }
+}
+
+/** true = right; false = wrong; null = no fingerprint for this sign-in here yet (ask Firebase). */
+export async function checkCloudPin(uid: string, pin: string): Promise<boolean | null> {
+  try {
+    const v = JSON.parse(localStorage.getItem(CLOUD_KEY) ?? 'null') as { uid?: string; salt?: string; hash?: string } | null;
+    if (!v || v.uid !== uid || typeof v.salt !== 'string' || typeof v.hash !== 'string') return null;
+    return (await fingerprint(pin, fromHex(v.salt))) === v.hash;
+  } catch {
+    return null;
+  }
+}
+
+export function forgetCloudPin(): void {
+  try {
+    localStorage.removeItem(CLOUD_KEY);
+  } catch {
+    /* nothing stored */
+  }
 }
 
 // ---------- wrong tries on this device: 5 free, then a growing wait ----------

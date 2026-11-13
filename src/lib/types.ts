@@ -199,6 +199,10 @@ export interface Staff extends Base {
   rate: number;
   phone?: string;
   archived?: boolean;
+  /** Cloud only: the person's own sign-in, given by the owner (Staff > person > Give a PIN) */
+  loginUid?: string;
+  /** Cloud only: the phone number (256...) they sign in with */
+  loginPhone?: string;
 }
 
 /** One person, one day. id = `${date}_${staffId}` so a day can only be marked once. */

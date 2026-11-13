@@ -1,14 +1,17 @@
 // How the app is put together:
-//   notices and confirms > where the records live (this device for now; the cloud with a PIN
-//   per person comes next) > the records themselves (loaded once) > windows > pages.
+//   notices and confirms > where the records live (the published app: the cloud, each person with
+//   their own sign-in and PIN; "npm run dev": this browser only, with the device PIN lock)
+//   > the records themselves (loaded once) > windows > pages.
 import { Component, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
+import { CloudApp } from './components/CloudGate';
 import { LockGate } from './components/Lock';
 import { SheetProvider } from './components/SheetHost';
 import { Button, ConfirmProvider, NoticeProvider, useNotice } from './components/ui';
 import { DataProvider, useData } from './data/DataContext';
 import { makeLocalStore } from './data/localStore';
+import { cloudConfig } from './firebase-config';
 import { mayOpen } from './lib/nav';
 import { onUpdateReady } from './lib/update';
 import { Customers, Expenses, StaffPage } from './pages/Business';
@@ -100,7 +103,8 @@ function Pages() {
   );
 }
 
-function WithRecords() {
+/** Records kept in this browser only (npm run dev), with the device PIN lock. */
+function DeviceApp() {
   const notify = useNotice();
   const store = useMemo(() => makeLocalStore(), []);
   return (
@@ -118,7 +122,15 @@ export default function App() {
   return (
     <NoticeProvider>
       <ConfirmProvider>
-        <WithRecords />
+        {cloudConfig ? (
+          <CloudApp>
+            <HashRouter>
+              <Pages />
+            </HashRouter>
+          </CloudApp>
+        ) : (
+          <DeviceApp />
+        )}
       </ConfirmProvider>
       <UpdateBanner />
     </NoticeProvider>

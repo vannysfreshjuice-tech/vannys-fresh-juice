@@ -1,0 +1,40 @@
+rules_version = '2';
+
+// Vanny's Fresh Juice: one shared set of records, opened by each person with their own sign-in.
+// - The owner is the sign-in with the owner's email (the same address as ownerEmail in
+//   src/firebase-config.ts; keep the two the same).
+// - Staff can open the records only while members/{their sign-in id} exists. The owner writes it
+//   when she gives them a PIN, and removes it when they leave or she stops their access.
+// - Only the owner changes staff, wages and settings; only the owner reads wages.
+// - Nobody else, signed in or not, can read or write anything, except one lookup: a staff phone
+//   number says which sign-in it opens (logins/{phone}), read one at a time, never listed.
+// Published by pasting this file in the Firebase console (Firestore > Rules); there is no CLI login.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isOwner() {
+      return signedIn() && request.auth.token.email == 'vanessaklarisa@gmail.com';
+    }
+    function isMember() {
+      return isOwner() || (signedIn() && exists(/databases/$(database)/documents/members/$(request.auth.uid)));
+    }
+
+    match /members/{uid} {
+      allow read: if isOwner() || (signedIn() && request.auth.uid == uid);
+      allow write: if isOwner();
+    }
+
+    match /logins/{phone} {
+      allow get: if true;
+      allow list: if isOwner();
+      allow write: if isOwner();
+    }
+
+    match /biz/vannys/{col}/{id} {
+      allow read: if isMember() && (col != 'wages' || isOwner());
+      allow write: if isMember() && (!(col in ['staff', 'wages', 'settings']) || isOwner());
+    }
+  }
+}

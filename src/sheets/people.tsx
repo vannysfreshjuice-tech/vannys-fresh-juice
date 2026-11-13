@@ -304,7 +304,7 @@ export function StaffForm({ id, onClose }: { id?: string; onClose: () => void })
         <Field label="Phone (for WhatsApp reminders)">
           <TextInput inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
         </Field>
-        {s && !s.archived && s.role !== 'owner' && <PersonPin staffId={s.id} name={s.name} />}
+        {s && !s.archived && s.role !== 'owner' && (lock.cloud ? <CloudPersonPin person={s} /> : <PersonPin staffId={s.id} name={s.name} />)}
         {s && s.role === 'owner' && lock.on && <p className="text-xs text-muted">The owner's PIN is set and changed in Settings.</p>}
       </div>
     </Sheet>
@@ -312,6 +312,75 @@ export function StaffForm({ id, onClose }: { id?: string; onClose: () => void })
 }
 
 /** The owner gives a person their own PIN (only once the owner's own PIN is set). */
+const localPhone = (key: string) => (key.startsWith('256') ? `0${key.slice(3, 6)} ${key.slice(6)}` : key);
+
+/** Cloud: the owner gives a person their own sign-in (phone number + PIN). Needs the internet. */
+function CloudPersonPin({ person }: { person: Staff }) {
+  const { staff } = useData();
+  const cloud = useLock().cloud!;
+  const notify = useNotice();
+  const confirm = useConfirm();
+  const [phone, setPhone] = useState(person.loginPhone ? localPhone(person.loginPhone) : (person.phone ?? ''));
+  const [pin, setP] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const has = !!person.loginUid;
+  if (!cloud.isOwner) return null;
+  const give = async () => {
+    setErr('');
+    setBusy(true);
+    try {
+      await cloud.givePin(person, phone, pin, staff);
+      setP('');
+      notify(`${person.name} can now open the app with that phone number and PIN`);
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="rounded-xl border border-line p-3">
+      <p className="mb-2 text-sm font-semibold">
+        {person.name}'s sign-in{' '}
+        {has ? <span className="font-normal text-leaf">(can open the app, phone {localPhone(person.loginPhone ?? '')})</span> : <span className="font-normal text-muted">(none yet)</span>}
+      </p>
+      {err && <p className="mb-2 text-sm text-cherry">{err}</p>}
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Their phone number">
+          <TextInput inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0772 123456" />
+        </Field>
+        <PinInput label={has ? 'New PIN' : 'PIN (6 digits)'} value={pin} onChange={setP} />
+      </div>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <Button busy={busy} onClick={give}>
+          {has ? 'Give a new PIN' : 'Give a PIN'}
+        </Button>
+        {has && (
+          <Button
+            variant="plain"
+            disabled={busy}
+            onClick={async () => {
+              if (!(await confirm({ title: `Stop ${person.name} opening the app?`, body: 'Their sign-in stops working on every phone at once. Their records stay. You can give them a new PIN later.', yes: 'Stop access', danger: true }))) return;
+              try {
+                await cloud.removeAccess(person);
+                notify(`${person.name} can no longer open the app`);
+              } catch (e) {
+                setErr((e as Error).message);
+              }
+            }}
+          >
+            Stop access
+          </Button>
+        )}
+      </div>
+      <p className="mt-2 text-xs text-muted">
+        Tell {person.name} the PIN yourself. The first time on a phone they tap <b>I work at Vanny's</b>, type this phone number and the PIN (needs the internet). It opens only {person.name}'s part of the app. A new PIN replaces the old one at once.
+      </p>
+    </div>
+  );
+}
+
 function PersonPin({ staffId, name }: { staffId: string; name: string }) {
   const lock = useLock();
   const notify = useNotice();

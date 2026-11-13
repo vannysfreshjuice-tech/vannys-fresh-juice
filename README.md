@@ -2,7 +2,7 @@
 
 An app for Vanny's Fresh Juice that covers the whole business: buying fruit, making juice, the fridge, selling, deliveries, money and staff. Started 12 Nov 2026 from the lessons of MANSOL Finance and Bake Away.
 
-**Stage now (12 Nov 2026): first working version of the app, live at https://vannysfreshjuice-tech.github.io/vannys-fresh-juice/**, records kept on each device. Cloud sync with a PIN per person comes next. The rules for working on it are in `CLAUDE.md`; the user manual is `docs/user-manual.md` (shown in the app at Help).
+**Stage now (12 Nov 2026): live at https://vannysfreshjuice-tech.github.io/vannys-fresh-juice/**. Cloud records (Firebase project `vanny-s-fresh-juice`) with a sign-in and PIN per person are built and tested on the local emulators; the published app moves to them with the next deploy. The rules for working on it are in `CLAUDE.md`; the user manual is `docs/user-manual.md` (shown in the app at Help).
 
 ## Work on the app
 

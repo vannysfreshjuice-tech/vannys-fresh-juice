@@ -27,7 +27,7 @@ import type {
   StockItem,
   WagePayment,
 } from '../lib/types';
-import { newId, type Op, type Store } from './store';
+import { accessRemoval, newId, type Op, type Store } from './store';
 
 type Input<T> = Omit<T, 'id' | 'createdAt' | 'updatedAt'>;
 export interface PaidNow {
@@ -435,8 +435,10 @@ export function makeActions(store: Store, now: () => Current) {
       await store.commit([s.op]);
       return s.id;
     },
+    /** Someone who has left also loses their cloud sign-in at once (in the same change). */
     async archiveStaff(id: string, archived: boolean) {
-      await store.commit([{ op: 'patch', col: 'staff', id, data: { archived, ...touched() } }]);
+      const s = cur().staff.find((x) => x.id === id);
+      await store.commit([{ op: 'patch', col: 'staff', id, data: { archived, ...(archived ? { loginUid: '', loginPhone: '' } : {}), ...touched() } }, ...(archived && s ? accessRemoval(s) : [])]);
     },
     /** present: true, false, or null to clear the mark */
     async setAttendance(staffId: string, date: string, present: boolean | null) {

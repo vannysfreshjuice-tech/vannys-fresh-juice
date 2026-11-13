@@ -1,10 +1,10 @@
 # Vanny's Fresh Juice user manual
 
-Last updated: 12 November 2026 (PIN lock)
+Last updated: 12 November 2026 (records in the cloud)
 
 This app keeps the whole juice business in one place: the fruit you buy, the juice you make, what is in the fridge, what you sell and deliver, what customers owe, reminders, expenses, staff and profit. It works on a phone like an app and on a laptop in the browser.
 
-> **For now the records are kept on the phone or laptop you use.** Connecting the app to the cloud, so every phone shares the same records and each person opens the app with their own PIN, is the next step. Until then, download a backup every week (Settings > Backup).
+> **The records are kept in the cloud.** Every phone and laptop sees the same records, and each person opens the app with their own PIN. The app also works with no signal: what you record is sent when the connection returns. Still download a backup every week (Settings > Backup): the free cloud plan keeps no backups of its own.
 
 ## Putting it on your phone
 
@@ -28,29 +28,35 @@ The Vanny's icon now sits on your Home Screen and opens full screen like any oth
 
 The first time, Home shows **Getting started**:
 
+Before this, the owner sets up her PIN (see **Opening the app**).
+
 1. Tap **Add the usual juices, fruit and bottles**. This adds 5 single-fruit juices and 7 juice cocktails with their recipes, the fruit and ingredients, and the bottles, caps and labels. Change any of them later on **Recipes and prices** and **Stock**.
 2. Tap **Add the staff** and add everyone who works at Vanny's, the owner too (see **Staff and wages**).
-3. Set your **PIN** (Home shows **Protect the app with a PIN**; see **PIN lock**).
+3. Give each person who will use the app their own **PIN** (Staff > the person; see **Opening the app**).
 4. Check the bottle sizes and prices in **Settings**.
 5. Record what you buy (**Buying**), then each batch you make (**Production**). The fridge fills up, and you can sell.
 
-## PIN lock
+## Opening the app
 
-The app has no lock until you set one. While there is no PIN, Home shows **Protect the app with a PIN**.
+Each person has their own PIN of 6 digits. It opens their part of the app (see **People and what they can open**) on any phone or laptop. The app locks itself after 5 minutes away.
 
-**Setting your PIN (owner):** Settings > **PIN lock** > **Set my PIN**. Type 6 digits twice and tap **Save PIN**. Choose digits that are hard to guess: the app refuses 111111, 123456 and the like. From then on the app opens on the PIN pad, and locks itself again after 5 minutes away.
+**The owner, the very first time:** open the app, tap **The owner**, then **First time? Set up the owner's PIN**. Type 6 digits twice and tap **Save the PIN**. Choose digits that are hard to guess: the app refuses 111111, 123456 and the like. This is done once; on another phone, tap **The owner** and type the PIN.
 
-**A PIN for each person:** in **Staff**, open a person and type their PIN under **their PIN**, then **Save PIN**. Tell them the PIN yourself. Each PIN opens only that person's part of the app (see **People and what they can open**), and two people cannot have the same PIN. **Remove PIN** takes it away; when someone **has left**, their PIN is removed by itself.
+**Giving a person their PIN (owner):** in **Staff**, open the person. Under **their sign-in**, type their phone number and a PIN for them, then tap **Give a PIN**. Tell them the PIN yourself. This needs the internet.
+
+**Staff, the first time on a phone:** open the app, tap **I work at Vanny's**, type your phone number (the one the owner used), then your PIN. The first time on a phone needs the internet; after that the PIN alone opens the app, even with no signal.
 
 **Opening the app:** type your PIN on the pad (on a laptop the number keys work too). After 5 wrong tries the app makes you wait, a little longer each time.
 
-**Locking and changing person:** tap your name with the lock at the top of the screen (on a laptop, at the bottom of the menu). The app locks; the next person types their own PIN.
+**Locking and changing person:** tap your name with the lock at the top of the screen (on a laptop, at the bottom of the menu). On the PIN pad, **Someone else** lets the next person sign in with their own details (this needs the internet).
 
-**Changing or turning off:** Settings > PIN lock > **Change my PIN** (your present PIN, then the new one twice), **Lock now**, or **Turn off** (your present PIN; this removes every PIN on this phone).
+**Changing your PIN:** Settings > **Your PIN** > **Change my PIN** (your present PIN, then the new one twice). Your other phones then ask for the new PIN. Settings is for the owner only: staff who want a different PIN ask the owner to give them a new one.
 
-**Forgot the PIN?** Staff: ask the owner to set a new one. Owner: ask the person who set up the app to reset the lock on that phone. The records are not lost.
+**Forgot the PIN?** Tap **Forgot the PIN?** on the PIN pad. Owner: a link is emailed to your email address; open it, type a new PIN of 6 digits as the new password, then use the new PIN. Staff: ask the owner to open your name in Staff and tap **Give a new PIN**. The records are never lost.
 
-> The PIN lock protects this phone or laptop. Each device has its own PINs while the records are kept on the device. When the app is connected to the cloud, each person's PIN will open their part of the app on any phone.
+**Someone leaves:** open the person in Staff and tap **Has left**. Their PIN stops working at once on every phone. **Stop access** does the same without marking them as left.
+
+**A phone you no longer use:** Settings > Your PIN > **Sign out of this phone**.
 
 ## Finding your way
 
@@ -58,7 +64,7 @@ The app has no lock until you set one. While there is no PIN, Home shows **Prote
 - **On a laptop:** the pages are listed down the left in three groups: **Daily work**, **Making juice** and **The business**. The orange **New** button does the same as the + button.
 - Tap any row (an order, a batch, a customer, a purchase) to open it.
 - To close a window, tap the **X** at its top right.
-- At the bottom of the menu (or the top of the phone screen) the small icon shows where records are kept: **Kept on this device** for now. Next to it, your name with a lock: tap it to lock the app.
+- At the bottom of the menu (or the top of the phone screen) the small cloud icon shows whether your changes have reached the cloud (**Saved**, **Sending**, or **Offline**: they will be sent when the connection returns). Next to it, your name with a lock: tap it to lock the app.
 
 ## Home
 
@@ -182,7 +188,9 @@ Add each person with **Person**: name, the **part of the app they use** (see bel
 
 The squares are this week, Monday to Sunday. Tap a day once for **present** (green), again for **absent** (red), again to clear. For day workers the app works out the **wages due**: days present times the day rate, less advances and wages already paid this week. Monthly staff show what is due this month.
 
-**Pay** records wages (the amount due is filled in). **Advance** records money given early; it comes off the next wages. **Has left** (on the person's form) hides someone but keeps their records.
+**Pay** records wages (the amount due is filled in). **Advance** records money given early; it comes off the next wages. **Has left** (on the person's form) hides someone but keeps their records, and stops their PIN at once.
+
+Open a person to give them their **PIN** (their phone number and 6 digits), a **new PIN** if they forgot it, or to **stop access** (see **Opening the app**).
 
 ## Reports
 
@@ -197,11 +205,11 @@ Choose the period at the top: this month, last month, this year, last year, all 
 
 ## Settings
 
-- **PIN lock:** set, change or turn off your PIN, or lock the app now (see **PIN lock**).
+- **Your PIN:** lock the app now, change your PIN, or sign out of this phone (see **Opening the app**).
 - **Business:** name, WhatsApp and phone numbers, the message at the bottom of receipts, mobile money merchant code.
 - **Bottle sizes and prices:** the normal and premium price of each size, what the bottle, cap and label cost, which bottle from Stock each size uses up, which packaging **every bottle also uses** (caps, labels), and the deposit on a returnable bottle. New prices apply to new sales and orders only.
 - **Lists and freshness:** ways of paying, expense groups, fridges, the highest fridge temperature, and the hygiene checks.
-- **Backup:** **Download a backup** saves every record in one file; keep one every week somewhere safe (send it to yourself on WhatsApp, or save it to Drive). **Restore a backup** reads such a file back. **Delete all records** wipes everything (you must type DELETE).
+- **Backup:** **Download a backup** saves every record in one file; keep one every week somewhere safe (send it to yourself on WhatsApp, or save it to Drive). **Restore a backup** reads such a file back. **Delete all records** wipes everything on every phone (you must type DELETE), and stops every staff PIN. If records were saved on a phone before the app moved to the cloud, Backup shows **Add them to the cloud records**: tap it once on that phone.
 
 ## People and what they can open
 
@@ -214,9 +222,10 @@ Choose the period at the top: this month, last month, this year, last year, all 
 
 Everyone also has **Reminders** (their own) and **Help**.
 
-With the PIN lock on, the PIN typed decides who is using the app. Without a PIN, tap the name at the top (or at the bottom of the menu on a laptop) and choose **who is using the app**; anyone can then switch, so set a PIN once the staff use the app.
+Each person's own PIN decides what they can open. The cloud checks it too: a staff member cannot change prices, staff or wages, or see wages, even outside the app.
 
 ## What's new
 
+- **12 November 2026:** the records are now kept in the cloud: every phone and laptop sees the same records. Each person opens the app with their own PIN (the owner with hers; staff with their phone number and the PIN the owner gives them in Staff). Records saved on a phone before can be added in Settings > Backup.
 - **12 November 2026:** PIN lock. It is off until the owner sets a PIN in Settings; then the app opens with a PIN, locks after 5 minutes away, and each person can have their own PIN that opens only their part of the app.
 - **12 November 2026:** first version of the app: selling, orders and deliveries, reminders (phone calendar and WhatsApp, made automatically for orders), production batches, recipes and prices with 5 single-fruit juices and 7 juice cocktails, stock of fruit and packaging, buying and suppliers, customers, expenses, staff and wages, reports, settings and backup. Records are kept on the device for now.

@@ -7,16 +7,29 @@ import { OWNER_KEY, PIN_LENGTH, awayTooLong, clearTries, findPin, lockIsOn, note
 import { PinScreen } from './PinScreen';
 import { Field, TextInput, useConfirm } from './ui';
 
-interface LockApi {
-  /** A PIN is set on this device */
+/** Cloud only: the signed-in person's own sign-in, and (owner) the staff sign-ins. Errors are plain words. */
+export interface CloudApi {
+  isOwner: boolean;
+  /** Owner: her email. Staff: empty (they sign in with their phone number). */
+  email: string;
+  changePin: (oldPin: string, newPin: string) => Promise<void>;
+  /** Signs this person out of this device; the next person signs in with their own details. */
+  signOut: () => Promise<void>;
+  givePin: (person: Staff, phone: string, pin: string, everyone: Staff[]) => Promise<void>;
+  removeAccess: (person: Staff) => Promise<void>;
+}
+
+export interface LockApi {
+  /** A PIN is set on this device (always, in the cloud) */
   on: boolean;
   /** Show the PIN screen now */
   lock: () => void;
   /** Read the PINs again after Settings changed them */
   refresh: () => void;
+  cloud?: CloudApi;
 }
 
-const LockContext = createContext<LockApi>({ on: false, lock: () => {}, refresh: () => {} });
+export const LockContext = createContext<LockApi>({ on: false, lock: () => {}, refresh: () => {} });
 export const useLock = () => useContext(LockContext);
 
 /** The owner's PIN belongs to the staff record marked Owner, or to the plain owner key when there is none. */

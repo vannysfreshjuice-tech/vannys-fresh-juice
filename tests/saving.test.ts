@@ -217,3 +217,38 @@ describe('backup', () => {
     expect(app.settingsRow()).not.toBeNull();
   });
 });
+
+describe('cloud access follows the staff list', () => {
+  async function withSignIn() {
+    const app = await testApp();
+    const id = await app.actions.saveStaff({ name: 'Aisha', role: 'sales', job: '', payKind: 'day', rate: 15000, phone: '0772 000001' });
+    // what the owner's "Give a PIN" writes on the staff record (the cloud part is tested by npm run test:rules)
+    await app.store.commit([{ op: 'patch', col: 'staff', id, data: { loginUid: 'uid-aisha', loginPhone: '256772000001' } }]);
+    const sent: { op: string; col: string; id: string }[] = [];
+    const commit = app.store.commit.bind(app.store);
+    app.store.commit = (ops) => (sent.push(...ops), commit(ops));
+    return { ...app, id, sent };
+  }
+  it('"has left" closes their sign-in in the same change', async () => {
+    const app = await withSignIn();
+    await app.actions.archiveStaff(app.id, true);
+    expect(app.sent).toContainEqual({ op: 'delete', col: 'members', id: 'uid-aisha' });
+    expect(app.sent).toContainEqual({ op: 'delete', col: 'logins', id: '256772000001' });
+    const s = app.records().staff.find((x) => x.id === app.id)!;
+    expect(s.archived).toBe(true);
+    expect(s.loginUid).toBe('');
+  });
+  it('bringing someone back does not reopen their old sign-in', async () => {
+    const app = await withSignIn();
+    await app.actions.archiveStaff(app.id, true);
+    app.sent.length = 0;
+    await app.actions.archiveStaff(app.id, false);
+    expect(app.sent.some((o) => o.col === 'members')).toBe(false);
+  });
+  it('delete all also closes every staff sign-in', async () => {
+    const app = await withSignIn();
+    const ops = deleteAllOps(app.records());
+    expect(ops).toContainEqual({ op: 'delete', col: 'members', id: 'uid-aisha' });
+    expect(ops).toContainEqual({ op: 'delete', col: 'logins', id: '256772000001' });
+  });
+});

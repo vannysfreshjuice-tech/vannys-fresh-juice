@@ -51,3 +51,21 @@ describe('PIN lock', () => {
     expect(pin.waitSeconds()).toBe(0);
   });
 });
+
+describe('cloud PIN on this phone', () => {
+  it('opens offline only for the same sign-in, and is forgotten on sign-out', async () => {
+    expect(await pin.checkCloudPin('uid-a', '482913')).toBeNull(); // nothing kept yet: ask Firebase
+    await pin.rememberCloudPin('uid-a', '482913');
+    expect(await pin.checkCloudPin('uid-a', '482913')).toBe(true);
+    expect(await pin.checkCloudPin('uid-a', '482914')).toBe(false);
+    expect(await pin.checkCloudPin('uid-b', '482913')).toBeNull(); // another person: ask Firebase
+    const stored = (g.localStorage as { getItem: (k: string) => string }).getItem('vannys.cloudPin');
+    expect(stored).not.toContain('482913');
+    pin.forgetCloudPin();
+    expect(await pin.checkCloudPin('uid-a', '482913')).toBeNull();
+  });
+  it('knows the easy PINs', () => {
+    for (const p of ['000000', '123456', '987654', '345678']) expect(pin.easyPin(p)).toBe(true);
+    for (const p of ['482913', '135792', '246810']) expect(pin.easyPin(p)).toBe(false);
+  });
+});

@@ -6,6 +6,7 @@ import { Card } from '../components/bits';
 import { PinInput, ownerPinKey, useLock } from '../components/Lock';
 import { Button, Field, FormError, MoneyInput, PageHead, Select, TextArea, TextInput, useConfirm, useNotice, useSaver } from '../components/ui';
 import { useData } from '../data/DataContext';
+import { readDeviceRecords } from '../data/localStore';
 import { backupFileName, countRows, deleteAllOps, giveFile, makeBackup, readBackup, restoreOps } from '../lib/backup';
 import { showDate } from '../lib/dates';
 import { OWNER_KEY, PIN_LENGTH, findPin, pinKeys, removeAllPins, removePin, setPin } from '../lib/pinLock';
@@ -97,6 +98,85 @@ function PinLock() {
             </Button>
             <Button busy={busy} variant={mode === 'off' ? 'danger' : 'primary'} onClick={save}>
               {mode === 'off' ? 'Turn off the lock' : 'Save PIN'}
+            </Button>
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+/** Cloud: the PIN is the person's own sign-in, the same on every phone. */
+function CloudPin() {
+  const lock = useLock();
+  const cloud = lock.cloud!;
+  const notify = useNotice();
+  const confirm = useConfirm();
+  const [changing, setChanging] = useState(false);
+  const [oldPin, setOld] = useState('');
+  const [pin, setP] = useState('');
+  const [again, setAgain] = useState('');
+  const { busy, error, run, setError } = useSaver();
+  const reset = () => {
+    setChanging(false);
+    setOld('');
+    setP('');
+    setAgain('');
+    setError('');
+  };
+  return (
+    <Card title="Your PIN" icon={<Lock size={18} className="text-accent-dark" aria-hidden />}>
+      <FormError message={error} />
+      <p className="text-sm text-muted">
+        Your PIN opens the app on any phone or laptop. The app locks after 5 minutes away.
+        {cloud.isOwner && (
+          <>
+            {' '}
+            Signed in as <b>{cloud.email}</b>; a forgotten PIN is reset by email. Give the staff their PINs in Staff (open a person).
+          </>
+        )}
+      </p>
+      {!changing ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button variant="plain" onClick={lock.lock}>
+            Lock now
+          </Button>
+          <Button variant="plain" onClick={() => setChanging(true)}>
+            Change my PIN
+          </Button>
+          <Button
+            variant="danger"
+            onClick={async () => {
+              if (await confirm({ title: 'Sign out of this phone?', body: 'The records stay safe in the cloud. The next time, this phone asks who is opening the app, with the internet. Use this on a phone you give away or no longer use.', yes: 'Sign out', danger: true })) await cloud.signOut();
+            }}
+          >
+            Sign out of this phone
+          </Button>
+        </div>
+      ) : (
+        <div className="mt-3 space-y-3">
+          <PinInput label="Your present PIN" value={oldPin} onChange={setOld} />
+          <div className="grid grid-cols-2 gap-3">
+            <PinInput label="New PIN" value={pin} onChange={setP} />
+            <PinInput label="Type it again" value={again} onChange={setAgain} />
+          </div>
+          <p className="text-xs text-muted">Needs the internet. Your other phones then ask for the new PIN.</p>
+          <div className="flex gap-2">
+            <Button variant="plain" onClick={reset}>
+              Cancel
+            </Button>
+            <Button
+              busy={busy}
+              onClick={() =>
+                run(async () => {
+                  if (pin !== again) throw new Error('The two PINs are not the same.');
+                  await cloud.changePin(oldPin, pin);
+                  notify('PIN changed');
+                  reset();
+                })
+              }
+            >
+              Save PIN
             </Button>
           </div>
         </div>
@@ -245,6 +325,22 @@ function Backup() {
   const notify = useNotice();
   const file = useRef<HTMLInputElement>(null);
   const [err, setErr] = useState('');
+  // Records saved on this phone before the app moved to the cloud (once added, the note hides this).
+  const [moved, setMoved] = useState(() => localStorage.getItem('vannys.v1.moved') === '1');
+  const deviceRecords = storeKind === 'cloud' && !moved ? readDeviceRecords() : {};
+  const deviceCount = countRows(deviceRecords);
+  const bringDevice = async () => {
+    if (!ready) return setErr('Wait until the records have loaded.');
+    if (!(await confirm({ title: 'Add the records saved on this phone?', body: `${deviceCount === 1 ? '1 record was' : `${deviceCount} records were`} saved on this phone before the app moved to the cloud. They will be added to the cloud records so every phone sees them.`, yes: 'Add them' }))) return;
+    try {
+      await actions.commitRaw(restoreOps(deviceRecords));
+      localStorage.setItem('vannys.v1.moved', '1');
+      setMoved(true);
+      notify(deviceCount === 1 ? '1 record added' : `${deviceCount} records added`);
+    } catch (e) {
+      setErr((e as Error).message);
+    }
+  };
   const backup = async () => {
     if (!ready) return setErr('Wait until the records have loaded.');
     await giveFile(backupFileName(), JSON.stringify(makeBackup(d, settingsRow), null, 1), 'application/json');
@@ -271,8 +367,16 @@ function Backup() {
     <Card title="Backup">
       <FormError message={err} />
       <p className="mb-3 text-sm text-muted">
-        {storeKind === 'device' ? 'Right now the records are kept on this device only. ' : ''}A backup is one file with every record. Keep one every week somewhere safe (WhatsApp it to yourself, or save it to Drive).
+        {storeKind === 'device' ? 'Right now the records are kept on this device only. ' : 'The records are kept in the cloud and every phone sees the same. The free cloud plan keeps no backups of its own. '}A backup is one file with every record. Keep one every week somewhere safe (WhatsApp it to yourself, or save it to Drive).
       </p>
+      {deviceCount > 0 && (
+        <div className="mb-3 rounded-xl bg-butter-soft px-3 py-2">
+          <p className="text-sm">{deviceCount === 1 ? '1 record was' : `${deviceCount} records were`} saved on this phone before the app moved to the cloud.</p>
+          <Button small variant="plain" className="mt-2" onClick={bringDevice}>
+            Add them to the cloud records
+          </Button>
+        </div>
+      )}
       <div className="flex flex-wrap gap-2">
         <Button icon={Download} onClick={backup}>
           Download a backup
@@ -289,12 +393,16 @@ function Backup() {
   );
 }
 
+function PinCard() {
+  return useLock().cloud ? <CloudPin /> : <PinLock />;
+}
+
 export function SettingsPage() {
   return (
     <div>
       <PageHead title="Settings" eyebrow={`Version ${__APP_VERSION__}`} />
       <div className="grid gap-4 lg:grid-cols-2">
-        <PinLock />
+        <PinCard />
         <Business />
         <Sizes />
         <Lists />

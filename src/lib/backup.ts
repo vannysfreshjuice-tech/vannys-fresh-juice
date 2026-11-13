@@ -1,7 +1,7 @@
 // Backup, restore and CSV downloads.
 // A backup holds EVERY record type plus the settings, with a count of each, and Restore reads the
 // same file back. (Lesson from MANSOL Finance: an export that leaves record types out is not a backup.)
-import type { Op, Row } from '../data/store';
+import { accessRemoval, type Op, type Row } from '../data/store';
 import { todayYmd } from './dates';
 import { COLLECTIONS, type Col, type Records, type Settings } from './types';
 
@@ -63,6 +63,8 @@ export function deleteAllOps(records: Records): Op[] {
     if (col === 'settings') continue;
     for (const row of records[col] as unknown as Row[]) ops.push({ op: 'delete', col, id: row.id });
   }
+  // Staff removed from the records must not keep a way into the cloud records.
+  for (const s of records.staff) ops.push(...accessRemoval(s));
   return ops;
 }
 

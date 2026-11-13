@@ -92,7 +92,13 @@ export function withDefaults(row: Partial<Settings> | null): Settings {
   return out;
 }
 
-export function DataProvider({ store, onWriteError, children }: { store: Store; onWriteError: (message: string) => void; children: ReactNode }) {
+/** Cloud only: who is signed in. The owner, or the staff record their sign-in was given to. */
+export interface Identity {
+  owner: boolean;
+  staffId: string | null;
+}
+
+export function DataProvider({ store, identity, onWriteError, children }: { store: Store; identity?: Identity; onWriteError: (message: string) => void; children: ReactNode }) {
   const [rows, setRows] = useState<Partial<Record<Col, Row[]>>>({});
   const [infos, setInfos] = useState<Partial<Record<Col, SnapshotInfo>>>({});
   const [loadError, setLoadError] = useState('');
@@ -160,9 +166,22 @@ export function DataProvider({ store, onWriteError, children }: { store: Store; 
     };
   }, [records, settings.sizes, settings.perBottle]);
 
-  const me = records.staff.find((s) => s.id === meId && !s.archived) ?? null;
-  const role: Role = me?.role ?? 'owner';
+  // On the device the person is picked (or found by their PIN); in the cloud the sign-in says who it is.
+  // A staff sign-in never gets the owner's part of the app, even if the staff record says Owner:
+  // firestore.rules would refuse the owner's changes anyway.
+  let me: Staff | null;
+  let role: Role;
+  if (identity) {
+    me = identity.owner
+      ? (records.staff.find((s) => !s.archived && s.role === 'owner') ?? null)
+      : (records.staff.find((s) => s.id === identity.staffId && !s.archived) ?? null);
+    role = identity.owner ? 'owner' : me?.role === 'owner' ? 'sales' : (me?.role ?? 'rider');
+  } else {
+    me = records.staff.find((s) => s.id === meId && !s.archived) ?? null;
+    role = me?.role ?? 'owner';
+  }
   const setMe = (id: string) => {
+    if (identity) return;
     localStorage.setItem(ME_KEY, id);
     setMeId(id);
   };

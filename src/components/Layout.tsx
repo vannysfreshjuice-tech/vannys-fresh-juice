@@ -36,13 +36,12 @@ function activePage(pathname: string, list: { to: string }[]): string {
   return best;
 }
 
-/** Who is using the app on this device (until the PIN sign-in arrives with the cloud). */
+/** Who is using the app. Cloud, or a PIN set on the device: tap to lock. Otherwise tap to pick the person. */
 export function WhoChip() {
-  const { me, role, staff, storeKind } = useData();
+  const { me, role, staff } = useData();
   const sheets = useSheets();
   const lock = useLock();
-  if (storeKind !== 'device') return null;
-  // With a PIN set, changing person means locking: the next PIN typed says who it is.
+  // With a PIN (always in the cloud), changing person means locking: the next person uses their own PIN.
   if (lock.on)
     return (
       <button type="button" onClick={lock.lock} className="chip min-h-8 max-w-44 truncate px-2.5 text-xs" title="Lock the app">
