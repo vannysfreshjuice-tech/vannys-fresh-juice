@@ -42,17 +42,17 @@ In the Claude app: `preview_start` name `vannys-dev`.
 | **Help (user manual)** | Shows `prototype/user-manual.md` (the one copy of the manual) with a contents list. Every change the user can see updates the manual and its "What's new" in the same change. |
 | **Settings** | Business details from the card (+256 785 965536, +256 751 349633), sizes and prices, premium flavours, bottle deposit, people and access, days each flavour keeps, fridge range, backup. |
 
-## Questions for Vanny before we build
+## Questions for Vanessa before we build
 
 1. Bottle sizes and prices actually sold? Are some flavours priced higher (the prototype treats orange as premium)?
 2. Real recipes: how much fruit, sugar and water makes 10 litres of each flavour? How many days does each keep in the fridge?
-3. Who will use it: just Vanny, or also staff (production, counter, rider)? Should staff see money and profit?
+3. Who will use it: just Vanessa, or also staff (production, counter, rider)? Should staff see money and profit?
 4. Phones: iPhone or Android? (Decides how it is installed.)
 5. Sell at a counter, deliver to shops, events, or all three? Credit customers?
 6. Returnable bottles with a deposit, or one-way bottles?
 7. Mobile money: MTN, Airtel, both? A merchant code to print on receipts?
 8. Daily or monthly workers, paid weekly or monthly, advances?
-9. Which juice cocktails does Vanny actually sell, and what goes into each?
+9. Which juice cocktails does Vanessa actually sell, and what goes into each?
 10. Who needs reminders, and how: phone notification, calendar, WhatsApp?
 11. Anything the paper books track today that is missing here?
 
