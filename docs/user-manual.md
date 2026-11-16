@@ -195,19 +195,31 @@ Three tabs:
 - **Juice in the fridge:** bottles of each juice and size, single fruit and cocktails apart, worked out from the batches. **Fridge temperatures today** (tap **Record** each morning; keep 0 to 5 °C). **By batch**: every batch in the fridge with its best-before; sell the oldest first. **Write off spoiled** records juice that went bad, broke or was given away.
 - **Fruit and ingredients** and **Bottles and packaging:** what you have, with a bar that turns red below the reorder level. **Buy** records a purchase; **Count** corrects the stock after counting (rotten fruit thrown away, a miscount). Tap an item to change its name, unit or reorder level, or to hide it. **New fruit or ingredient** / **New packaging item** adds one.
 
+**Fruit is counted in pieces** (mangoes, passion fruits, oranges, lemons...), so buy, count and write recipes in pieces; sugar stays in kg and mint in bunches. The usual set comes with typical counts per 10 litres (e.g. 30 mangoes); change them on **Recipes and prices** to what you really use. A new item starts in pieces; choose another unit in its form if needed.
+
 Stock is always worked out: bought, less what batches used (fruit, and one bottle, cap and label for each bottle filled), plus or minus counts.
 
 ## Buying and suppliers
 
 Every purchase of fruit, sugar and packaging.
 
-**Buying:** tap **Buy**. Choose what was bought, type the supplier (a new name is added to Suppliers), the quantity and the price per unit (the total is worked out), what you paid now (leave 0 if on credit; **Paid in full** fills it) and, for fruit, the quality. Saving adds it to stock and updates the recipe costs.
+**Buying:** tap **Buy**. Choose what was bought, type the supplier (a new name is added to Suppliers), the quantity (fruit in pieces) and the price per unit (per piece for fruit) (the total is worked out), what you paid now (leave 0 if on credit; **Paid in full** fills it) and, for fruit, the quality. Saving adds it to stock and updates the recipe costs.
 
 Open a purchase to **Pay the supplier** or delete it. The page also shows what was bought this month, what you **owe suppliers**, and the price of your most-bought fruit over the last purchases, to follow the season.
 
 ## Customers
 
-Everyone who buys on order, on credit or from the day list. Search, or use the chips: by type, **Owing**, **Paid ahead**, **Hidden**. Each shows what they **owe**, how many times they bought, and any **money paid ahead** not used yet. The tiles at the top add up what customers owe you and the money paid ahead (bottles you still owe them).
+Everyone who buys on order, on credit or from the day list. The tiles at the top show how many customers bought in the last 4 weeks, what they owe you (and how many are **overdue**: a day unpaid for more than 7 days), the **collection rate** (how much of everything billed is paid) and the money paid ahead not used yet.
+
+Search, sort (**Owes most**, **Collection rate**, **Billed**, **Bottles a week**, **Last active**, **Name**; the button next to it turns the order round), or use the chips: by type, **Owing**, **Overdue**, **Paid ahead**, **Hidden**.
+
+**Cards or list:** the two small buttons on the right switch between **cards** and a **list** (each phone remembers the choice). A card shows, for one customer:
+
+- how many times they bought and how many bottles a week (last 4 weeks), and a red **overdue** badge, or **Paid up** / **Paid ahead**;
+- **Billed**, **Paid** and **Owes**, and any money paid ahead not used yet;
+- the **collection rate** with a bar: green from 85%, orange from 60%, red below;
+- the day they last bought and their oldest unpaid day;
+- **Statement** (sends what they owe on WhatsApp) and **Money received**; the arrow opens the customer.
 
 Tap a customer to see what they owe, day by day, oldest first, and:
 
@@ -238,11 +250,15 @@ Open a person to give them their **PIN** (their phone number and 6 digits), a **
 
 Choose the period at the top: this month, last month, this year, last year, all time, or your own dates.
 
-- **Profit:** bottles sold (counter sales on their day, orders on the day delivered) and delivery charges, less the juice and bottles of what was sold, running costs, wages and advances, and spoiled juice.
+- **Profit**, worked out two ways (the two buttons on the Profit card; the app remembers your choice):
+  - **By recipe:** bottles sold (counter sales on their day, orders on the day delivered) and delivery charges, less the juice and bottles **of what was sold**, running costs, wages and advances, and spoiled juice. Each bottle's juice costs what its recipe (or its batch) used, at the prices paid on **Buying**; fruit not yet used is not a cost until its juice is sold. This is the true profit once every juice has its recipe.
+  - **By what was bought:** the same sales, less everything bought on **Buying** in the period (fruit and ingredients, bottles and packaging, used or not), running costs, and wages. Easy to check against the receipts, and it works before the recipes are right; a big purchase at the end of the month makes that month look lower and the next one higher.
+  - Under the card, the other way's profit is shown too, so you can compare.
+- **Fruit, ingredients and packaging bought:** what was spent on each item in the period (from Buying). These are kept apart from **running costs**, which are under Expenses.
 - **Money in:** what customers paid, money paid ahead included on the day it came. A bottle paid from money paid ahead is a sale but not new money.
 - **How customers paid** and **Where sales came from** (counter, and orders by type of customer).
 - A yellow note says when a juice has **no fruit cost** in the records (no recipe, or its fruit never bought in the app): its profit then shows too high.
-- **Profit by juice:** single fruit and juice cocktails apart, each with its share of sales, so you can see which juices and mixes earn the most and which need a new price.
+- **How each juice is doing:** as **cards** (the small buttons switch to a table). Each juice, best seller first: bottles, sales, profit, **share of sales**, margin, how many customers bought it, on how many days, spoiled bottles, when it last sold, and **up or down on the period before** (for this month: against last month). The table shows the same profit by juice, single fruit and juice cocktails apart. Use it to see which juices and mixes earn the most and which need a new price.
 - **Running costs by group.**
 
 **Print / PDF** prints the report (choose **Save as PDF** to keep a file). **Excel** downloads the profit by juice as a spreadsheet file.
@@ -270,7 +286,7 @@ Each person's own PIN decides what they can open. The cloud checks it too: a sta
 
 ## What's new
 
-- **16 November 2026:** **Day list** with a **Week** view, in the colours of the Excel sheet (a tab on the phone; Production moved under More). **Money paid ahead** for customers who pay in advance, **Money received** that pays several days at once (oldest first), selling before production is recorded, and **bottles made** each day with made / sold / left. The records of the Excel sheet (14 September to 13 November) go in once, from a file, with Settings > Backup > Restore.
+- **16 November 2026:** **Day list** with a **Week** view, in the colours of the Excel sheet (a tab on the phone; Production moved under More). **Money paid ahead** for customers who pay in advance, **Money received** that pays several days at once (oldest first), selling before production is recorded, **bottles made** each day with made / sold / left, **cards** with how each customer pays (collection rate, overdue days) and how each juice sells, and profit **by what was bought** beside profit by recipe. The records of the Excel sheet (14 September to 13 November) go in once, from a file, with Settings > Backup > Restore.
 - **12 November 2026:** the records are now kept in the cloud: every phone and laptop sees the same records. Each person opens the app with their own PIN (the owner with hers; staff with their phone number and the PIN the owner gives them in Staff). Records saved on a phone before can be added in Settings > Backup.
 - **12 November 2026:** PIN lock. It is off until the owner sets a PIN in Settings; then the app opens with a PIN, locks after 5 minutes away, and each person can have their own PIN that opens only their part of the app.
 - **12 November 2026:** first version of the app: selling, orders and deliveries, reminders (phone calendar and WhatsApp, made automatically for orders), production batches, recipes and prices with 5 single-fruit juices and 7 juice cocktails, stock of fruit and packaging, buying and suppliers, customers, expenses, staff and wages, reports, settings and backup. Records are kept on the device for now.

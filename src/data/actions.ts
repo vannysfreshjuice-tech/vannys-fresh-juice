@@ -612,18 +612,19 @@ export type Actions = ReturnType<typeof makeActions>;
 
 // ---------- the usual set, offered once on an empty app ----------
 
+// Fruit is counted in pieces, not kilos (Denis, 16 Nov 2026); sugar stays in kg, mint in bunches.
 const STARTER_ITEMS: [string, 'fruit' | 'packaging', string, number][] = [
-  ['Mangoes', 'fruit', 'kg', 30],
-  ['Passion fruit', 'fruit', 'kg', 15],
+  ['Mangoes', 'fruit', 'pcs', 75],
+  ['Passion fruit', 'fruit', 'pcs', 300],
   ['Pineapples', 'fruit', 'pcs', 15],
   ['Watermelons', 'fruit', 'pcs', 5],
-  ['Oranges', 'fruit', 'kg', 20],
-  ['Ginger', 'fruit', 'kg', 1],
-  ['Lemons', 'fruit', 'kg', 2],
+  ['Oranges', 'fruit', 'pcs', 100],
+  ['Ginger', 'fruit', 'pcs', 10],
+  ['Lemons', 'fruit', 'pcs', 20],
   ['Mint', 'fruit', 'bunches', 4],
-  ['Carrots', 'fruit', 'kg', 8],
-  ['Beetroot', 'fruit', 'kg', 4],
-  ['Cucumbers', 'fruit', 'kg', 6],
+  ['Carrots', 'fruit', 'pcs', 80],
+  ['Beetroot', 'fruit', 'pcs', 16],
+  ['Cucumbers', 'fruit', 'pcs', 20],
   ['Sugar', 'fruit', 'kg', 10],
   ['Bottles 300 ml', 'packaging', 'pcs', 300],
   ['Bottles 500 ml', 'packaging', 'pcs', 300],
@@ -637,16 +638,16 @@ const STARTER_ITEMS: [string, 'fruit' | 'packaging', string, number][] = [
 const BOTTLE_FOR_SIZE: Record<string, string> = { '300': 'Bottles 300 ml', '500': 'Bottles 500 ml', '1000': 'Bottles 1 litre', '5000': 'Jerrycans 5 litre' };
 
 const STARTER_PRODUCTS: { name: string; kind: 'single' | 'cocktail'; icon: string; colour: string; premium?: boolean; water: number; keepsDays: number; tag?: string; recipe: [string, number][] }[] = [
-  { name: 'Mango', kind: 'single', icon: '🥭', colour: '#FFA41B', water: 4, keepsDays: 3, recipe: [['Mangoes', 12], ['Sugar', 1]] },
-  { name: 'Passion fruit', kind: 'single', icon: '🟣', colour: '#8E3FA0', water: 7, keepsDays: 3, recipe: [['Passion fruit', 4], ['Sugar', 1.5]] },
+  { name: 'Mango', kind: 'single', icon: '🥭', colour: '#FFA41B', water: 4, keepsDays: 3, recipe: [['Mangoes', 30], ['Sugar', 1]] },
+  { name: 'Passion fruit', kind: 'single', icon: '🟣', colour: '#8E3FA0', water: 7, keepsDays: 3, recipe: [['Passion fruit', 80], ['Sugar', 1.5]] },
   { name: 'Pineapple', kind: 'single', icon: '🍍', colour: '#E9B800', water: 3, keepsDays: 3, recipe: [['Pineapples', 8], ['Sugar', 0.8]] },
-  { name: 'Watermelon', kind: 'single', icon: '🍉', colour: '#E8445A', water: 0, keepsDays: 2, recipe: [['Watermelons', 4], ['Lemons', 0.3]] },
-  { name: 'Orange', kind: 'single', icon: '🍊', colour: '#F7811E', premium: true, water: 0, keepsDays: 3, recipe: [['Oranges', 16]] },
-  { name: 'Tropical Sunrise', kind: 'cocktail', icon: '🍹', colour: '#3BA935', water: 3, keepsDays: 3, tag: 'Mango, pineapple, passion', recipe: [['Mangoes', 4], ['Pineapples', 3], ['Passion fruit', 2], ['Sugar', 1]] },
-  { name: 'Mango Passion', kind: 'cocktail', icon: '🥭', colour: '#C2571A', water: 4, keepsDays: 3, tag: 'Mango, passion fruit', recipe: [['Mangoes', 8], ['Passion fruit', 2], ['Sugar', 1]] },
-  { name: 'Pineapple Ginger Zing', kind: 'cocktail', icon: '🍍', colour: '#B58A00', water: 3, keepsDays: 3, tag: 'Pineapple, ginger, lemon', recipe: [['Pineapples', 7], ['Ginger', 0.5], ['Lemons', 0.3], ['Sugar', 0.8]] },
-  { name: 'Watermelon Mint Cooler', kind: 'cocktail', icon: '🍉', colour: '#D33A55', water: 0, keepsDays: 2, tag: 'Watermelon, mint, lemon', recipe: [['Watermelons', 4], ['Mint', 2], ['Lemons', 0.3]] },
-  { name: 'Orange Carrot Glow', kind: 'cocktail', icon: '🥕', colour: '#E86A10', premium: true, water: 0, keepsDays: 2, tag: 'Orange, carrot', recipe: [['Oranges', 10], ['Carrots', 4]] },
-  { name: 'Beetroot Power', kind: 'cocktail', icon: '🔴', colour: '#A3203F', water: 3, keepsDays: 3, tag: 'Beetroot, pineapple, ginger', recipe: [['Beetroot', 3], ['Pineapples', 4], ['Ginger', 0.3], ['Sugar', 0.5]] },
-  { name: 'Green Fresh', kind: 'cocktail', icon: '🥒', colour: '#2F8F3A', water: 2, keepsDays: 2, tag: 'Cucumber, pineapple, mint, lemon', recipe: [['Cucumbers', 4], ['Pineapples', 4], ['Lemons', 0.4], ['Mint', 1]] },
+  { name: 'Watermelon', kind: 'single', icon: '🍉', colour: '#E8445A', water: 0, keepsDays: 2, recipe: [['Watermelons', 4], ['Lemons', 3]] },
+  { name: 'Orange', kind: 'single', icon: '🍊', colour: '#F7811E', premium: true, water: 0, keepsDays: 3, recipe: [['Oranges', 80]] },
+  { name: 'Tropical Sunrise', kind: 'cocktail', icon: '🍹', colour: '#3BA935', water: 3, keepsDays: 3, tag: 'Mango, pineapple, passion', recipe: [['Mangoes', 10], ['Pineapples', 3], ['Passion fruit', 40], ['Sugar', 1]] },
+  { name: 'Mango Passion', kind: 'cocktail', icon: '🥭', colour: '#C2571A', water: 4, keepsDays: 3, tag: 'Mango, passion fruit', recipe: [['Mangoes', 20], ['Passion fruit', 40], ['Sugar', 1]] },
+  { name: 'Pineapple Ginger Zing', kind: 'cocktail', icon: '🍍', colour: '#B58A00', water: 3, keepsDays: 3, tag: 'Pineapple, ginger, lemon', recipe: [['Pineapples', 7], ['Ginger', 5], ['Lemons', 3], ['Sugar', 0.8]] },
+  { name: 'Watermelon Mint Cooler', kind: 'cocktail', icon: '🍉', colour: '#D33A55', water: 0, keepsDays: 2, tag: 'Watermelon, mint, lemon', recipe: [['Watermelons', 4], ['Mint', 2], ['Lemons', 3]] },
+  { name: 'Orange Carrot Glow', kind: 'cocktail', icon: '🥕', colour: '#E86A10', premium: true, water: 0, keepsDays: 2, tag: 'Orange, carrot', recipe: [['Oranges', 50], ['Carrots', 40]] },
+  { name: 'Beetroot Power', kind: 'cocktail', icon: '🔴', colour: '#A3203F', water: 3, keepsDays: 3, tag: 'Beetroot, pineapple, ginger', recipe: [['Beetroot', 12], ['Pineapples', 4], ['Ginger', 3], ['Sugar', 0.5]] },
+  { name: 'Green Fresh', kind: 'cocktail', icon: '🥒', colour: '#2F8F3A', water: 2, keepsDays: 2, tag: 'Cucumber, pineapple, mint, lemon', recipe: [['Cucumbers', 13], ['Pineapples', 4], ['Lemons', 4], ['Mint', 1]] },
 ];

@@ -34,6 +34,12 @@ export interface Report {
   expenseGroups: { group: string; amount: number }[];
   litresMade: number;
   batches: number;
+  /**
+   * The second way of counting costs: fruit, ingredients and packaging BOUGHT in the period (Buying),
+   * whether used yet or not, in place of the cost of the juice and bottles sold. Spoiled juice is not
+   * taken off again (its fruit is already in what was bought).
+   */
+  bought: { total: number; fruit: number; packaging: number; items: { name: string; amount: number }[]; profit: number };
 }
 
 export function buildReport(r: Records, settings: Settings, period: Period, costs: Map<string, number>): Report {
@@ -103,7 +109,28 @@ export function buildReport(r: Records, settings: Settings, period: Period, cost
   const expenses = sum(exp, (e) => e.amount);
   const wages = sum(r.wages.filter((w) => inPeriod(w.date, period)), (w) => w.amount);
   const made = r.batches.filter((b) => inPeriod(b.date, period));
+  const items = new Map(r.items.map((i) => [i.id, i]));
+  const boughtBy = new Map<string, number>();
+  let fruit = 0;
+  let packaging = 0;
+  for (const p of r.purchases) {
+    if (!inPeriod(p.date, period)) continue;
+    const amount = num(p.qty) * num(p.price);
+    const item = items.get(p.itemId);
+    if (item?.kind === 'packaging') packaging += amount;
+    else fruit += amount;
+    const name = item?.name ?? 'Item no longer in the list';
+    boughtBy.set(name, (boughtBy.get(name) ?? 0) + amount);
+  }
+  const boughtTotal = fruit + packaging;
   return {
+    bought: {
+      total: boughtTotal,
+      fruit,
+      packaging,
+      items: [...boughtBy].map(([name, amount]) => ({ name, amount })).sort((a, b) => b.amount - a.amount),
+      profit: sales + deliveryFees - boughtTotal - expenses - wages,
+    },
     period,
     bottles: sum(rows, (x) => x.bottles),
     sales,

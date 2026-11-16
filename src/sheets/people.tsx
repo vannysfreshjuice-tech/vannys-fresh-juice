@@ -9,7 +9,8 @@ import { PinInput, useLock } from '../components/Lock';
 import { pinKeys, removePin, setPin } from '../lib/pinLock';
 import { useData } from '../data/DataContext';
 import { addDays, showDate, showDay } from '../lib/dates';
-import { orderTotals, saleTotals } from '../lib/juice';
+import { debtsOf, orderTotals, saleTotals } from '../lib/juice';
+import { statementText } from '../lib/performance';
 import { money } from '../lib/money';
 import { reminderIcs, whatsappLink } from '../lib/reminders';
 import { CUSTOMER_TYPES, ROLES, ROLE_NAMES, type Reminder, type ReminderWay, type Repeat, type Role, type Staff } from '../lib/types';
@@ -73,14 +74,7 @@ export function CustomerView({ id, onClose }: { id: string; onClose: () => void 
   const ahead = customerAdv.get(id) ?? 0;
   const paidAhead = payments.filter((p) => p.kind === 'advance' && p.refId === id).sort((a, b) => b.date.localeCompare(a.date));
   const cur = (n: number) => money(n, settings.currency);
-  const statement = [
-    `${settings.businessName}: statement for ${c.name}`,
-    ...os.filter((o) => orderTotals(o, byRef.get(o.id)).balance > 0).map((o) => `${o.number} (${showDate(o.dueDate)}): ${cur(orderTotals(o, byRef.get(o.id)).balance)}`),
-    ...credit.map((s) => `${showDate(s.date)}: ${cur(saleTotals(s, byRef.get(s.id)).balance)}`),
-    `Total owed: ${cur(owes)}`,
-    ...(ahead > 0 ? [`Paid ahead, not used yet: ${cur(ahead)}`] : []),
-    `Thank you. ${settings.whatsapp}`,
-  ].join('\n');
+  const statement = statementText(c.name, debtsOf(id, orders, sales, byRef), owes, ahead, settings);
   return (
     <Sheet
       title={c.name}

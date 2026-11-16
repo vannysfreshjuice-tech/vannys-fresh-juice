@@ -1,5 +1,6 @@
 // Small display pieces shared by pages and windows.
-import type { ReactNode } from 'react';
+import { LayoutGrid, List } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
 import { useData } from '../data/DataContext';
 import { batchStatus, priceOf, sizeOf, type BatchStatus, type PayStatus } from '../lib/juice';
 import { money } from '../lib/money';
@@ -68,3 +69,43 @@ export function Card({ title, icon, action, children, className }: { title?: Rea
 }
 
 export const share = (n: number, total: number) => (total > 0 ? n / total : 0);
+
+export type ViewMode = 'list' | 'cards';
+
+/** List or cards for one page, remembered on this phone. */
+export function useViewMode(page: string, initial: ViewMode = 'list'): [ViewMode, (v: ViewMode) => void] {
+  const key = `vannys.view.${page}`;
+  const [mode, setMode] = useState<ViewMode>(() => (localStorage.getItem(key) === 'cards' ? 'cards' : localStorage.getItem(key) === 'list' ? 'list' : initial));
+  return [
+    mode,
+    (v) => {
+      localStorage.setItem(key, v);
+      setMode(v);
+    },
+  ];
+}
+
+export function ViewToggle({ value, onChange }: { value: ViewMode; onChange: (v: ViewMode) => void }) {
+  const btn = (v: ViewMode, Icon: typeof List, label: string) => (
+    <button type="button" aria-label={label} aria-pressed={value === v} title={label} onClick={() => onChange(v)} className={cx('flex h-10 w-10 items-center justify-center rounded-lg', value === v ? 'bg-accent text-white' : 'text-muted hover:bg-page')}>
+      <Icon size={18} aria-hidden />
+    </button>
+  );
+  return (
+    <div className="flex shrink-0 gap-0.5 rounded-xl border border-line bg-card p-0.5">
+      {btn('list', List, 'List view')}
+      {btn('cards', LayoutGrid, 'Card view')}
+    </div>
+  );
+}
+
+/** A thin bar for a rate from 0 to 1: green from 85%, orange from 60%, red below. */
+export function RateBar({ value }: { value: number }) {
+  const pct = Math.max(0, Math.min(100, Math.round(value * 100)));
+  const tone = pct >= 85 ? 'bg-leaf' : pct >= 60 ? 'bg-orange' : 'bg-cherry';
+  return (
+    <span className="block h-1.5 w-full overflow-hidden rounded-full bg-line">
+      <span className={cx('block h-full rounded-full', tone)} style={{ width: `${pct}%` }} />
+    </span>
+  );
+}

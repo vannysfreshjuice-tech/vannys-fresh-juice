@@ -183,7 +183,7 @@ describe('bottles made on the day list', () => {
     await app.actions.quickBatch({ date: '2026-11-09', productId: mango.id, size: '1000', bottles: 5 });
     const b = app.records().batches[0];
     expect(b.litres).toBe(5);
-    expect(b.used.map((u) => u.qty)).toEqual([6, 0.5]); // half of the 10-litre recipe: 12 kg mangoes, 1 kg sugar
+    expect(b.used.map((u) => u.qty)).toEqual([15, 0.5]); // half of the 10-litre recipe: 30 mangoes, 1 kg sugar
     await expect(app.actions.quickBatch({ date: '2026-11-09', productId: mango.id, size: '1000', bottles: 0 })).rejects.toThrow(/how many bottles/);
   });
 });

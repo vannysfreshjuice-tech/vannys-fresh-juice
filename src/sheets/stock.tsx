@@ -19,7 +19,7 @@ export function ItemForm({ id, kind, onClose }: { id?: string; kind?: ItemKind; 
   const it = id ? items.find((x) => x.id === id) : undefined;
   const [name, setName] = useState(it?.name ?? '');
   const [k, setK] = useState<ItemKind>(it?.kind ?? kind ?? 'fruit');
-  const [unit, setUnit] = useState(it?.unit ?? (k === 'packaging' ? 'pcs' : 'kg'));
+  const [unit, setUnit] = useState(it?.unit ?? 'pcs'); // fruit is counted in pieces (sugar: choose kg)
   const [reorder, setReorder] = useState(it?.reorderLevel ?? 0);
   const { busy, error, run } = useSaver();
   return (
