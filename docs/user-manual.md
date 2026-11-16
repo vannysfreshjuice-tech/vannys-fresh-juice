@@ -185,7 +185,7 @@ One card for each juice and juice cocktail. The chips show **All**, **Single fru
 
 Each card shows the recipe for **10 litres**, how many days it keeps, and for each bottle size: the **cost**, the **price**, the **profit** and the **margin** (green when healthy, yellow when thin, red when too low). Costs use the **last price paid** for each fruit, so when mangoes get dearer every juice with mango shows it.
 
-- **New cocktail** (or **New single-fruit juice**): give it a name, what is in it, a picture and colour, then each fruit and how much goes into 10 litres (**Add a fruit** for more), the water, how many days it keeps, and normal or premium price. The cost and margin of each size show as you type, so you can try mixes before you make them.
+- **New cocktail** (or **New single-fruit juice**): give it a name, what is in it, a picture and colour, then each fruit or ingredient and how much goes into 10 litres: type its name (or pick one already in Stock), the amount, and what it is counted in (fruit in pieces, sugar in kg); **Add a fruit or ingredient** for more. A name not in Stock yet is added to Stock when you save, so you never have to fill Stock first, the water, how many days it keeps, and normal or premium price. The cost and margin of each size show as you type, so you can try mixes before you make them.
 - **Change recipe** opens the same form. **Hide** takes a juice off Sell, Production and new orders but keeps its history.
 
 ## Stock

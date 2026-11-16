@@ -116,6 +116,52 @@ export function makeActions(store: Store, now: () => Current) {
       await store.commit([s.op]);
       return s.id;
     },
+    /**
+     * A juice with its recipe typed by name: fruit and ingredients not in Stock yet are added to it
+     * (kind fruit, in the unit given) in the same save, so a recipe never needs Stock filled first.
+     */
+    async saveProductByNames(input: Omit<Input<Product>, 'recipe'>, lines: { name: string; unit: string; qty: number }[], id?: string): Promise<string> {
+      const name = text(input.name);
+      need(name, 'Type the name of the juice.');
+      const clash = cur().products.find((p) => p.id !== id && sameName(p.name, name));
+      need(!clash, `There is already a juice called ${clash?.name}.`);
+      const ops: Op[] = [];
+      const recipe: RecipeLine[] = [];
+      const added = new Map<string, string>();
+      for (const l of lines) {
+        const n = text(l.name);
+        const qty = cleanQty(l.qty);
+        if (!n) continue;
+        need(qty > 0, `Type how much ${n} goes into 10 litres.`);
+        let itemId = cur().items.find((i) => sameName(i.name, n))?.id ?? added.get(n.toLowerCase());
+        if (!itemId) {
+          itemId = newId();
+          added.set(n.toLowerCase(), itemId);
+          ops.push({ op: 'set', col: 'items', id: itemId, data: { name: n, kind: 'fruit', unit: text(l.unit) || 'pcs', reorderLevel: 0, archived: false, ...created() } });
+        } else {
+          const item = cur().items.find((i) => i.id === itemId);
+          if (item?.archived) ops.push({ op: 'patch', col: 'items', id: itemId, data: { archived: false, ...touched() } });
+        }
+        const prev = recipe.find((r) => r.itemId === itemId);
+        if (prev) prev.qty = Math.round((prev.qty + qty) * 1000) / 1000;
+        else recipe.push({ itemId, qty });
+      }
+      const data = {
+        name,
+        kind: input.kind === 'cocktail' ? 'cocktail' : 'single',
+        icon: text(input.icon) || '🥤',
+        colour: text(input.colour) || '#F7931E',
+        premium: !!input.premium,
+        recipe,
+        water: cleanQty(input.water),
+        keepsDays: Math.max(1, Math.round(num(input.keepsDays)) || 3),
+        tag: text(input.tag),
+      };
+      const s = save('products', id, data, { archived: false });
+      ops.push(s.op);
+      await store.commit(ops);
+      return s.id;
+    },
     async archiveProduct(id: string, archived: boolean) {
       await store.commit([{ op: 'patch', col: 'products', id, data: { archived, ...touched() } }]);
     },

@@ -187,3 +187,25 @@ describe('bottles made on the day list', () => {
     await expect(app.actions.quickBatch({ date: '2026-11-09', productId: mango.id, size: '1000', bottles: 0 })).rejects.toThrow(/how many bottles/);
   });
 });
+
+describe('a recipe typed by name', () => {
+  it('adds new fruit and ingredients to Stock in the same save and reuses those already there', async () => {
+    const app = await testApp();
+    await app.actions.saveItem({ name: 'Mangoes', kind: 'fruit', unit: 'pcs', reorderLevel: 50 });
+    const id = await app.actions.saveProductByNames({ name: 'Mango Ginger', kind: 'cocktail', icon: '🥭', colour: '#FFA41B', premium: false, water: 2, keepsDays: 3 }, [
+      { name: 'mangoes', unit: 'kg', qty: 25 },
+      { name: 'Ginger', unit: 'pcs', qty: 4 },
+      { name: 'Sugar', unit: 'kg', qty: 1 },
+      { name: '', unit: 'pcs', qty: 0 },
+    ]);
+    const r = app.records();
+    expect(r.items.map((i) => `${i.name} ${i.unit}`).sort()).toEqual(['Ginger pcs', 'Mangoes pcs', 'Sugar kg']);
+    const p = r.products.find((x) => x.id === id)!;
+    expect(p.recipe.map((l) => [r.items.find((i) => i.id === l.itemId)!.name, l.qty])).toEqual([
+      ['Mangoes', 25],
+      ['Ginger', 4],
+      ['Sugar', 1],
+    ]);
+    await expect(app.actions.saveProductByNames({ name: 'Plain', kind: 'single', icon: '🥤', colour: '#F7931E', premium: false, water: 0, keepsDays: 3 }, [{ name: 'Lemons', unit: 'pcs', qty: 0 }])).rejects.toThrow(/how much Lemons/);
+  });
+});
