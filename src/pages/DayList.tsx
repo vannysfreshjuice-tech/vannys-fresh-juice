@@ -254,11 +254,18 @@ function MadeCard({ day, sold }: { day: string; sold: number }) {
         Type the bottles made {day === today ? 'today' : 'that day'} and tap Add. Bottles left roll over to the next day and are sold first. Tap a line above to change or delete it, or to write off spoiled bottles
         {st.spoiled > 0 ? ` (${st.spoiled} written off this day)` : ''}.
       </p>
-      {st.left > 0 && (
-        <Button small variant="plain" className="mt-2" onClick={() => sheets.open({ t: 'writeOff' })}>
-          Some went bad or were given away
-        </Button>
-      )}
+      <div className="mt-2 flex flex-wrap gap-2">
+        {made.length > 0 && (
+          <Button small variant="plain" onClick={() => sheets.open({ t: 'reconcile', productId: made[0].productId, from: day, to: day })}>
+            What went into these bottles?
+          </Button>
+        )}
+        {st.left > 0 && (
+          <Button small variant="plain" onClick={() => sheets.open({ t: 'writeOff' })}>
+            Some went bad or were given away
+          </Button>
+        )}
+      </div>
     </section>
   );
 }

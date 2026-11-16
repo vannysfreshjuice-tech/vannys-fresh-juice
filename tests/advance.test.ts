@@ -256,3 +256,62 @@ describe('deleting a juice', () => {
     await expect(app.actions.deleteProduct(b)).rejects.toThrow(/Hide instead/);
   });
 });
+
+describe('reconciling bottles already made', () => {
+  it('shares what went in over the chosen batches by litres and updates the recipe', async () => {
+    const app = await testApp();
+    const pid = await app.actions.saveProductByNames({ name: 'Mango', kind: 'single', icon: '🥭', colour: '#FFA41B', premium: false, water: 0, keepsDays: 3 }, []);
+    await app.actions.quickBatch({ date: '2026-11-09', productId: pid, size: '500', bottles: 20 }); // 10 L
+    await app.actions.quickBatch({ date: '2026-11-11', productId: pid, size: '1000', bottles: 10 }); // 10 L
+    await app.actions.quickBatch({ date: '2026-11-12', productId: pid, size: '300', bottles: 10 }); // 3 L, not chosen
+    const [b1, b2, b3] = app.records().batches.sort((a, b) => a.date.localeCompare(b.date));
+    const r = await app.actions.reconcileBatches(pid, [b1.id, b2.id], [
+      { name: 'Mangoes', unit: 'pcs', qty: 50 },
+      { name: 'Sugar', unit: 'kg', qty: 2 },
+    ], 4, true);
+    expect(r).toEqual({ litres: 20, batches: 2 });
+    const rec = app.records();
+    const name = (id: string) => rec.items.find((i) => i.id === id)!.name;
+    const used = (id: string) => rec.batches.find((b) => b.id === id)!.used.map((u) => [name(u.itemId), u.qty]);
+    expect(used(b1.id)).toEqual([['Mangoes', 25], ['Sugar', 1]]);
+    expect(used(b2.id)).toEqual([['Mangoes', 25], ['Sugar', 1]]);
+    expect(used(b3.id)).toEqual([]);
+    const p = rec.products.find((x) => x.id === pid)!;
+    expect(p.recipe.map((l) => [name(l.itemId), l.qty])).toEqual([['Mangoes', 25], ['Sugar', 1]]);
+    expect(p.water).toBe(2);
+  });
+  it('can leave the recipe as it is, and refuses with no batch chosen', async () => {
+    const app = await testApp();
+    const pid = await app.actions.saveProductByNames({ name: 'Passion', kind: 'single', icon: '🟣', colour: '#8E3FA0', premium: false, water: 1, keepsDays: 3 }, [{ name: 'Passion fruit', unit: 'pcs', qty: 80 }]);
+    await app.actions.quickBatch({ date: '2026-11-10', productId: pid, size: '500', bottles: 10 });
+    const b = app.records().batches[0];
+    await app.actions.reconcileBatches(pid, [b.id], [{ name: 'Passion fruit', unit: 'pcs', qty: 45 }], 0, false);
+    const p = app.records().products.find((x) => x.id === pid)!;
+    expect(p.recipe[0].qty).toBe(80);
+    expect(app.records().batches[0].used[0].qty).toBe(45);
+    await expect(app.actions.reconcileBatches(pid, [], [{ name: 'Passion fruit', unit: 'pcs', qty: 1 }], 0, true)).rejects.toThrow(/Choose the bottles/);
+  });
+  it('records a batch worked out in the recipe form on an earlier day', async () => {
+    const app = await testApp();
+    await app.actions.saveProductFromBatch({ name: 'Orange', kind: 'single', icon: '🍊', colour: '#F7811E', premium: true, keepsDays: 3 }, [{ name: 'Oranges', unit: 'pcs', qty: 40 }], 0, { '500': 10 }, true, '', undefined, '2026-11-05');
+    expect(app.records().batches[0].date).toBe('2026-11-05');
+    await expect(app.actions.saveProductFromBatch({ name: 'Orange 2', kind: 'single', icon: '🍊', colour: '#F7811E', premium: true, keepsDays: 3 }, [{ name: 'Oranges', unit: 'pcs', qty: 40 }], 0, { '500': 10 }, true, '', undefined, '2999-01-01')).rejects.toThrow(/future/);
+  });
+});
+
+describe('moving a juice history and deleting it', () => {
+  it('moves sales and batches to the other juice, keeps amounts and payments, then deletes', async () => {
+    const app = await testApp();
+    const stand = await app.actions.saveProductByNames({ name: 'Fresh juice', kind: 'single', icon: '🥤', colour: '#F7931E', premium: false, water: 0, keepsDays: 3 }, []);
+    const mango = await app.actions.saveProductByNames({ name: 'Mango', kind: 'single', icon: '🥭', colour: '#FFA41B', premium: false, water: 0, keepsDays: 3 }, []);
+    await app.actions.quickBatch({ date: '2026-11-09', productId: stand, size: '500', bottles: 5 });
+    await app.actions.saveSale({ date: '2026-11-09', lines: [{ productId: stand, size: '500', qty: 2, price: 3000 }], customerName: 'Kato', method: 'On credit' });
+    const moved = await app.actions.moveJuiceAndDelete(stand, mango);
+    expect(moved).toBe(2);
+    const r = app.records();
+    expect(r.products.map((p) => p.name)).toEqual(['Mango']);
+    expect(r.sales[0].lines.every((l) => l.productId === mango)).toBe(true);
+    expect(r.batches[0].productId).toBe(mango);
+    expect(customerBalances(r.customers, r.orders, r.sales, paymentsByRef(r.payments)).get(r.customers[0].id)).toBe(6000);
+  });
+});

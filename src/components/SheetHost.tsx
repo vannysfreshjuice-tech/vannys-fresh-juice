@@ -7,7 +7,7 @@ import type { ItemKind, OrderLine, PaymentKind, ProductKind } from '../lib/types
 import { MoreSheet, QuickSheet, WhoSheet } from '../sheets/menus';
 import { OrderForm, OrderView } from '../sheets/orders';
 import { CustomerForm, CustomerView, ExpenseForm, ReminderForm, StaffForm, WageForm } from '../sheets/people';
-import { BatchForm, BatchView, BottleForm, ProductForm, WriteOffForm } from '../sheets/production';
+import { BatchForm, BatchView, BottleForm, DeleteJuiceForm, ProductForm, ReconcileForm, WriteOffForm } from '../sheets/production';
 import { DayEntryForm } from '../sheets/day';
 import { Checkout, PaymentForm, Receipt, ReceiveForm, SaleView } from '../sheets/sales';
 import { CountForm, ItemForm, PurchaseForm, PurchaseView, ReadingForm, SupplierForm } from '../sheets/stock';
@@ -29,6 +29,8 @@ export type SheetSpec =
   | { t: 'bottle'; id: string }
   | { t: 'writeOff'; batchId?: string }
   | { t: 'product'; id?: string; kind?: ProductKind }
+  | { t: 'reconcile'; productId?: string; from?: string; to?: string }
+  | { t: 'deleteJuice'; id: string }
   | { t: 'item'; id?: string; kind?: ItemKind }
   | { t: 'count'; itemId: string }
   | { t: 'purchase'; itemId?: string }
@@ -86,6 +88,10 @@ function render(spec: SheetSpec, close: () => void) {
       return <WriteOffForm batchId={spec.batchId} onClose={close} />;
     case 'product':
       return <ProductForm id={spec.id} kind={spec.kind} onClose={close} />;
+    case 'reconcile':
+      return <ReconcileForm productId={spec.productId} from={spec.from} to={spec.to} onClose={close} />;
+    case 'deleteJuice':
+      return <DeleteJuiceForm id={spec.id} onClose={close} />;
     case 'item':
       return <ItemForm id={spec.id} kind={spec.kind} onClose={close} />;
     case 'count':

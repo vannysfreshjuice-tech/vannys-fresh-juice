@@ -1,9 +1,9 @@
 // Production (batches) and Recipes and prices.
-import { Blend, CupSoda, Plus } from 'lucide-react';
+import { Blend, CupSoda, Plus, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { BatchBadge, Card, JuiceBadge, Margin, useJuice } from '../components/bits';
 import { useSheets } from '../components/SheetHost';
-import { Badge, Button, Choice, Empty, PageHead, StatCard, useNotice, useSaver } from '../components/ui';
+import { Badge, Button, Choice, Empty, IconButton, PageHead, StatCard, useNotice, useSaver } from '../components/ui';
 import { useData } from '../data/DataContext';
 import { addDays, showDate, weekdayShort } from '../lib/dates';
 import { batchCost, bottleCost, bottledLitres, fridgeCount, priceOf, recipeCostPerLitre } from '../lib/juice';
@@ -104,7 +104,23 @@ export function Recipes() {
   const live = products.filter((p) => !p.archived);
   return (
     <div>
-      <PageHead title="Recipes and prices" action={role === 'owner' && <Button icon={Plus} onClick={() => sheets.open({ t: 'product', kind: 'cocktail' })}>New cocktail</Button>} />
+      <PageHead
+        title="Recipes and prices"
+        action={
+          role === 'owner' && (
+            <div className="flex flex-wrap gap-2">
+              {products.length > 0 && (
+                <Button variant="plain" onClick={() => sheets.open({ t: 'reconcile' })}>
+                  Reconcile bottles made
+                </Button>
+              )}
+              <Button icon={Plus} onClick={() => sheets.open({ t: 'product', kind: 'cocktail' })}>
+                New cocktail
+              </Button>
+            </div>
+          )
+        }
+      />
       <p className="mb-4 rounded-2xl bg-purple-soft px-4 py-3 text-sm text-purple">
         Each recipe makes 10 litres. The cost of a bottle is worked out from the last price you paid for each fruit, plus the bottle, cap and label. When mangoes get dearer, every juice with mango shows it straight away.
       </p>
@@ -185,9 +201,16 @@ export function Recipes() {
                 </table>
               )}
               {role === 'owner' && (
-                <Button small variant="plain" className="mt-2" onClick={() => sheets.open({ t: 'product', id: p.id })}>
-                  Change recipe
-                </Button>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button small variant="plain" onClick={() => sheets.open({ t: 'product', id: p.id })}>
+                    Change recipe
+                  </Button>
+                  <Button small variant="plain" onClick={() => sheets.open({ t: 'reconcile', productId: p.id })}>
+                    Reconcile bottles made
+                  </Button>
+                  <span className="flex-1" />
+                  <IconButton icon={Trash2} label={`Delete ${p.name}`} onClick={() => sheets.open({ t: 'deleteJuice', id: p.id })} />
+                </div>
               )}
             </section>
           );

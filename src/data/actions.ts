@@ -175,7 +175,7 @@ export function makeActions(store: Store, now: () => Current) {
      * = amount x 10 / litres. With record, the batch itself is saved too (made today, already bottled),
      * so it counts on the Day list and takes the fruit off Stock.
      */
-    async saveProductFromBatch(input: Omit<Input<Product>, 'recipe' | 'water'>, used: RecipeByName[], waterUsed: number, filled: Record<string, number>, record: boolean, madeBy = '', id?: string): Promise<{ id: string; litres: number }> {
+    async saveProductFromBatch(input: Omit<Input<Product>, 'recipe' | 'water'>, used: RecipeByName[], waterUsed: number, filled: Record<string, number>, record: boolean, madeBy = '', id?: string, date?: string): Promise<{ id: string; litres: number }> {
       const bottles: Record<string, number> = {};
       for (const [k, n] of Object.entries(filled)) if (Math.round(num(n)) > 0) bottles[k] = Math.round(num(n));
       const litres = Math.round(Object.entries(bottles).reduce((t, [k, n]) => t + n * num(sizeOf(now().settings.sizes, k)?.litres), 0) * 1000) / 1000;
@@ -183,7 +183,8 @@ export function makeActions(store: Store, now: () => Current) {
       const per10 = (q: number) => Math.round(((cleanQty(q) * 10) / litres) * 1000) / 1000;
       const b = productOps({ ...input, water: per10(waterUsed) }, used.map((l) => ({ ...l, qty: per10(l.qty) })), id, (n) => `Type how much ${n} you used.`);
       if (record) {
-        const today = todayYmd();
+        const today = date || todayYmd();
+        need(today <= todayYmd(), 'The day the batch was made cannot be in the future.');
         const keeps = Math.max(1, Math.round(num(input.keepsDays)) || 3);
         const usedLines: RecipeLine[] = [];
         for (const l of used) {
@@ -209,6 +210,69 @@ export function makeActions(store: Store, now: () => Current) {
       const used = r.batches.some((b) => b.productId === id) || r.orders.some((o) => o.lines.some((l) => l.productId === id)) || r.sales.some((s) => s.lines.some((l) => l.productId === id));
       need(!used, 'This juice has been made, sold or ordered, so its history needs it. Use Hide instead: it leaves Sell, the Day list and new orders.');
       await store.commit([{ op: 'delete', col: 'products', id }]);
+    },
+
+    /**
+     * Reconciling bottles already made: the batches chosen (e.g. this week's Mango, counted on the Day
+     * list with nothing recorded about what went in) get what really went in, shared out by their
+     * litres; with updateRecipe the juice's recipe for 10 litres becomes the same sums
+     * (amount x 10 / litres of all those batches). New ingredient names are added to Stock.
+     */
+    async reconcileBatches(productId: string, batchIds: string[], used: RecipeByName[], waterUsed: number, updateRecipe: boolean): Promise<{ litres: number; batches: number }> {
+      const product = cur().products.find((x) => x.id === productId);
+      need(product, 'Choose the juice.');
+      const batches = cur().batches.filter((b) => batchIds.includes(b.id) && b.productId === productId);
+      need(batches.length, 'Choose the bottles made that these amounts were for.');
+      const litres = Math.round(batches.reduce((t, b) => t + num(b.litres), 0) * 1000) / 1000;
+      need(litres > 0, 'Those batches hold no litres.');
+      const lines = used.filter((l) => text(l.name));
+      need(lines.length, 'Add what went in: each fruit or ingredient and how much.');
+      const per10 = (q: number) => Math.round(((cleanQty(q) * 10) / litres) * 1000) / 1000;
+      // The product save resolves the names (adding new ones to Stock); its recipe is per 10 litres.
+      const b = productOps(
+        { name: product!.name, kind: product!.kind, icon: product!.icon, colour: product!.colour, premium: product!.premium, keepsDays: product!.keepsDays, tag: product!.tag, water: updateRecipe ? per10(waterUsed) : product!.water },
+        updateRecipe ? lines.map((l) => ({ ...l, qty: per10(l.qty) })) : lines.map((l) => ({ ...l, qty: cleanQty(l.qty) || 0 })),
+        productId,
+        (n) => `Type how much ${n} went in.`,
+      );
+      const ops = updateRecipe ? b.ops : b.ops.filter((o) => o.col !== 'products');
+      // Share each amount out by litres; the last batch takes what rounding leaves.
+      const ordered = [...batches].sort((x, y) => x.date.localeCompare(y.date) || x.createdAt - y.createdAt);
+      const shares = new Map<string, RecipeLine[]>(ordered.map((x) => [x.id, []]));
+      for (const l of lines) {
+        const itemId = b.itemIds.get(text(l.name).toLowerCase());
+        const total = cleanQty(l.qty);
+        if (!itemId || total <= 0) continue;
+        let left = total;
+        ordered.forEach((x, i) => {
+          const q = i === ordered.length - 1 ? Math.round(left * 1000) / 1000 : Math.round(((total * num(x.litres)) / litres) * 1000) / 1000;
+          left -= q;
+          shares.get(x.id)!.push({ itemId, qty: q });
+        });
+      }
+      for (const x of ordered) ops.push({ op: 'patch', col: 'batches', id: x.id, data: { used: shares.get(x.id)!, ...touched() } });
+      await store.commit(ops);
+      return { litres, batches: ordered.length };
+    },
+    /**
+     * Moves everything recorded under one juice (sales, orders, batches) to another, then deletes it:
+     * for a juice that was a stand-in (e.g. "Fresh juice" from the Excel sheet) once the real one exists.
+     */
+    async moveJuiceAndDelete(fromId: string, toId: string): Promise<number> {
+      need(fromId !== toId, 'Choose another juice to move the history to.');
+      const r = cur();
+      need(r.products.some((x) => x.id === fromId), 'That juice no longer exists.');
+      need(r.products.some((x) => x.id === toId), 'Choose the juice to move the history to.');
+      const ops: Op[] = [];
+      const swap = <T extends { productId: string }>(ls: T[] | undefined) => (ls ?? []).map((l) => (l.productId === fromId ? { ...l, productId: toId } : l));
+      for (const x of r.sales) if (x.lines.some((l) => l.productId === fromId)) ops.push({ op: 'patch', col: 'sales', id: x.id, data: { lines: swap(x.lines), ...touched() } });
+      for (const o of r.orders)
+        if (o.lines.some((l) => l.productId === fromId) || o.packed?.some((l) => l.productId === fromId)) ops.push({ op: 'patch', col: 'orders', id: o.id, data: { lines: swap(o.lines), packed: swap(o.packed), ...touched() } });
+      for (const x of r.batches) if (x.productId === fromId) ops.push({ op: 'patch', col: 'batches', id: x.id, data: { productId: toId, ...touched() } });
+      const moved = ops.length;
+      ops.push({ op: 'delete', col: 'products', id: fromId });
+      await store.commit(ops);
+      return moved;
     },
 
     // ---------- fruit, ingredients and packaging ----------
