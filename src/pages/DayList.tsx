@@ -6,10 +6,10 @@ import { CalendarDays, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useJuice } from '../components/bits';
 import { useSheets } from '../components/SheetHost';
-import { Button, Choice, DateInput, Empty, IconButton, PageHead, cx, useNotice } from '../components/ui';
+import { Button, Choice, DateInput, Empty, IconButton, PageHead, QtyInput, Select, cx, useNotice } from '../components/ui';
 import { useData } from '../data/DataContext';
 import { addDays, showDay, weekdayShort } from '../lib/dates';
-import { daySummary, entryStatus, excelName, regulars, STATUS_WORDS, weekStart, type DayState, type EntryStatus } from '../lib/day';
+import { dayStock, daySummary, entryStatus, excelName, regulars, STATUS_WORDS, weekStart, type DayState, type EntryStatus } from '../lib/day';
 import { linesValue, sizeOf } from '../lib/juice';
 import { money } from '../lib/money';
 import { payFor, useUsualJuice } from '../sheets/day';
@@ -117,10 +117,12 @@ function DayView({ day, setDay, firstDay }: { day: string; setDay: (d: string) =
         </p>
         {sum.sales.length > 0 && (
           <p className="num text-sm">
-            {sum.bottles} bottles · {cur(sum.value)} · paid {cur(sum.paid)} · not paid {cur(sum.owed)}
+            Sold {sum.bottles} {sum.bottles === 1 ? 'bottle' : 'bottles'} · {cur(sum.value)} · paid {cur(sum.paid)} · not paid {cur(sum.owed)}
           </p>
         )}
       </div>
+
+      {!later && <MadeCard day={day} sold={sum.bottles} />}
 
       {!later && (
         <section className="card p-4">
@@ -187,18 +189,98 @@ function DayView({ day, setDay, firstDay }: { day: string; setDay: (d: string) =
   );
 }
 
+/** Bottles made that day (a quick count saved as a batch), and made / sold / left. */
+function MadeCard({ day, sold }: { day: string; sold: number }) {
+  const { products, batches, sales, orders, writeOffs, settings, actions, me, today } = useData();
+  const j = useJuice();
+  const sheets = useSheets();
+  const notify = useNotice();
+  const usual = useUsualJuice();
+  const live = products.filter((p) => !p.archived);
+  const [productId, setProductId] = useState(usual.productId);
+  const [size, setSize] = useState(usual.size);
+  const [bottles, setBottles] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const made = batches.filter((b) => b.date === day).sort((a, b) => a.createdAt - b.createdAt);
+  const st = dayStock(day, batches, sales, orders, writeOffs);
+  const add = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await actions.quickBatch({ date: day, productId, size, bottles, madeBy: me?.name });
+      notify(`${bottles} bottles of ${j.name(productId)} added`);
+      setBottles(0);
+    } catch (e) {
+      notify((e as Error).message, 'info');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <section className="card p-4">
+      <h2 className="mb-2 font-semibold">Bottles made</h2>
+      <div className="num mb-3 grid grid-cols-3 gap-2 text-center">
+        <div className="rounded-xl bg-page px-2 py-2">
+          <span className="block text-2xl font-bold">{st.made}</span>
+          <span className="text-xs text-muted">made</span>
+        </div>
+        <div className="rounded-xl bg-page px-2 py-2">
+          <span className="block text-2xl font-bold">{sold}</span>
+          <span className="text-xs text-muted">sold</span>
+        </div>
+        <div className={cx('rounded-xl px-2 py-2', st.left > 0 ? 'bg-butter-soft' : 'bg-page')}>
+          <span className="block text-2xl font-bold">{st.left}</span>
+          <span className="text-xs text-muted">{day === today ? 'left now' : 'left that evening'}</span>
+        </div>
+      </div>
+      {made.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-2">
+          {made.map((b) => (
+            <button key={b.id} type="button" onClick={() => sheets.open({ t: 'batchView', id: b.id })} className="rounded-lg border border-line bg-page px-2.5 py-1.5 text-sm">
+              {Object.entries(b.filled ?? {}).map(([k, n]) => `${n} × ${j.name(b.productId)} ${j.sizeLabel(k)}`).join(', ')}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-[1fr_8rem_6rem_auto]">
+        <Select aria-label="Juice" options={live.map((p) => ({ value: p.id, label: p.name }))} value={productId} onChange={(e) => setProductId(e.target.value)} />
+        <Select aria-label="Size" options={settings.sizes.map((s) => ({ value: s.key, label: s.label }))} value={size} onChange={(e) => setSize(e.target.value)} />
+        <QtyInput aria-label="Bottles made" value={bottles} onChange={(n) => setBottles(Math.max(0, Math.round(n)))} placeholder="Bottles" />
+        <Button busy={busy} icon={Plus} disabled={bottles <= 0} onClick={add}>
+          Add
+        </Button>
+      </div>
+      <p className="mt-2 text-xs text-muted">
+        Type the bottles made {day === today ? 'today' : 'that day'} and tap Add. Bottles left roll over to the next day and are sold first. Tap a line above to change or delete it, or to write off spoiled bottles
+        {st.spoiled > 0 ? ` (${st.spoiled} written off this day)` : ''}.
+      </p>
+      {st.left > 0 && (
+        <Button small variant="plain" className="mt-2" onClick={() => sheets.open({ t: 'writeOff' })}>
+          Some went bad or were given away
+        </Button>
+      )}
+    </section>
+  );
+}
+
 function WeekView({ day, setDay, firstDay, openDay }: { day: string; setDay: (d: string) => void; firstDay: string; openDay: (d: string) => void }) {
-  const { sales, orders, byRef, settings, today } = useData();
+  const { sales, orders, batches, writeOffs, byRef, settings, today } = useData();
   const j = useJuice();
   const sheets = useSheets();
   const usual = useUsualJuice();
   const usualPrice = j.price(usual.productId, usual.size);
   const mon = weekStart(day);
-  const days = Array.from({ length: 7 }, (_, i) => daySummary(addDays(mon, i), today, firstDay, sales, orders, byRef));
-  const shown = days.filter((d, i) => i < 5 || d.sales.length > 0);
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = addDays(mon, i);
+    return { ...daySummary(d, today, firstDay, sales, orders, byRef), stock: dayStock(d, batches, sales, orders, writeOffs) };
+  });
+  const shown = days.filter((d, i) => i < 5 || d.sales.length > 0 || d.stock.made > 0);
+  const anyMade = days.some((d) => d.stock.made > 0);
   const cur = (n: number) => money(n, settings.currency);
-  const total = { bottles: 0, value: 0, paid: 0, owed: 0, supplied: 0, none: 0 };
+  const total = { bottles: 0, value: 0, paid: 0, owed: 0, supplied: 0, none: 0, made: 0, spoiled: 0 };
   for (const d of days) {
+    total.made += d.stock.made;
+    total.spoiled += d.stock.spoiled;
     total.bottles += d.bottles;
     total.value += d.value;
     total.paid += d.paid;
@@ -232,9 +314,14 @@ function WeekView({ day, setDay, firstDay, openDay }: { day: string; setDay: (d:
           ))}
           {shown.map((d) => (
             <div key={`${d.day}-t`} className="num border-t border-line pt-1 text-center text-[11px] text-muted">
+              {anyMade && d.day <= today && (
+                <span className="block text-ink">
+                  made {d.stock.made} · left {d.stock.left}
+                </span>
+              )}
               {d.sales.length ? (
                 <>
-                  {d.bottles} btl
+                  sold {d.bottles}
                   <span className="block">{cur(d.value).replace(`${settings.currency} `, '')}</span>
                   {d.owed > 0 && <span className="block text-cherry">owed {cur(d.owed).replace(`${settings.currency} `, '')}</span>}
                 </>
@@ -251,7 +338,13 @@ function WeekView({ day, setDay, firstDay, openDay }: { day: string; setDay: (d:
           {total.none > 0 && <span className="text-cherry"> · without: {total.none}</span>}
         </span>
         <span>
-          Bottles: <b>{total.bottles}</b> · {cur(total.value)}
+          {anyMade && (
+            <>
+              Made: <b>{total.made}</b> ·{' '}
+            </>
+          )}
+          Sold: <b>{total.bottles}</b> · {cur(total.value)}
+          {total.spoiled > 0 && <span className="text-cherry"> · spoiled {total.spoiled}</span>}
         </span>
         <span className="text-sky">
           Paid: <b>{cur(total.paid)}</b>

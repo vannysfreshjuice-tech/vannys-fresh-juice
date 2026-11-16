@@ -1,7 +1,7 @@
 // Money paid ahead, one payment for several days, selling without recorded production, and the
 // day list / week sheet figures (the owner's Excel sheet logic).
 import { describe, expect, it } from 'vitest';
-import { daySummary, entryStatus, excelName, regulars, weekStart } from '../src/lib/day';
+import { dayStock, daySummary, entryStatus, excelName, regulars, weekStart } from '../src/lib/day';
 import { customerAdvances, customerBalances, debtsOf, paymentsByRef } from '../src/lib/juice';
 import { buildReport, dayFigures } from '../src/lib/reports';
 import { FROM_ADVANCE } from '../src/lib/types';
@@ -152,5 +152,38 @@ describe('day list and week sheet', () => {
     // tapping names on the day does not move the buttons; someone new goes at the end
     for (const n of ['Apio', 'Apio', 'Apio', 'Namata']) await app.actions.saveSale({ date: '2026-11-10', lines: app.bottle(), customerName: n, method: 'Cash' });
     expect(names('2026-11-10')).toEqual(['Opio', 'Kato', 'Apio', 'Namata']);
+  });
+});
+
+describe('bottles made on the day list', () => {
+  it('counts made, sold and left, rolling the rest over to the next day', async () => {
+    const app = await juiceApp();
+    await app.actions.quickBatch({ date: '2026-11-09', productId: app.productId, size: '500', bottles: 20 });
+    const b = app.records().batches[0];
+    expect(b).toMatchObject({ date: '2026-11-09', litres: 10, filled: { '500': 20 }, number: 'B-0001' });
+    for (let i = 0; i < 14; i++) await app.actions.saveSale({ date: '2026-11-09', lines: app.bottle(), customerName: 'Kato', method: 'Cash' });
+    const st = (day: string) => {
+      const r = app.records();
+      return dayStock(day, r.batches, r.sales, r.orders, r.writeOffs);
+    };
+    expect(st('2026-11-09')).toEqual({ made: 20, left: 6, spoiled: 0 });
+    // next day: 10 more made; the 6 left are sold first, then 4 of the new ones; 2 go bad
+    await app.actions.quickBatch({ date: '2026-11-10', productId: app.productId, size: '500', bottles: 10 });
+    await app.actions.saveSale({ date: '2026-11-10', lines: app.bottle(10), customerName: 'Kato', method: 'Cash' });
+    const sold = app.records().sales.find((s) => s.date === '2026-11-10')!;
+    expect(sold.lines.map((l) => l.qty)).toEqual([6, 4]);
+    await app.actions.writeOff({ batchId: app.records().batches.find((x) => x.date === '2026-11-10')!.id, size: '500', qty: 2, reason: 'Went sour', date: '2026-11-10' });
+    expect(st('2026-11-10')).toEqual({ made: 10, left: 4, spoiled: 2 });
+    expect(st('2026-11-09')).toEqual({ made: 20, left: 6, spoiled: 0 }); // that evening stays as it was
+  });
+  it('takes the fruit of the recipe for those litres, and refuses nothing made', async () => {
+    const app = await juiceApp();
+    await app.actions.addStarterSet();
+    const mango = app.records().products.find((p) => p.name === 'Mango')!;
+    await app.actions.quickBatch({ date: '2026-11-09', productId: mango.id, size: '1000', bottles: 5 });
+    const b = app.records().batches[0];
+    expect(b.litres).toBe(5);
+    expect(b.used.map((u) => u.qty)).toEqual([6, 0.5]); // half of the 10-litre recipe: 12 kg mangoes, 1 kg sugar
+    await expect(app.actions.quickBatch({ date: '2026-11-09', productId: mango.id, size: '1000', bottles: 0 })).rejects.toThrow(/how many bottles/);
   });
 });

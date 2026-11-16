@@ -72,7 +72,7 @@ Each person has their own PIN of 6 digits. It opens their part of the app (see *
 Home is the day at a glance:
 
 - **Sold today**: bottles sold at the counter and orders delivered today, and **Money in today**, split into cash and mobile money.
-- **Made today**, **Juice in the fridge** (and how many reach their best-before by tomorrow) and **Customers owe you**.
+- **Made today** (from Production or the Day list's bottles made), **Juice in the fridge** (and how many reach their best-before by tomorrow) and **Customers owe you**.
 - **Needs attention**: today's reminders, fruit and packaging below the reorder level, juice to sell first, orders due by tomorrow that are not ready, orders to deliver today, a fridge that is too warm, or no fridge reading yet today. Each line has a button that takes you straight to it.
 - **What the orders need by tomorrow**: each juice and size the orders need, what is in the fridge, and how many to make.
 
@@ -91,7 +91,9 @@ The day list is the Excel sheet in the app: each day, who took juice and who has
 5. For someone new, more bottles, another juice or another price (for example a 5,000 juice), tap **Someone else**. The juice and size chosen there become the usual one for the taps.
 6. The day's names are listed below in the Excel colours. Tap one to record a payment or to undo it.
 
-**The week:** tap **Week** to see Monday to Friday side by side, like the sheet (Saturday and Sunday appear when juice was sold on them). On a phone, swipe sideways for Thursday and Friday. Tap a day to open it, or a name to see that sale. Below are the week's totals: days with juice, bottles, paid and not paid.
+**Bottles made:** at the top of the day, type how many bottles you made (choose the juice and size if they differ) and tap **Add**. The three boxes then show **made**, **sold** and **left** (left now, or left that evening for a past day). Bottles left roll over to the next day and are sold first. If some went bad or were given away, tap **Some went bad or were given away**. Tap a count you added (e.g. "20 × Fresh juice 500 ml") to change it, delete it, or write off bottles from it. A juice with a recipe also takes its fruit off **Stock** for those litres.
+
+**The week:** tap **Week** to see Monday to Friday side by side, like the sheet (Saturday and Sunday appear when juice was sold on them). On a phone, swipe sideways for Thursday and Friday. Tap a day to open it, or a name to see that sale. Under each day: made and left (once you count bottles made), sold and the money; below, the week's totals: days with juice, made, sold, spoiled, paid and not paid. Compare made with sold to see on which days you make too much or too little.
 
 **The Excel colours in the app:**
 
@@ -268,7 +270,7 @@ Each person's own PIN decides what they can open. The cloud checks it too: a sta
 
 ## What's new
 
-- **16 November 2026:** **Day list** with a **Week** view, in the colours of the Excel sheet (a tab on the phone; Production moved under More). **Money paid ahead** for customers who pay in advance, **Money received** that pays several days at once (oldest first), and selling before production is recorded. The records of the Excel sheet (14 September to 13 November) go in once, from a file, with Settings > Backup > Restore.
+- **16 November 2026:** **Day list** with a **Week** view, in the colours of the Excel sheet (a tab on the phone; Production moved under More). **Money paid ahead** for customers who pay in advance, **Money received** that pays several days at once (oldest first), selling before production is recorded, and **bottles made** each day with made / sold / left. The records of the Excel sheet (14 September to 13 November) go in once, from a file, with Settings > Backup > Restore.
 - **12 November 2026:** the records are now kept in the cloud: every phone and laptop sees the same records. Each person opens the app with their own PIN (the owner with hers; staff with their phone number and the PIN the owner gives them in Staff). Records saved on a phone before can be added in Settings > Backup.
 - **12 November 2026:** PIN lock. It is off until the owner sets a PIN in Settings; then the app opens with a PIN, locks after 5 minutes away, and each person can have their own PIN that opens only their part of the app.
 - **12 November 2026:** first version of the app: selling, orders and deliveries, reminders (phone calendar and WhatsApp, made automatically for orders), production batches, recipes and prices with 5 single-fruit juices and 7 juice cocktails, stock of fruit and packaging, buying and suppliers, customers, expenses, staff and wages, reports, settings and backup. Records are kept on the device for now.

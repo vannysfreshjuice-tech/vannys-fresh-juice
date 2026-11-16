@@ -4,7 +4,7 @@
 import { addDays, fromYmd } from './dates';
 import { linesValue, saleTotals } from './juice';
 import { num, sum } from './money';
-import { FROM_ADVANCE, type Order, type Payment, type Sale } from './types';
+import { FROM_ADVANCE, type Batch, type Order, type Payment, type Sale, type WriteOff } from './types';
 
 export type EntryStatus = 'paid' | 'ahead' | 'part' | 'owed';
 
@@ -63,6 +63,44 @@ export function daySummary(day: string, today: string, firstDay: string, sales: 
     owed += t.balance;
   }
   return { day, state, sales: list, bottles: sum(list, (s) => sum(s.lines, (l) => num(l.qty))), value: sum(list, (s) => linesValue(s.lines)), paid, owed };
+}
+
+export interface DayStock {
+  /** Bottles filled in batches dated that day */
+  made: number;
+  /** Bottles from recorded batches still in the fridge at the end of that day */
+  left: number;
+  /** Bottles written off (spoiled, given away) that day */
+  spoiled: number;
+}
+
+/**
+ * Made and left for one day, from the batches: left at the end of the day = everything filled up to
+ * that day, less what was sold, delivered or written off from those batches up to that day.
+ * (Bottles sold without a recorded batch do not come off; for today this is the fridge count.)
+ */
+export function dayStock(day: string, batches: Batch[], sales: Sale[], orders: Order[], writeOffs: WriteOff[]): DayStock {
+  let made = 0;
+  let filled = 0;
+  for (const b of batches) {
+    if (b.date > day) continue;
+    const n = sum(Object.values(b.filled ?? {}), (v) => num(v));
+    filled += n;
+    if (b.date === day) made += n;
+  }
+  let out = 0;
+  for (const s of sales) if (s.date <= day) for (const l of s.lines ?? []) if (l.batchId) out += num(l.qty);
+  for (const o of orders) {
+    if (o.stage === 'Cancelled' || !o.packed?.length) continue;
+    // packed bottles leave the fridge when packed; dated by delivery (or the due day while on the way)
+    if ((o.deliveredOn || o.dueDate) <= day) for (const l of o.packed) if (l.batchId) out += num(l.qty);
+  }
+  let spoiled = 0;
+  for (const w of writeOffs) {
+    if (w.date <= day) out += num(w.qty);
+    if (w.date === day) spoiled += num(w.qty);
+  }
+  return { made, left: Math.max(0, filled - out), spoiled };
 }
 
 /**

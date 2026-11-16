@@ -245,6 +245,23 @@ export function makeActions(store: Store, now: () => Current) {
       for (const [k, n] of Object.entries(b!.filled ?? {})) need((clean[k] ?? 0) >= n - (taken?.left[k] ?? 0), `Some ${sizeLabel(k)} bottles from this batch are already sold.`);
       await store.commit([{ op: 'patch', col: 'batches', id, data: { filled: clean, ...touched() } }]);
     },
+    /**
+     * The Day list's quick count: "20 bottles of Fresh juice 500 ml made today". Saved as a batch,
+     * already bottled; the fruit that went in is the juice's recipe for those litres (none if it has
+     * no recipe), as the Production form would fill it.
+     */
+    async quickBatch(input: { date: string; productId: string; size: string; bottles: number; madeBy?: string }): Promise<string> {
+      const product = cur().products.find((p) => p.id === input.productId);
+      need(product, 'Choose the juice.');
+      const size = sizeOf(now().settings.sizes, input.size);
+      need(size, 'Choose the bottle size.');
+      const bottles = Math.round(num(input.bottles));
+      need(bottles > 0, 'Type how many bottles were made.');
+      need(input.date && input.date <= todayYmd(), 'Choose a day that has come.');
+      const litres = Math.round(bottles * num(size!.litres) * 1000) / 1000;
+      const used = (product!.recipe ?? []).map((r) => ({ itemId: r.itemId, qty: Math.round(((num(r.qty) * litres) / 10) * 1000) / 1000 }));
+      return this.saveBatch({ date: input.date, productId: product!.id, litres, used, filled: { [size!.key]: bottles }, madeBy: text(input.madeBy), checks: [], note: 'Counted on the Day list' });
+    },
     async deleteBatch(id: string) {
       const r = cur();
       const used = r.sales.some((s) => s.lines.some((l) => l.batchId === id)) || r.orders.some((o) => o.packed?.some((l) => l.batchId === id)) || r.writeOffs.some((w) => w.batchId === id);
