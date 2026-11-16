@@ -1,29 +1,127 @@
 // Adding a line to the day list: who took juice, how many bottles, and how it is paid.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useJuice } from '../components/bits';
 import { Button, Choice, Field, FormError, MoneyInput, QtyInput, Select, Sheet, SheetButtons, TextInput, useNotice, useSaver } from '../components/ui';
 import { useData } from '../data/DataContext';
 import { showDay } from '../lib/dates';
+import { mostSold } from '../lib/day';
 import { money } from '../lib/money';
-import { FROM_ADVANCE } from '../lib/types';
+import { FROM_ADVANCE, type Customer } from '../lib/types';
 
 const USUAL_KEY = 'vannys.day.usual';
 
-/** The juice and size the day list adds with one tap: the last one chosen on this phone, else the most sold. */
-export function useUsualJuice() {
-  const { products, sales, settings } = useData();
-  const live = products.filter((p) => !p.archived);
-  let saved: { productId?: string; size?: string } = {};
+const USUAL_EVENT = 'vannys-usual';
+
+function readSaved(): { productId?: string; size?: string } {
   try {
-    saved = JSON.parse(localStorage.getItem(USUAL_KEY) ?? '{}');
+    return JSON.parse(localStorage.getItem(USUAL_KEY) ?? '{}');
   } catch {
-    saved = {};
+    return {};
   }
-  const lastSold = [...sales].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt)[0]?.lines[0];
-  const productId = [saved.productId, lastSold?.productId, live[0]?.id].find((id) => id && live.some((p) => p.id === id)) ?? '';
-  const size = [saved.size, lastSold?.size, '500', settings.sizes[0]?.key].find((k) => k && settings.sizes.some((s) => s.key === k)) ?? '';
-  const remember = (p: string, s: string) => localStorage.setItem(USUAL_KEY, JSON.stringify({ productId: p, size: s }));
+}
+
+/**
+ * The juice and size the day list adds with one tap: the one chosen on this phone (the size chips
+ * above the names), else the one sold most in the last 60 days, else the first juice in 500 ml.
+ */
+export function useUsualJuice() {
+  const { products, sales, settings, today } = useData();
+  const live = products.filter((p) => !p.archived);
+  const [saved, setSaved] = useState(readSaved);
+  useEffect(() => {
+    const again = () => setSaved(readSaved());
+    window.addEventListener(USUAL_EVENT, again);
+    return () => window.removeEventListener(USUAL_EVENT, again);
+  }, []);
+  const top = mostSold(sales, today);
+  const productId = [saved.productId, top?.productId, live[0]?.id].find((id) => id && live.some((p) => p.id === id)) ?? '';
+  const size = [saved.size, top?.size, '500', settings.sizes[0]?.key].find((k) => k && settings.sizes.some((s) => s.key === k)) ?? '';
+  const remember = (p: string, s: string) => {
+    localStorage.setItem(USUAL_KEY, JSON.stringify({ productId: p, size: s }));
+    window.dispatchEvent(new Event(USUAL_EVENT));
+  };
   return { productId, size, remember };
+}
+
+const DISCOUNT_KEY = 'vannys.discount';
+/** The discount amount last used on this phone (2,000 at first): the switch starts with it. */
+export const lastDiscount = () => Number(localStorage.getItem(DISCOUNT_KEY)) || 2000;
+export const rememberDiscount = (n: number) => n > 0 && localStorage.setItem(DISCOUNT_KEY, String(n));
+
+/**
+ * The Discount switch: off, or on with an amount taken off the sale, the sum shown
+ * (3,000 - 2,000 = 1,000), and for a named customer "Always give ... this discount".
+ */
+export function DiscountControl({ on, setOn, amount, setAmount, total, name, always, setAlways }: { on: boolean; setOn: (v: boolean) => void; amount: number; setAmount: (n: number) => void; total: number; name?: string; always?: boolean; setAlways?: (v: boolean) => void }) {
+  const { settings } = useData();
+  const cur = (n: number) => money(n, settings.currency);
+  return (
+    <div className={on ? 'rounded-xl border border-leaf/30 bg-leaf-soft p-3' : 'rounded-xl border border-line bg-card p-3'}>
+      <label className="flex min-h-9 items-center gap-3 text-[15px] font-medium">
+        <input type="checkbox" className="h-5 w-5 accent-[var(--accent)]" checked={on} onChange={(e) => setOn(e.target.checked)} />
+        Discount
+      </label>
+      {on && (
+        <div className="mt-2 space-y-2">
+          <div className="grid grid-cols-[8rem_1fr] items-center gap-3">
+            <MoneyInput
+              aria-label="Discount"
+              value={amount}
+              onChange={(n) => {
+                setAmount(n);
+                rememberDiscount(n);
+              }}
+            />
+            <span className="num text-sm">
+              {cur(total)} − {cur(Math.min(amount, total))} = <b>{cur(Math.max(0, total - amount))}</b>
+            </span>
+          </div>
+          {name?.trim() && setAlways && (
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" className="h-4 w-4 accent-[var(--accent)]" checked={!!always} onChange={(e) => setAlways(e.target.checked)} />
+              Always give {name.trim()} this discount
+            </label>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The discount for one sale: starts on, with the customer's standing discount, when they have one;
+ * otherwise off with the last amount used. After saving, finishStanding() keeps or stops it for them.
+ */
+export function useDiscount(known: Customer | undefined) {
+  const standing = known?.discount ?? 0;
+  const [touched, setTouched] = useState(false);
+  const [on, setOnRaw] = useState(false);
+  const [amount, setAmountRaw] = useState(lastDiscount);
+  const [always, setAlways] = useState(false);
+  useEffect(() => {
+    if (touched) return;
+    setOnRaw(standing > 0);
+    if (standing > 0) setAmountRaw(standing);
+    setAlways(standing > 0);
+    // follow the customer typed until the person changes the discount themselves
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [known?.id, standing]);
+  return {
+    on,
+    setOn: (v: boolean) => (setTouched(true), setOnRaw(v)),
+    amount,
+    setAmount: (n: number) => (setTouched(true), setAmountRaw(n)),
+    always,
+    setAlways,
+    /** what comes off this sale */
+    value: on ? amount : 0,
+    /** the customer's standing discount after this sale, or null when it does not change */
+    nextStanding: (): number | null => {
+      if (!on) return null;
+      const next = always ? amount : 0;
+      return next === standing ? null : next;
+    },
+  };
 }
 
 /** How a tap on the day list is paid: from money paid ahead when the customer has some, otherwise the chosen way. */
@@ -49,7 +147,9 @@ export function DayEntryForm({ date, customerName, onClose }: { date: string; cu
   const methods = ['On credit', ...settings.methods.filter((m) => m !== 'Bank'), ...(ahead > 0 ? [FROM_ADVANCE] : [])];
   const [chosen, setMethod] = useState(ahead > 0 ? FROM_ADVANCE : 'On credit');
   const method = methods.includes(chosen) ? chosen : 'On credit';
-  const total = qty * price;
+  const disc = useDiscount(known);
+  const full = qty * price;
+  const total = Math.max(0, full - disc.value);
   const { busy, error, run } = useSaver();
   const listId = 'day-customers';
   return (
@@ -64,8 +164,9 @@ export function DayEntryForm({ date, customerName, onClose }: { date: string; cu
               run(
                 async () => {
                   if (!name.trim()) throw new Error("Type the customer's name.");
-                  await actions.saveSale({ date, lines: [{ productId, size, qty, price }], customerName: name, method });
-                  usual.remember(productId, size);
+                  await actions.saveSale({ date, lines: [{ productId, size, qty, price }], customerName: name, method, discount: disc.value });
+                  const next = disc.nextStanding();
+                  if (next !== null) await actions.setCustomerDiscount(name, next);
                 },
                 () => {
                   notify(`${name.trim()} added`);
@@ -119,6 +220,7 @@ export function DayEntryForm({ date, customerName, onClose }: { date: string; cu
             />
           </Field>
         </div>
+        <DiscountControl on={disc.on} setOn={disc.setOn} amount={disc.amount} setAmount={disc.setAmount} total={full} name={name} always={disc.always} setAlways={disc.setAlways} />
         <div>
           <span className="label">Paid</span>
           <Choice options={methods.map((m) => ({ value: m, label: m === 'On credit' ? 'Not yet (on credit)' : m }))} value={method} onChange={setMethod} />

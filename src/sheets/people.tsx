@@ -23,6 +23,7 @@ export function CustomerForm({ id, onClose }: { id?: string; onClose: () => void
   const [phone, setPhone] = useState(c?.phone ?? '');
   const [place, setPlace] = useState(c?.place ?? '');
   const [notes, setNotes] = useState(c?.notes ?? '');
+  const [discount, setDiscount] = useState(c?.discount ?? 0);
   const { busy, error, run } = useSaver();
   return (
     <Sheet
@@ -30,7 +31,7 @@ export function CustomerForm({ id, onClose }: { id?: string; onClose: () => void
       onClose={onClose}
       footer={
         <SheetButtons>
-          <Button busy={busy} onClick={() => run(() => actions.saveCustomer({ name, type, phone, place, notes }, id), () => { notify('Saved'); onClose(); })}>
+          <Button busy={busy} onClick={() => run(() => actions.saveCustomer({ name, type, phone, place, notes, discount }, id), () => { notify('Saved'); onClose(); })}>
             Save
           </Button>
         </SheetButtons>
@@ -51,6 +52,9 @@ export function CustomerForm({ id, onClose }: { id?: string; onClose: () => void
         </div>
         <Field label="Where">
           <TextInput value={place} onChange={(e) => setPlace(e.target.value)} placeholder="e.g. Ntinda" />
+        </Field>
+        <Field label="Standing discount" hint="Taken off each sale to this customer (Day list taps, Someone else, Sell). 0 for none.">
+          <MoneyInput value={discount} onChange={setDiscount} />
         </Field>
         <Field label="Notes">
           <TextArea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Favourite juices, delivery days..." />
@@ -93,6 +97,7 @@ export function CustomerView({ id, onClose }: { id: string; onClose: () => void 
       <div className="mt-3">
         <Line strong label="Owes" value={cur(owes)} tone={owes ? 'bad' : 'good'} />
         {(ahead > 0 || paidAhead.length > 0) && <Line strong label="Paid ahead, not used yet" value={cur(ahead)} tone={ahead > 0 ? 'good' : 'muted'} />}
+        {(c.discount ?? 0) > 0 && <Line label="Standing discount on each sale" value={`− ${cur(c.discount ?? 0)}`} />}
       </div>
       <div className="mt-2 flex flex-wrap gap-2">
         <Button small icon={HandCoins} onClick={() => sheets.open({ t: 'receive', customerId: id })}>

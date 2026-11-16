@@ -8,12 +8,13 @@ export interface Base {
   updatedAt: number;
 }
 
-/** A bottle size, kept in Settings: its price, its premium price and what the bottle, cap and label cost. */
+/** A bottle size, kept in Settings: its price (one for every juice) and what the bottle, cap and label cost. */
 export interface Size {
   key: string; // '300', '500', '1000', '5000'
   label: string; // '300 ml'
   litres: number;
   price: number;
+  /** no longer used (one price per size since 16 Nov 2026) */
   premiumPrice: number;
   packCost: number;
   /** The packaging item (in Stock) that one bottle of this size uses up */
@@ -33,6 +34,7 @@ export interface Product extends Base {
   kind: ProductKind;
   icon: string; // an emoji
   colour: string; // '#FFA41B'
+  /** no longer used (one price per size since 16 Nov 2026) */
   premium: boolean;
   /** What goes into 10 litres */
   recipe: RecipeLine[];
@@ -104,6 +106,8 @@ export interface BottleLine {
   qty: number;
   price: number; // each
   batchId?: string;
+  /** a bottle sold at a discount: its price before the discount */
+  fullPrice?: number;
 }
 
 export interface Sale extends Base {
@@ -114,6 +118,8 @@ export interface Sale extends Base {
   customerName: string;
   lines: BottleLine[];
   method: string; // how it was paid, or 'On credit'
+  /** Money taken off this sale (already in the line prices; kept to show it) */
+  discount?: number;
   emptiesBack?: number;
   note?: string;
 }
@@ -171,6 +177,8 @@ export interface Customer extends Base {
   place?: string;
   notes?: string;
   archived?: boolean;
+  /** A discount this customer always gets, taken off each sale (e.g. 3,000) */
+  discount?: number;
 }
 
 export const WRITE_OFF_REASONS = ['Past best-before', 'Went sour', 'Bottle broke or leaked', 'Given away (samples)', 'Other'] as const;

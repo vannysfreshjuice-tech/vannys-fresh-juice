@@ -21,9 +21,9 @@ describe('costs and prices', () => {
   it('adds the bottle, cap and label to the juice in the bottle', () => {
     expect(bottleCost(2880, DEFAULT_SIZES[1])).toBe(1840); // 0.5 x 2,880 + 400
   });
-  it('uses the premium price for premium juices', () => {
+  it('has one price per size, premium or not (no premium price since 16 Nov 2026)', () => {
     expect(priceOf(mango, DEFAULT_SIZES[1])).toBe(3000);
-    expect(priceOf({ ...mango, premium: true }, DEFAULT_SIZES[1])).toBe(4000);
+    expect(priceOf({ ...mango, premium: true }, DEFAULT_SIZES[1])).toBe(3000);
   });
   it('averages what was paid over all purchases, and knows the last price', () => {
     const p = [

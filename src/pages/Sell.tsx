@@ -3,7 +3,7 @@ import { ShoppingCart } from 'lucide-react';
 import { useState } from 'react';
 import { JuiceBadge, useJuice } from '../components/bits';
 import { useSheets } from '../components/SheetHost';
-import { Badge, Button, Empty, PageHead, cx, useNotice } from '../components/ui';
+import { Button, Empty, PageHead, cx, useNotice } from '../components/ui';
 import { useData } from '../data/DataContext';
 import { fridgeCount, fridgeTotal, linesValue } from '../lib/juice';
 import type { OrderLine, ProductKind } from '../lib/types';
@@ -59,7 +59,7 @@ export function Sell() {
                         <JuiceBadge product={p} />
                         <span className="min-w-0 flex-1">
                           <span className="block font-semibold">
-                            {p.name} {p.premium && <Badge tone="brown">Premium</Badge>}
+                            {p.name}
                           </span>
                           {p.tag && <span className="block truncate text-xs text-muted">{p.tag}</span>}
                         </span>

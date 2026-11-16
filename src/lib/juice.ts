@@ -22,7 +22,9 @@ export const litresOf = (sizes: Size[], key: string) => num(sizeOf(sizes, key)?.
 
 export function priceOf(product: Product | undefined, size: Size | undefined): number {
   if (!size) return 0;
-  return product?.premium ? num(size.premiumPrice) || num(size.price) : num(size.price);
+  // One price per size for every juice (Denis, 16 Nov 2026: no more premium price).
+  void product;
+  return num(size.price);
 }
 
 /** Average cost of one unit of each stock item, over everything ever bought. */
@@ -232,6 +234,27 @@ export interface Totals {
 function totals(value: number, paid: number, closed = false): Totals {
   const balance = closed ? 0 : Math.max(0, value - paid);
   return { value, paid, balance, status: balance <= 0 ? 'Paid' : paid > 0 ? 'Part paid' : 'Not paid' };
+}
+
+/**
+ * Takes a discount off the bottles of a sale, from the last bottle back: a bottle comes off its line
+ * into its own line at the lower price (never below 0), so the total drops by exactly the discount
+ * and every price stays a whole number. 3 x 3,000 less 2,000 = 2 x 3,000 + 1 x 1,000.
+ */
+export function applyDiscount<L extends { qty: number; price: number; fullPrice?: number }>(lines: L[], discount: number): L[] {
+  let left = Math.max(0, Math.round(num(discount)));
+  if (!left) return lines;
+  const out = lines.map((l) => ({ ...l }));
+  for (let i = out.length - 1; i >= 0 && left > 0; i--) {
+    while (left > 0 && num(out[i].qty) > 0 && num(out[i].price) > 0) {
+      const price = num(out[i].price);
+      const off = Math.min(left, price);
+      left -= off;
+      out[i].qty = num(out[i].qty) - 1;
+      out.splice(i + 1, 0, { ...out[i], qty: 1, price: price - off, fullPrice: out[i].fullPrice ?? price });
+    }
+  }
+  return out.filter((l) => num(l.qty) > 0);
 }
 
 export const linesValue = (lines: { qty: number; price: number }[]) => sum(lines ?? [], (l) => num(l.qty) * num(l.price));

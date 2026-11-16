@@ -9,6 +9,7 @@ import { showDate } from '../lib/dates';
 import { linesValue, orderTotals, purchaseTotals, saleTotals } from '../lib/juice';
 import { fmt, money } from '../lib/money';
 import { FROM_ADVANCE, type OrderLine, type PaymentKind } from '../lib/types';
+import { DiscountControl, useDiscount } from './day';
 
 export function Checkout({ lines, onDone, onClose }: { lines: OrderLine[]; onDone: () => void; onClose: () => void }) {
   const { actions, customers, settings, customerAdv } = useData();
@@ -23,7 +24,9 @@ export function Checkout({ lines, onDone, onClose }: { lines: OrderLine[]; onDon
   const [received, setReceived] = useState(0);
   const [empties, setEmpties] = useState(0);
   const { busy, error, run } = useSaver();
-  const total = linesValue(lines);
+  const disc = useDiscount(known);
+  const full = linesValue(lines);
+  const total = Math.max(0, full - disc.value);
   const listId = 'checkout-customers';
   return (
     <Sheet
@@ -36,7 +39,9 @@ export function Checkout({ lines, onDone, onClose }: { lines: OrderLine[]; onDon
             busy={busy}
             onClick={() =>
               run(async () => {
-                const id = await actions.saveSale({ lines, customerName: customer, method, received, emptiesBack: empties });
+                const id = await actions.saveSale({ lines, customerName: customer, method, received, emptiesBack: empties, discount: disc.value });
+                const next = customer.trim() ? disc.nextStanding() : null;
+                if (next !== null) await actions.setCustomerDiscount(customer, next);
                 onDone();
                 sheets.swap({ t: 'receipt', id });
               })
@@ -55,6 +60,12 @@ export function Checkout({ lines, onDone, onClose }: { lines: OrderLine[]; onDon
             <span className="num">{j.money(l.qty * l.price)}</span>
           </div>
         ))}
+        {disc.value > 0 && (
+          <div className="flex items-center justify-between py-2 text-[15px] text-leaf">
+            <span>Discount</span>
+            <span className="num">− {j.money(Math.min(disc.value, full))}</span>
+          </div>
+        )}
         <div className="flex items-center justify-between py-2 text-lg font-semibold">
           <span>Total</span>
           <span className="num">{j.money(total)}</span>
@@ -69,6 +80,7 @@ export function Checkout({ lines, onDone, onClose }: { lines: OrderLine[]; onDon
             ))}
           </datalist>
         </Field>
+        <DiscountControl on={disc.on} setOn={disc.setOn} amount={disc.amount} setAmount={disc.setAmount} total={full} name={customer} always={disc.always} setAlways={disc.setAlways} />
         <div>
           <span className="label">Paid by</span>
           <Choice options={methods} value={method} onChange={setMethod} />
@@ -101,15 +113,27 @@ export function Receipt({ id, onClose }: { id: string; onClose: () => void }) {
   const s = sales.find((x) => x.id === id);
   if (!s) return null;
   const total = linesValue(s.lines);
-  // Bottles of one juice and size may come from two batches: show them as one line.
-  const merged = new Map<string, OrderLine>();
+  // Bottles of one juice and size may come from two batches, or be split by a discount: one line each,
+  // at the price before any discount, then the discount.
+  const merged = new Map<string, OrderLine & { value: number }>();
   for (const l of s.lines) {
     const k = `${l.productId}|${l.size}`;
+    const before = l.qty * (l.fullPrice ?? l.price);
     const prev = merged.get(k);
-    if (prev) prev.qty += l.qty;
-    else merged.set(k, { ...l });
+    if (prev) {
+      prev.qty += l.qty;
+      prev.value += before;
+    } else merged.set(k, { ...l, value: before });
   }
-  const text = [`${settings.businessName}`, `Receipt ${s.number} · ${showDate(s.date)} ${s.time}`, ...[...merged.values()].map((l) => `${j.lineText(l)}: ${j.money(l.qty * l.price)}`), `Total: ${j.money(total)} (${s.method})`, settings.receiptNote].join('\n');
+  const off = (s.discount ?? 0) || Math.max(0, [...merged.values()].reduce((t, l) => t + l.value, 0) - total);
+  const text = [
+    `${settings.businessName}`,
+    `Receipt ${s.number} · ${showDate(s.date)} ${s.time}`,
+    ...[...merged.values()].map((l) => `${j.lineText(l)}: ${j.money(l.value)}`),
+    ...(off ? [`Discount: − ${j.money(off)}`] : []),
+    `Total: ${j.money(total)} (${s.method})`,
+    settings.receiptNote,
+  ].join(String.fromCharCode(10));
   const phone = s.customerId ? customersById.get(s.customerId)?.phone : '';
   return (
     <Sheet
@@ -132,8 +156,9 @@ export function Receipt({ id, onClose }: { id: string; onClose: () => void }) {
       </div>
       <div className="mt-3 divide-y divide-line">
         {[...merged.values()].map((l) => (
-          <Line key={`${l.productId}|${l.size}`} label={j.lineText(l)} value={j.money(l.qty * l.price)} />
+          <Line key={`${l.productId}|${l.size}`} label={j.lineText(l)} value={j.money(l.value)} />
         ))}
+        {off > 0 && <Line label="Discount" value={`− ${j.money(off)}`} tone="good" />}
         <Line strong label={`Total · ${s.method}`} value={j.money(total)} />
       </div>
       <p className="mt-3 text-center text-sm text-muted">{settings.receiptNote}</p>

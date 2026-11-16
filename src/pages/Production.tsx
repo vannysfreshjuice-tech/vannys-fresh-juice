@@ -160,7 +160,7 @@ export function Recipes() {
                 <JuiceBadge product={p} size={38} />
                 <div className="min-w-0 flex-1">
                   <h2 className="font-semibold">
-                    {p.name} {p.kind === 'cocktail' && <Badge tone="green">Cocktail</Badge>} {p.premium && <Badge tone="brown">Premium</Badge>}
+                    {p.name} {p.kind === 'cocktail' && <Badge tone="green">Cocktail</Badge>}
                   </h2>
                   {p.tag && <p className="text-xs text-muted">{p.tag}</p>}
                 </div>

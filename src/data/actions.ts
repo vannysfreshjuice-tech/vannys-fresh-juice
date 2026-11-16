@@ -6,7 +6,7 @@
 // - bottles leave the fridge only here, oldest best-before first.
 // A refused action throws an Error whose message is plain words for the screen.
 import { addDays, todayYmd } from '../lib/dates';
-import { customerAdvances, debtsOf, fridgeByBatch, linesValue, nextNumber, orderTotals, orderValue, paymentsByRef, purchaseTotals, sameName, saleTotals, sizeOf, takeFromFridge } from '../lib/juice';
+import { applyDiscount, customerAdvances, debtsOf, fridgeByBatch, linesValue, nextNumber, orderTotals, orderValue, paymentsByRef, purchaseTotals, sameName, saleTotals, sizeOf, takeFromFridge } from '../lib/juice';
 import { cleanAmount, cleanQty, money, num, sum } from '../lib/money';
 import { FROM_ADVANCE } from '../lib/types';
 import type {
@@ -471,10 +471,14 @@ export function makeActions(store: Store, now: () => Current) {
      * A counter sale, or a line on the day list (date = that day). method 'On credit' leaves it owed;
      * FROM_ADVANCE takes it from the customer's money paid ahead (what is not covered stays owed).
      */
-    async saveSale(input: { lines: OrderLine[]; customerName: string; method: string; received?: number; emptiesBack?: number; note?: string; date?: string }): Promise<string> {
+    async saveSale(input: { lines: OrderLine[]; customerName: string; method: string; received?: number; emptiesBack?: number; note?: string; date?: string; discount?: number }): Promise<string> {
       const wanted = cleanOrderLines(input.lines);
       need(wanted.length, 'Add at least one bottle.');
-      const lines = takeFromFridge(fridge(), wanted, productName, sizeLabel, now().settings.fridgeCheck);
+      const full = takeFromFridge(fridge(), wanted, productName, sizeLabel, now().settings.fridgeCheck);
+      const discount = cleanAmount(input.discount);
+      need(discount <= linesValue(full), `The discount is more than the sale's total of ${money(linesValue(full))}.`);
+      // The discount comes off the bottle prices, so every total, report and balance follows it.
+      const lines = applyDiscount(full, discount);
       const ops: Op[] = [];
       const credit = input.method === 'On credit';
       const fromAdvance = input.method === FROM_ADVANCE;
@@ -498,6 +502,7 @@ export function makeActions(store: Store, now: () => Current) {
           customerName: customerId ? (cur().customers.find((c) => c.id === customerId)?.name ?? text(input.customerName)) : 'Walk-in',
           lines,
           method: input.method || 'Cash',
+          ...(discount ? { discount } : {}),
           emptiesBack: Math.max(0, Math.round(num(input.emptiesBack))),
           note: text(input.note),
           ...created(),
@@ -657,9 +662,17 @@ export function makeActions(store: Store, now: () => Current) {
       need(name, "Type the customer's name.");
       const clash = cur().customers.find((c) => c.id !== id && sameName(c.name, name));
       need(!clash, `There is already a customer called ${clash?.name}.`);
-      const s = save('customers', id, { name, type: text(input.type) || 'Shop', phone: text(input.phone), place: text(input.place), notes: text(input.notes) }, { archived: false });
+      const s = save('customers', id, { name, type: text(input.type) || 'Shop', phone: text(input.phone), place: text(input.place), notes: text(input.notes), discount: cleanAmount(input.discount) }, { archived: false });
       await store.commit([s.op]);
       return s.id;
+    },
+    /** A discount a customer always gets (0 to stop it); found by name, added if new. */
+    async setCustomerDiscount(customerName: string, amount: number) {
+      const ops: Op[] = [];
+      const id = resolveCustomer(ops, customerName);
+      need(id, "Type the customer's name.");
+      ops.push({ op: 'patch', col: 'customers', id, data: { discount: cleanAmount(amount), ...touched() } });
+      await store.commit(ops);
     },
     async archiveCustomer(id: string, archived: boolean) {
       await store.commit([{ op: 'patch', col: 'customers', id, data: { archived, ...touched() } }]);

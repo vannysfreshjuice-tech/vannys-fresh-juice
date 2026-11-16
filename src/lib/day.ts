@@ -103,6 +103,20 @@ export function dayStock(day: string, batches: Batch[], sales: Sale[], orders: O
   return { made, left: Math.max(0, filled - out), spoiled };
 }
 
+/** The juice and size sold most (bottles) in the 60 days up to that day: the day list's usual bottle. */
+export function mostSold(sales: Sale[], day: string): { productId: string; size: string } | null {
+  const from = addDays(day, -60);
+  const count = new Map<string, number>();
+  for (const s of sales) {
+    if (s.date < from || s.date > day) continue;
+    for (const l of s.lines ?? []) count.set(`${l.productId}|${l.size}`, (count.get(`${l.productId}|${l.size}`) ?? 0) + num(l.qty));
+  }
+  const top = [...count].sort((a, b) => b[1] - a[1])[0];
+  if (!top) return null;
+  const [productId, size] = top[0].split('|');
+  return { productId, size };
+}
+
 /**
  * The day list's quick buttons: the customers who took juice most often in the 60 days BEFORE that day
  * (so the order does not move while names are tapped), then anyone new on the day itself, at the end.

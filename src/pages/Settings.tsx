@@ -236,12 +236,9 @@ function Sizes() {
         {sizes.map((s, i) => (
           <div key={s.key} className="rounded-xl border border-line p-3">
             <p className="mb-2 font-semibold">{s.label}</p>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <Field label="Price">
                 <MoneyInput value={s.price} onChange={(n) => set(i, { price: n })} />
-              </Field>
-              <Field label="Premium price">
-                <MoneyInput value={s.premiumPrice} onChange={(n) => set(i, { premiumPrice: n })} />
               </Field>
               <Field label="Bottle, cap, label">
                 <MoneyInput value={s.packCost} onChange={(n) => set(i, { packCost: n })} />

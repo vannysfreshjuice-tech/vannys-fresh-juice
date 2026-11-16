@@ -10,9 +10,9 @@ import { Button, Choice, DateInput, Empty, IconButton, PageHead, QtyInput, Selec
 import { useData } from '../data/DataContext';
 import { addDays, showDay, weekdayShort } from '../lib/dates';
 import { dayStock, daySummary, entryStatus, excelName, regulars, STATUS_WORDS, weekStart, type DayState, type EntryStatus } from '../lib/day';
-import { linesValue, sizeOf } from '../lib/juice';
+import { linesValue } from '../lib/juice';
 import { money } from '../lib/money';
-import { payFor, useUsualJuice } from '../sheets/day';
+import { DiscountControl, lastDiscount, payFor, useUsualJuice } from '../sheets/day';
 
 const NAME_TONE: Record<EntryStatus, string> = {
   paid: 'bg-sky-soft text-sky border-sky/20',
@@ -68,15 +68,18 @@ function Legend() {
 }
 
 function DayView({ day, setDay, firstDay }: { day: string; setDay: (d: string) => void; firstDay: string }) {
-  const { sales, orders, byRef, customersById, customerAdv, actions, settings, today } = useData();
+  const { sales, orders, byRef, customersById, customerAdv, actions, settings, today, products } = useData();
   const j = useJuice();
   const sheets = useSheets();
   const notify = useNotice();
   const usual = useUsualJuice();
   const [tapPay, setTapPay] = useState('On credit');
+  const [tapDiscOn, setTapDiscOn] = useState(false);
+  const [tapDisc, setTapDisc] = useState(lastDiscount);
   const [busyId, setBusyId] = useState('');
   const sum = daySummary(day, today, firstDay, sales, orders, byRef);
   const usualPrice = j.price(usual.productId, usual.size);
+  const liveJuices = products.filter((p) => !p.archived);
   const regs = regulars(sales, day)
     .map((id) => customersById.get(id))
     .filter((c) => c && !c.archived);
@@ -89,8 +92,10 @@ function DayView({ day, setDay, firstDay }: { day: string; setDay: (d: string) =
     setBusyId(customerId);
     try {
       const method = payFor(customerAdv.get(customerId) ?? 0, tapPay);
-      await actions.saveSale({ date: day, lines: [{ productId: usual.productId, size: usual.size, qty: 1, price: usualPrice }], customerName: c.name, method });
-      notify(`${c.name}: 1 bottle, ${method === 'On credit' ? 'not paid yet' : method}`);
+      // a customer's standing discount always applies; otherwise the tap discount when it is on
+      const discount = Math.min(usualPrice, (c.discount ?? 0) > 0 ? (c.discount ?? 0) : tapDiscOn ? tapDisc : 0);
+      await actions.saveSale({ date: day, lines: [{ productId: usual.productId, size: usual.size, qty: 1, price: usualPrice }], customerName: c.name, method, discount });
+      notify(`${c.name}: 1 bottle${discount ? ` at ${cur(usualPrice - discount)} (${cur(discount)} off)` : ''}, ${method === 'On credit' ? 'not paid yet' : method}`);
     } catch (e) {
       notify((e as Error).message, 'info');
     } finally {
@@ -132,11 +137,20 @@ function DayView({ day, setDay, firstDay }: { day: string; setDay: (d: string) =
               Someone else
             </Button>
           </div>
-          <p className="mb-2 text-sm text-muted">
-            {j.name(usual.productId)} {sizeOf(settings.sizes, usual.size)?.label} at {cur(usualPrice)}. Paid:
-          </p>
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <span className="text-sm text-muted">Each tap:</span>
+            {liveJuices.length > 1 && (
+              <Select aria-label="Juice for a tap" className="w-auto" options={liveJuices.map((p) => ({ value: p.id, label: p.name }))} value={usual.productId} onChange={(e) => usual.remember(e.target.value, usual.size)} />
+            )}
+            {liveJuices.length <= 1 && <span className="text-sm font-medium">{j.name(usual.productId)}</span>}
+          </div>
+          <Choice options={settings.sizes.map((s) => ({ value: s.key, label: `${s.label} · ${cur(j.price(usual.productId, s.key)).replace(`${settings.currency} `, '')}` }))} value={usual.size} onChange={(k) => usual.remember(usual.productId, k)} />
+          <p className="mt-3 mb-2 text-sm text-muted">Paid:</p>
           <Choice options={['On credit', ...settings.methods.filter((m) => m !== 'Bank')].map((m) => ({ value: m, label: m === 'On credit' ? 'Not yet' : m }))} value={tapPay} onChange={setTapPay} />
-          <p className="mt-1 text-xs text-muted">Customers with money paid ahead (green) pay from it. For more bottles, another juice or another price, use Someone else.</p>
+          <div className="mt-3">
+            <DiscountControl on={tapDiscOn} setOn={setTapDiscOn} amount={tapDisc} setAmount={setTapDisc} total={usualPrice} />
+          </div>
+          <p className="mt-1 text-xs text-muted">Customers with money paid ahead (green) pay from it. A customer with a standing discount (shown on their name) always gets it. For more bottles, another juice or another price, use Someone else.</p>
           {regs.length === 0 ? (
             <p className="mt-3 text-sm text-muted">Names you add appear here as quick buttons.</p>
           ) : (
@@ -157,6 +171,7 @@ function DayView({ day, setDay, firstDay }: { day: string; setDay: (d: string) =
                   >
                     {c!.name}
                     {ahead > 0 && <span className="num block text-[11px] text-leaf">{cur(ahead)} ahead</span>}
+                    {(c!.discount ?? 0) > 0 && <span className="num block text-[11px] text-amber">− {cur(c!.discount ?? 0)} each</span>}
                   </button>
                 );
               })}

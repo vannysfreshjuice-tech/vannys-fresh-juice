@@ -454,7 +454,7 @@ export function ProductForm({ id, kind, onClose }: { id?: string; kind?: Product
   const [k, setK] = useState<ProductKind>(p?.kind ?? kind ?? 'cocktail');
   const [icon, setIcon] = useState(p?.icon ?? (k === 'cocktail' ? '🍹' : '🥭'));
   const [colour, setColour] = useState(p?.colour ?? COLOURS[0]);
-  const [premium, setPremium] = useState(p?.premium ?? false);
+  const premium = false; // one price per size
   const [keeps, setKeeps] = useState(p?.keepsDays ?? 3);
   const [tag, setTag] = useState(p?.tag ?? '');
   const [mode, setMode] = useState<'ten' | 'batch'>('ten');
@@ -613,9 +613,7 @@ export function ProductForm({ id, kind, onClose }: { id?: string; kind?: Product
           <Field label="Keeps (days)">
             <TextInput inputMode="numeric" value={keeps ? String(keeps) : ''} onChange={(e) => setKeeps(Number(e.target.value.replace(/\D/g, '')) || 0)} />
           </Field>
-          <Field label="Price">
-            <Select options={[{ value: 'n', label: 'Normal' }, { value: 'p', label: 'Premium' }]} value={premium ? 'p' : 'n'} onChange={(e) => setPremium(e.target.value === 'p')} />
-          </Field>
+
         </div>
         <div className="card p-3">
           <Line strong label="Juice cost per litre (today's fruit prices)" value={j.money(perL)} />

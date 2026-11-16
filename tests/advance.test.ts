@@ -1,7 +1,7 @@
 // Money paid ahead, one payment for several days, selling without recorded production, and the
 // day list / week sheet figures (the owner's Excel sheet logic).
 import { describe, expect, it } from 'vitest';
-import { dayStock, daySummary, entryStatus, excelName, regulars, weekStart } from '../src/lib/day';
+import { dayStock, daySummary, entryStatus, excelName, mostSold, regulars, weekStart } from '../src/lib/day';
 import { customerAdvances, customerBalances, debtsOf, paymentsByRef } from '../src/lib/juice';
 import { buildReport, dayFigures } from '../src/lib/reports';
 import { FROM_ADVANCE } from '../src/lib/types';
@@ -345,5 +345,54 @@ describe('bottle sizes link to the bottles bought', () => {
     expect(app.settings().sizes.find((z) => z.key === '1000')!.bottleItemId ?? '').toBe('');
     await app.actions.savePurchase({ date: '2026-11-15', supplierName: 'Market', itemId: 'old1', qty: 1, price: 500 });
     expect(app.settings().sizes.find((z) => z.key === '1000')).toMatchObject({ bottleItemId: 'old1', packCost: 500 });
+  });
+});
+
+describe('the usual bottle on the day list', () => {
+  it('is the juice and size sold most, not the last one sold', async () => {
+    const app = await juiceApp();
+    for (const n of ['Kato', 'Apio', 'Opio']) await app.actions.saveSale({ date: '2026-11-16', lines: app.bottle(), customerName: n, method: 'Cash' });
+    await app.actions.saveSale({ date: '2026-11-16', lines: [{ productId: app.productId, size: '1000', qty: 1, price: 10000 }], customerName: 'Reagan', method: 'Cash' });
+    expect(mostSold(app.records().sales, '2026-11-16')).toEqual({ productId: app.productId, size: '500' });
+    expect(mostSold([], '2026-11-16')).toBeNull();
+  });
+});
+
+describe('discounts and one price', () => {
+  it('takes a discount off the bottles, whole shillings, from the last bottle back', async () => {
+    const { applyDiscount, linesValue } = await import('../src/lib/juice');
+    const out = applyDiscount([{ productId: 'm', size: '500', qty: 3, price: 3000 }], 2000);
+    expect(out).toEqual([
+      { productId: 'm', size: '500', qty: 2, price: 3000 },
+      { productId: 'm', size: '500', qty: 1, price: 1000, fullPrice: 3000 },
+    ]);
+    expect(linesValue(out)).toBe(7000);
+    const big = applyDiscount([{ productId: 'm', size: '500', qty: 2, price: 3000 }], 4000);
+    expect(linesValue(big)).toBe(2000);
+    expect(applyDiscount([{ productId: 'm', size: '500', qty: 1, price: 3000 }], 0)).toEqual([{ productId: 'm', size: '500', qty: 1, price: 3000 }]);
+  });
+  it('saves a discounted sale: the total, the payment and what is owed all follow the discount', async () => {
+    const app = await juiceApp();
+    const id = await app.actions.saveSale({ date: '2026-11-16', lines: app.bottle(1, 10000), customerName: 'Kato', method: 'Cash', discount: 3000 });
+    const r = app.records();
+    const s = r.sales.find((x) => x.id === id)!;
+    expect(s.discount).toBe(3000);
+    expect(r.payments.find((p) => p.refId === id)!.amount).toBe(7000);
+    const owed = await app.actions.saveSale({ date: '2026-11-16', lines: app.bottle(2), customerName: 'Apio', method: 'On credit', discount: 2000 });
+    expect(app.figures().owes.get(app.cust('Apio').id)).toBe(4000);
+    expect(app.records().sales.find((x) => x.id === owed)!.lines.reduce((t, l) => t + l.qty, 0)).toBe(2);
+    await expect(app.actions.saveSale({ lines: app.bottle(), customerName: '', method: 'Cash', discount: 5000 })).rejects.toThrow(/more than the sale/);
+  });
+  it('keeps a standing discount on the customer, and stops it at 0', async () => {
+    const app = await juiceApp();
+    await app.actions.setCustomerDiscount('Opio', 3000);
+    expect(app.cust('Opio').discount).toBe(3000);
+    await app.actions.setCustomerDiscount('Opio', 0);
+    expect(app.cust('Opio').discount).toBe(0);
+  });
+  it('has one price per size for every juice', async () => {
+    const { priceOf } = await import('../src/lib/juice');
+    const size = { key: '500', label: '500 ml', litres: 0.5, price: 3000, premiumPrice: 4000, packCost: 400 };
+    expect(priceOf({ premium: true } as never, size)).toBe(3000);
   });
 });
