@@ -352,7 +352,7 @@ describe('the usual bottle on the day list', () => {
   it('is the juice and size sold most, not the last one sold', async () => {
     const app = await juiceApp();
     for (const n of ['Kato', 'Apio', 'Opio']) await app.actions.saveSale({ date: '2026-11-16', lines: app.bottle(), customerName: n, method: 'Cash' });
-    await app.actions.saveSale({ date: '2026-11-16', lines: [{ productId: app.productId, size: '1000', qty: 1, price: 10000 }], customerName: 'Reagan', method: 'Cash' });
+    await app.actions.saveSale({ date: '2026-11-16', lines: [{ productId: app.productId, size: '1000', qty: 1, price: 10000 }], customerName: 'Namuli', method: 'Cash' });
     expect(mostSold(app.records().sales, '2026-11-16')).toEqual({ productId: app.productId, size: '500' });
     expect(mostSold([], '2026-11-16')).toBeNull();
   });
