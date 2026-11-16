@@ -169,7 +169,7 @@ Think of the business as a kitchen.
 
 | Page | In the kitchen | What you write there | What it changes |
 |---|---|---|---|
-| **Buying and suppliers** | Going to the market | What you bought, from whom, how many, the price, what you paid | Fruit and bottles go **into Stock**; the price of each fruit is known; what you owe a supplier shows |
+| **Buying and suppliers** | Going to the market | What you bought, from whom, how many, the price, what you paid | Fruit and bottles go **into Stock**; the price of each fruit is known; a bottle with its size in the name (Bottles 500 ml) is matched to that size and sets its cost; what you owe a supplier shows |
 | **Stock** | The store cupboard (and the fridge) | Nothing new most days; a **Count** when you check what is really there | Shows what fruit, sugar and bottles you have, red when low; **Juice in the fridge** shows bottles made and not yet sold |
 | **Recipes and prices** | The cooking notebook | For each juice, what goes into 10 litres (or work it out from a real batch) | Uses the market prices to show what **one bottle costs** and the **profit** at your price |
 | **Production** | The cooking itself | Each batch: which juice, the fruit that went in, the bottles filled (quick way: **Bottles made** on the Day list) | Takes the fruit **out of Stock**, puts the bottles **into the fridge** |
@@ -298,7 +298,7 @@ Choose the period at the top: this month, last month, this year, last year, all 
 
 - **Your PIN:** lock the app now, change your PIN, or sign out of this phone (see **Opening the app**).
 - **Business:** name, WhatsApp and phone numbers, the message at the bottom of receipts, mobile money merchant code.
-- **Bottle sizes and prices:** the normal and premium price of each size, what the bottle, cap and label cost, which bottle from Stock each size uses up, which packaging **every bottle also uses** (caps, labels), and the deposit on a returnable bottle. New prices apply to new sales and orders only.
+- **Bottle sizes and prices:** the normal and premium price of each size, what the bottle, cap and label cost, which bottle from Stock each size uses up (both filled in by themselves when you buy a bottle with its size in the name, e.g. "Bottles 500 ml" or "1 litre bottles": the bottle is linked to that size and its cost becomes the price you paid, plus caps and labels), which packaging **every bottle also uses** (caps, labels), and the deposit on a returnable bottle. New prices apply to new sales and orders only.
 - **Lists and freshness:** ways of paying, expense groups, fridges, the highest fridge temperature, the hygiene checks, and **Sell only bottles recorded in the fridge** (off at first: you can sell before recording production; turn it on once every batch is recorded).
 - **Backup:** **Download a backup** saves every record in one file; keep one every week somewhere safe (send it to yourself on WhatsApp, or save it to Drive). **Restore a backup** reads such a file back. **Delete all records** wipes everything on every phone (you must type DELETE), and stops every staff PIN. If records were saved on a phone before the app moved to the cloud, Backup shows **Add them to the cloud records**: tap it once on that phone.
 

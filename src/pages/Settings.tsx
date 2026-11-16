@@ -231,6 +231,7 @@ function Sizes() {
   return (
     <Card title="Bottle sizes and prices">
       <FormError message={error} />
+      <p className="mb-3 rounded-xl bg-page px-3 py-2 text-xs text-muted">Filled in by Buying: a bottle bought with its size in the name (e.g. Bottles 500 ml) is linked to that size, and its cost becomes the price paid, plus the caps and labels every bottle uses. Change anything here if needed.</p>
       <div className="space-y-3">
         {sizes.map((s, i) => (
           <div key={s.key} className="rounded-xl border border-line p-3">

@@ -68,7 +68,7 @@ describe('profit by what was bought', () => {
     const rep = buildReport(app.records(), app.settings(), nov, new Map());
     expect(rep.bought).toMatchObject({ total: 35000, fruit: 20000, packaging: 15000, profit: 60000 - 35000 - 5000 });
     expect(rep.bought.items.map((x) => x.name)).toEqual(['Mangoes', 'Bottles 500 ml']);
-    expect(rep.profit).toBe(60000 - 20 * 400 - 5000); // by recipe: Fresh juice has none, so only the bottle cost
+    expect(rep.profit).toBe(60000 - 20 * 300 - 5000); // by recipe: Fresh juice has none, so only the bottle cost: 300, the price paid for the linked 500 ml bottles
   });
 });
 

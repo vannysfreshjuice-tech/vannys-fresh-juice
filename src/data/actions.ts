@@ -92,6 +92,37 @@ export function makeActions(store: Store, now: () => Current) {
     return [...merged.values()];
   }
 
+  /**
+   * After buying a packaging item: link it to its bottle size if it is a bottle not linked yet, and
+   * set the cost of each size that uses it (its bottle, or a cap / label every bottle uses) to the
+   * latest prices paid: bottle + caps + labels. Returns the new sizes, or null when nothing changes.
+   */
+  function bottleSizesAfterPurchase(itemId: string, bought: { date: string; price: number; createdAt: number }): Size[] | null {
+    const st = now().settings;
+    const item = cur().items.find((i) => i.id === itemId);
+    if (!item || item.kind !== 'packaging') return null;
+    let sizes = linkBottle(st.sizes, item.id, item.name) ?? st.sizes;
+    const latest = new Map<string, { date: string; at: number; price: number }>();
+    for (const p of [...cur().purchases, { itemId, ...bought }]) {
+      const prev = latest.get(p.itemId);
+      if (!prev || p.date > prev.date || (p.date === prev.date && p.createdAt >= prev.at)) latest.set(p.itemId, { date: p.date, at: p.createdAt, price: num(p.price) });
+    }
+    const priceOfItem = (id: string) => latest.get(id)?.price;
+    const touchesAll = st.perBottle.includes(itemId);
+    let changed = sizes !== st.sizes;
+    sizes = sizes.map((z) => {
+      if (!z.bottleItemId || (z.bottleItemId !== itemId && !touchesAll)) return z;
+      const bottle = priceOfItem(z.bottleItemId);
+      if (bottle === undefined) return z;
+      const extras = st.perBottle.filter((x) => x && x !== z.bottleItemId).reduce((t, x) => t + (priceOfItem(x) ?? 0), 0);
+      const packCost = Math.round(bottle + extras);
+      if (packCost === z.packCost) return z;
+      changed = true;
+      return { ...z, packCost };
+    });
+    return changed ? sizes : null;
+  }
+
   /** The changes that save a juice whose recipe lines are given by name (new names are added to Stock). */
   function productOps(input: Omit<Input<Product>, 'recipe'>, lines: RecipeByName[], id: string | undefined, noQty: (name: string) => string) {
     const name = text(input.name);
@@ -281,8 +312,12 @@ export function makeActions(store: Store, now: () => Current) {
       need(name, 'Type the name of the item.');
       const clash = cur().items.find((i) => i.id !== id && sameName(i.name, name));
       need(!clash, `There is already an item called ${clash?.name}.`);
-      const s = save('items', id, { name, kind: input.kind === 'packaging' ? 'packaging' : 'fruit', unit: text(input.unit) || 'kg', reorderLevel: cleanQty(input.reorderLevel) }, { archived: false });
-      await store.commit([s.op]);
+      const kind = input.kind === 'packaging' ? 'packaging' : 'fruit';
+      const s = save('items', id, { name, kind, unit: text(input.unit) || 'kg', reorderLevel: cleanQty(input.reorderLevel) }, { archived: false });
+      const ops: Op[] = [s.op];
+      const linked = kind === 'packaging' ? linkBottle(now().settings.sizes, s.id, name) : null;
+      if (linked) ops.push({ op: 'patch', col: 'settings', id: 'main', data: { sizes: linked, ...touched() } });
+      await store.commit(ops);
       return s.id;
     },
     async archiveItem(id: string, archived: boolean) {
@@ -345,6 +380,8 @@ export function makeActions(store: Store, now: () => Current) {
         need(paid <= qty * price, `The amount paid is more than the total of ${money(qty * price)}.`);
         ops.push(paymentOp('purchase', id, paid, input.date, paidNow?.method ?? 'Cash'));
       }
+      const sizes = bottleSizesAfterPurchase(input.itemId, { date: input.date, price, createdAt: Date.now() });
+      if (sizes) ops.push({ op: 'patch', col: 'settings', id: 'main', data: { sizes, ...touched() } });
       await store.commit(ops);
       return id;
     },
@@ -758,6 +795,27 @@ export function makeActions(store: Store, now: () => Current) {
 }
 
 export type Actions = ReturnType<typeof makeActions>;
+
+/** The volume in a name, in litres: "Bottles 500 ml" 0.5, "500mls" 0.5, "1 liter" 1, "Jerrycan 5 L" 5. 0 when none. */
+export function volumeIn(name: string): number {
+  const m = /(\d+(?:[.,]\d+)?)\s*(ml|mls|millilitres?|milliliters?|l|lt|ltr|ltrs|litres?|liters?)(?![a-z])/i.exec(name);
+  if (!m) return 0;
+  const n = parseFloat(m[1].replace(',', '.'));
+  return /^m/i.test(m[2]) ? n / 1000 : n;
+}
+
+/**
+ * Links a packaging item to the bottle size of its volume, when that size has no bottle yet.
+ * Caps, lids, labels, stickers and straws are never bottles. Returns the new sizes, or null.
+ */
+export function linkBottle(sizes: Size[], itemId: string, name: string): Size[] | null {
+  if (/cap|lid|label|sticker|straw|seal/i.test(name)) return null;
+  const litres = volumeIn(name);
+  if (!litres) return null;
+  const i = sizes.findIndex((z) => Math.abs(num(z.litres) - litres) < 0.0001);
+  if (i < 0 || sizes[i].bottleItemId) return null;
+  return sizes.map((z, n) => (n === i ? { ...z, bottleItemId: itemId } : z));
+}
 
 /** A recipe line given by the ingredient's name (in Stock, or new), its unit for a new one, and the amount. */
 export interface RecipeByName {

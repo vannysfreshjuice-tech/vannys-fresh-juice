@@ -315,3 +315,35 @@ describe('moving a juice history and deleting it', () => {
     expect(customerBalances(r.customers, r.orders, r.sales, paymentsByRef(r.payments)).get(r.customers[0].id)).toBe(6000);
   });
 });
+
+describe('bottle sizes link to the bottles bought', () => {
+  it('reads the volume in a name', async () => {
+    const { volumeIn } = await import('../src/data/actions');
+    expect([volumeIn('Bottles 500 ml'), volumeIn('Bottles 500mls'), volumeIn('Bottles 1liter'), volumeIn('1 litre bottle'), volumeIn('Jerrycan 5 L'), volumeIn('300ml'), volumeIn('Caps')]).toEqual([0.5, 0.5, 1, 1, 5, 0.3, 0]);
+  });
+  it('links a new bottle to its size, prices the size from what was paid, and leaves caps alone', async () => {
+    const app = await testApp();
+    const b500 = await app.actions.saveItem({ name: 'Bottles 500mls', kind: 'packaging', unit: 'pcs', reorderLevel: 0 });
+    const caps = await app.actions.saveItem({ name: 'Caps 500 ml', kind: 'packaging', unit: 'pcs', reorderLevel: 0 });
+    const size = (k: string) => app.settings().sizes.find((z) => z.key === k)!;
+    expect(size('500').bottleItemId).toBe(b500);
+    expect(app.settings().sizes.filter((z) => z.bottleItemId === caps)).toHaveLength(0);
+    await app.actions.savePurchase({ date: '2026-11-15', supplierName: 'Market', itemId: b500, qty: 12, price: 350 });
+    expect(size('500').packCost).toBe(350);
+    // caps used by every bottle: the size costs bottle + cap
+    await app.actions.saveSettings({ perBottle: [caps] });
+    await app.actions.savePurchase({ date: '2026-11-15', supplierName: 'Market', itemId: caps, qty: 100, price: 50 });
+    expect(size('500').packCost).toBe(400);
+    // a bottle linked by hand is kept: a second 500 ml item does not take its place
+    const other = await app.actions.saveItem({ name: 'Glass bottles 500 ml', kind: 'packaging', unit: 'pcs', reorderLevel: 0 });
+    expect(size('500').bottleItemId).toBe(b500);
+    expect(other).toBeTruthy();
+  });
+  it('links bottles bought before this rule, on their next purchase', async () => {
+    const app = await testApp();
+    await app.store.commit([{ op: 'set', col: 'items', id: 'old1', data: { name: 'Bottles 1 litre', kind: 'packaging', unit: 'pcs', reorderLevel: 0, archived: false, createdAt: 1, updatedAt: 1 } }]);
+    expect(app.settings().sizes.find((z) => z.key === '1000')!.bottleItemId ?? '').toBe('');
+    await app.actions.savePurchase({ date: '2026-11-15', supplierName: 'Market', itemId: 'old1', qty: 1, price: 500 });
+    expect(app.settings().sizes.find((z) => z.key === '1000')).toMatchObject({ bottleItemId: 'old1', packCost: 500 });
+  });
+});
