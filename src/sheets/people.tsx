@@ -9,8 +9,7 @@ import { PinInput, useLock } from '../components/Lock';
 import { pinKeys, removePin, setPin } from '../lib/pinLock';
 import { useData } from '../data/DataContext';
 import { addDays, showDate, showDay } from '../lib/dates';
-import { debtsOf, orderTotals, saleTotals } from '../lib/juice';
-import { statementText } from '../lib/performance';
+import { orderTotals, saleTotals } from '../lib/juice';
 import { money } from '../lib/money';
 import { reminderIcs, whatsappLink } from '../lib/reminders';
 import { CUSTOMER_TYPES, ROLES, ROLE_NAMES, type Reminder, type ReminderWay, type Repeat, type Role, type Staff } from '../lib/types';
@@ -74,7 +73,6 @@ export function CustomerView({ id, onClose }: { id: string; onClose: () => void 
   const ahead = customerAdv.get(id) ?? 0;
   const paidAhead = payments.filter((p) => p.kind === 'advance' && p.refId === id).sort((a, b) => b.date.localeCompare(a.date));
   const cur = (n: number) => money(n, settings.currency);
-  const statement = statementText(c.name, debtsOf(id, orders, sales, byRef), owes, ahead, settings);
   return (
     <Sheet
       title={c.name}
@@ -110,11 +108,9 @@ export function CustomerView({ id, onClose }: { id: string; onClose: () => void 
             Call
           </Button>
         )}
-        {owes > 0 && (
-          <Button small variant="plain" icon={MessageCircle} onClick={() => window.open(whatsappLink(c.phone, statement), '_blank')}>
-            Send statement
-          </Button>
-        )}
+        <Button small variant="plain" icon={MessageCircle} onClick={() => sheets.open({ t: 'statementCard', customerId: id })}>
+          Send statement
+        </Button>
         <Button
           small
           variant="plain"

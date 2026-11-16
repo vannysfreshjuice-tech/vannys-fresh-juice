@@ -6,10 +6,8 @@ import { useSheets } from '../components/SheetHost';
 import { Badge, Bars, Button, Choice, Empty, IconButton, PageHead, SearchBox, Select, StatCard, cx, useNotice } from '../components/ui';
 import { useData } from '../data/DataContext';
 import { showDate, showDay, weekdayShort } from '../lib/dates';
-import { debtsOf } from '../lib/juice';
 import { money, sum } from '../lib/money';
-import { customerStats, OVERDUE_DAYS, statementText, type CustomerStats } from '../lib/performance';
-import { whatsappLink } from '../lib/reminders';
+import { customerStats, OVERDUE_DAYS, type CustomerStats } from '../lib/performance';
 import { wageLines, weekDays } from '../lib/staff';
 import { ROLE_NAMES, type Customer } from '../lib/types';
 
@@ -124,7 +122,7 @@ type CustomerSort = (typeof CUSTOMER_SORTS)[number];
 
 /** One customer as a card: what was billed, paid and owed, the collection rate, and quick actions. */
 function CustomerCard({ c, s }: { c: Customer; s: CustomerStats }) {
-  const { orders, sales, byRef, settings } = useData();
+  const { settings } = useData();
   const sheets = useSheets();
   const cur = (n: number) => money(n, settings.currency).replace(`${settings.currency} `, '');
   const initials = c.name
@@ -133,7 +131,7 @@ function CustomerCard({ c, s }: { c: Customer; s: CustomerStats }) {
     .slice(0, 2)
     .map((w) => w[0]!.toUpperCase())
     .join('');
-  const statement = () => window.open(whatsappLink(c.phone, statementText(c.name, debtsOf(c.id, orders, sales, byRef), s.owed, s.ahead, settings)), '_blank');
+  const statement = () => sheets.open({ t: 'statementCard', customerId: c.id });
   return (
     <div className="card flex flex-col p-4">
       <div className="flex items-start gap-3">

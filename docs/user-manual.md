@@ -225,14 +225,16 @@ Search, sort (**Owes most**, **Collection rate**, **Billed**, **Bottles a week**
 - **Billed**, **Paid** and **Owes**, and any money paid ahead not used yet;
 - the **collection rate** with a bar: green from 85%, orange from 60%, red below;
 - the day they last bought and their oldest unpaid day;
-- **Statement** (sends what they owe on WhatsApp) and **Money received**; the arrow opens the customer.
+- **Statement** and **Money received**; the arrow opens the customer.
 
 Tap a customer to see what they owe, day by day, oldest first, and:
 
 - **Money received:** type the amount once, even for many days. It pays what they owe, **oldest day first**; anything more is kept as **money paid ahead**. A customer who owes nothing and pays ahead has it all kept as paid ahead.
 - **Pay from money paid ahead:** when they owe something and have money paid ahead, this uses it for what they owe (no new money comes in).
 - **Money paid ahead** list: each amount paid ahead, and how much has gone on bottles. The bin removes one entered by mistake (not once bottles have used it).
-- **Call**, **Send statement** on WhatsApp (what they owe each day, and what is paid ahead), **New order**, **Change** their details or **Hide** them.
+- **Call**, **Send statement**, **New order**, **Change** their details or **Hide** them.
+
+**The statement card:** **Statement** (on the card) or **Send statement** (in the customer) makes a picture in Vanny's colours, with the juice photo as a watermark, that tells the customer one thing: their balance (what they owe less anything paid ahead), or **All paid up**, or what they have **paid ahead** (and about how many bottles that is), as at today. No list of days. **Send on WhatsApp** opens the phone's share list: choose WhatsApp, then the customer. On a laptop the picture is saved and WhatsApp opens, to attach it. **Save picture** keeps it; **Send the list of days instead** sends the old text list.
 
 Every bottle paid from money paid ahead (Day list, Sell or an order) takes it down by itself; undoing that sale puts the money back.
 

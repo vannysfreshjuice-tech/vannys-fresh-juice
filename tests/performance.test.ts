@@ -1,7 +1,7 @@
 // Customer and juice performance figures (the card views on Customers and Reports).
 import { describe, expect, it } from 'vitest';
 import { paymentsByRef } from '../src/lib/juice';
-import { customerStats, juiceStats, previousPeriod, statementText } from '../src/lib/performance';
+import { customerStats, juiceStats, previousPeriod, standing, statementText } from '../src/lib/performance';
 import { buildReport } from '../src/lib/reports';
 import { testApp } from './helpers';
 
@@ -77,5 +77,15 @@ describe('the period before', () => {
     const nov = { key: 'thisMonth', label: '', from: '2026-11-01', to: '2026-11-30' };
     expect(previousPeriod(nov, '2026-11-16')).toMatchObject({ from: '2026-10-16', to: '2026-10-31' });
     expect(previousPeriod(nov, '2026-12-05')).toMatchObject({ from: '2026-10-02', to: '2026-10-31' });
+  });
+});
+
+describe('the statement card figure', () => {
+  it('shows one figure: owed less paid ahead', () => {
+    expect(standing(30000, 0, 3000)).toEqual({ kind: 'owes', amount: 30000, bottles: 0 });
+    expect(standing(3000, 2000, 3000)).toEqual({ kind: 'owes', amount: 1000, bottles: 0 });
+    expect(standing(0, 9000, 3000)).toEqual({ kind: 'ahead', amount: 9000, bottles: 3 });
+    expect(standing(1000, 11000, 3000)).toEqual({ kind: 'ahead', amount: 10000, bottles: 3 });
+    expect(standing(0, 0, 3000)).toEqual({ kind: 'clear', amount: 0, bottles: 0 });
   });
 });

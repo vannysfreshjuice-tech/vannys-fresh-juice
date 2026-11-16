@@ -62,6 +62,22 @@ export function customerStats(customers: Customer[], sales: Sale[], orders: Orde
   return out;
 }
 
+export interface Standing {
+  /** owes: a balance to pay; ahead: money paid ahead not used; clear: nothing either way */
+  kind: 'owes' | 'ahead' | 'clear';
+  amount: number;
+  /** for money paid ahead: about how many bottles it still buys */
+  bottles: number;
+}
+
+/** A customer's final standing for the statement card: what they owe less what they paid ahead, one figure. */
+export function standing(owes: number, ahead: number, bottlePrice: number): Standing {
+  const net = Math.round(owes - Math.max(0, ahead));
+  if (net > 0) return { kind: 'owes', amount: net, bottles: 0 };
+  if (net < 0) return { kind: 'ahead', amount: -net, bottles: bottlePrice > 0 ? Math.floor(-net / bottlePrice) : 0 };
+  return { kind: 'clear', amount: 0, bottles: 0 };
+}
+
 /** The WhatsApp statement: what is owed day by day (oldest first), the total, and money paid ahead. */
 export function statementText(name: string, debts: Debt[], owes: number, ahead: number, s: { businessName: string; whatsapp: string; currency: string }): string {
   return [
