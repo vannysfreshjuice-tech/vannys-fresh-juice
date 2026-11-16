@@ -67,6 +67,8 @@ Each person has their own PIN of 6 digits. It opens their part of the app (see *
 - To close a window, tap the **X** at its top right.
 - At the bottom of the menu (or the top of the phone screen) the small cloud icon shows whether your changes have reached the cloud (**Saved**, **Sending**, or **Offline**: they will be sent when the connection returns). Next to it, your name with a lock: tap it to lock the app.
 
+**Before anything is sent:** every WhatsApp message (receipts, delivery notes, the list of days, reminders) opens first in a preview: the message as it will look in the chat, who it goes to, and a box to change it. Nothing is sent until you tap **Send on WhatsApp**; WhatsApp then opens with it ready and you press its send button. **Copy** copies it instead. The statement card is shown the same way, as a picture, before **Send on WhatsApp**.
+
 ## Home
 
 Home is the day at a glance:

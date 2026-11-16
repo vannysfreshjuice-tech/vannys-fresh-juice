@@ -1,6 +1,7 @@
 // The statement card window: a picture of where the customer stands, ready to send on WhatsApp.
 import { Download, List, Send } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useSheets } from '../components/SheetHost';
 import { Button, Sheet, SheetButtons, useNotice } from '../components/ui';
 import { useData } from '../data/DataContext';
 import { fromYmd } from '../lib/dates';
@@ -19,6 +20,7 @@ const longDate = (ymd: string) => {
 export function StatementCardSheet({ customerId, onClose }: { customerId: string; onClose: () => void }) {
   const { customersById, customerBal, customerAdv, orders, sales, byRef, settings, today } = useData();
   const notify = useNotice();
+  const sheets = useSheets();
   const c = customersById.get(customerId);
   const owes = customerBal.get(customerId) ?? 0;
   const ahead = customerAdv.get(customerId) ?? 0;
@@ -79,7 +81,7 @@ export function StatementCardSheet({ customerId, onClose }: { customerId: string
     a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 10000);
   };
-  const asText = () => window.open(whatsappLink(c.phone, statementText(name, debtsOf(customerId, orders, sales, byRef), owes, ahead, settings)), '_blank');
+  const asText = () => sheets.swap({ t: 'message', title: `Statement for ${name}`, to: name, phone: c.phone, text: statementText(name, debtsOf(customerId, orders, sales, byRef), owes, ahead, settings) });
   return (
     <Sheet
       title={`Statement for ${name}`}

@@ -8,7 +8,6 @@ import { useData } from '../data/DataContext';
 import { showDate } from '../lib/dates';
 import { linesValue, orderTotals, purchaseTotals, saleTotals } from '../lib/juice';
 import { fmt, money } from '../lib/money';
-import { whatsappLink } from '../lib/reminders';
 import { FROM_ADVANCE, type OrderLine, type PaymentKind } from '../lib/types';
 
 export function Checkout({ lines, onDone, onClose }: { lines: OrderLine[]; onDone: () => void; onClose: () => void }) {
@@ -98,6 +97,7 @@ export function Checkout({ lines, onDone, onClose }: { lines: OrderLine[]; onDon
 export function Receipt({ id, onClose }: { id: string; onClose: () => void }) {
   const { sales, settings, customersById } = useData();
   const j = useJuice();
+  const sheets = useSheets();
   const s = sales.find((x) => x.id === id);
   if (!s) return null;
   const total = linesValue(s.lines);
@@ -117,7 +117,7 @@ export function Receipt({ id, onClose }: { id: string; onClose: () => void }) {
       onClose={onClose}
       footer={
         <SheetButtons>
-          <Button variant="plain" icon={MessageCircle} onClick={() => window.open(whatsappLink(phone, text), '_blank')}>
+          <Button variant="plain" icon={MessageCircle} onClick={() => sheets.open({ t: 'message', title: `Receipt ${s.number}`, to: s.customerName, phone, text })}>
             WhatsApp
           </Button>
           <Button onClick={onClose}>Next sale</Button>

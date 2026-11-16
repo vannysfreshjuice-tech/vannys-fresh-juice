@@ -7,7 +7,6 @@ import { Button, DateInput, Field, FormError, IconButton, Line, MoneyInput, Sele
 import { useData } from '../data/DataContext';
 import { addDays, showDay } from '../lib/dates';
 import { fridgeCount, orderTotals, orderValue } from '../lib/juice';
-import { whatsappLink } from '../lib/reminders';
 import { CUSTOMER_TYPES, ORDER_STAGES, type OrderLine, type OrderStage, type Reminder } from '../lib/types';
 
 const STEPS: OrderStage[] = ['To make', 'Ready', 'Out for delivery', 'Delivered'];
@@ -287,7 +286,7 @@ export function OrderView({ id, onClose }: { id: string; onClose: () => void }) 
         </div>
       )}
       <div className="mt-4 flex flex-wrap gap-2">
-        <Button small variant="plain" icon={MessageCircle} onClick={() => window.open(whatsappLink(c?.phone, note), '_blank')}>
+        <Button small variant="plain" icon={MessageCircle} onClick={() => sheets.open({ t: 'message', title: `Delivery note ${o.number}`, to: c?.name, phone: c?.phone, text: note })}>
           Delivery note
         </Button>
         <Button small variant="plain" icon={Bell} onClick={() => sheets.open({ t: 'reminder', orderId: o.id })}>

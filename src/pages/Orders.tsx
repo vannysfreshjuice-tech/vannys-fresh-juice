@@ -8,7 +8,7 @@ import { useData } from '../data/DataContext';
 import { relativeDay, showDay } from '../lib/dates';
 import { orderTotals } from '../lib/juice';
 import { sum } from '../lib/money';
-import { isOpen, whatsappLink } from '../lib/reminders';
+import { isOpen } from '../lib/reminders';
 import type { Reminder } from '../lib/types';
 import { addToCalendar } from '../sheets/people';
 
@@ -111,7 +111,7 @@ export function Reminders() {
         </button>
         <div className="flex shrink-0 gap-1">
           <IconButton icon={CalendarPlus} label="Add to the phone's calendar" onClick={() => addToCalendar(r, who?.name ?? '', settings.businessName)} />
-          {who?.phone && <IconButton icon={MessageCircle} label={`Send to ${who.name} on WhatsApp`} onClick={() => window.open(whatsappLink(who.phone, `Reminder for ${showDay(r.date)} ${r.time}: ${r.what}`), '_blank')} />}
+          {who?.phone && <IconButton icon={MessageCircle} label={`Send to ${who.name} on WhatsApp`} onClick={() => sheets.open({ t: 'message', title: 'Reminder', to: who.name, phone: who.phone, text: `Reminder for ${showDay(r.date)} ${r.time}: ${r.what}` })} />}
           <IconButton
             icon={Check}
             label="Done"

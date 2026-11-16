@@ -11,7 +11,7 @@ import { useData } from '../data/DataContext';
 import { addDays, showDate, showDay } from '../lib/dates';
 import { orderTotals, saleTotals } from '../lib/juice';
 import { money } from '../lib/money';
-import { reminderIcs, whatsappLink } from '../lib/reminders';
+import { reminderIcs } from '../lib/reminders';
 import { CUSTOMER_TYPES, ROLES, ROLE_NAMES, type Reminder, type ReminderWay, type Repeat, type Role, type Staff } from '../lib/types';
 
 export function CustomerForm({ id, onClose }: { id?: string; onClose: () => void }) {
@@ -535,6 +535,7 @@ export async function addToCalendar(r: Reminder, who: string, businessName: stri
 export function ReminderForm({ id, orderId, onClose }: { id?: string; orderId?: string; onClose: () => void }) {
   const { reminders, staff, staffById, actions, today, ordersById, customersById, settings, me } = useData();
   const notify = useNotice();
+  const sheets = useSheets();
   const r0 = id ? reminders.find((x) => x.id === id) : undefined;
   const o = orderId ? ordersById.get(orderId) : undefined;
   const people = staff.filter((s) => !s.archived);
@@ -552,9 +553,9 @@ export function ReminderForm({ id, orderId, onClose }: { id?: string; orderId?: 
       const saved: Reminder = { id: rid, what, date, time, staffId: sid, orderId, repeat, ways, createdAt: 0, updatedAt: 0 };
       const who = staffById.get(sid);
       if (ways.includes('calendar')) await addToCalendar(saved, who?.name ?? '', settings.businessName);
-      if (ways.includes('whatsapp') && who?.phone) window.open(whatsappLink(who.phone, `Reminder for ${showDay(date)} ${time}: ${what}`), '_blank');
       notify(ways.includes('calendar') ? 'Saved. Open the calendar file to add it to the phone.' : 'Reminder saved');
-      onClose();
+      if (ways.includes('whatsapp') && who?.phone) sheets.swap({ t: 'message', title: 'Reminder', to: who.name, phone: who.phone, text: `Reminder for ${showDay(date)} ${time}: ${what}` });
+      else onClose();
     });
   return (
     <Sheet
