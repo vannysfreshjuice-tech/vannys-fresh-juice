@@ -191,18 +191,26 @@ function DayView({ day, setDay, firstDay }: { day: string; setDay: (d: string) =
 
 /** Bottles made that day (a quick count saved as a batch), and made / sold / left. */
 function MadeCard({ day, sold }: { day: string; sold: number }) {
-  const { products, batches, sales, orders, writeOffs, settings, actions, me, today } = useData();
+  const { products, batches, sales, orders, writeOffs, settings, actions, me, today, fridge } = useData();
   const j = useJuice();
   const sheets = useSheets();
   const notify = useNotice();
   const usual = useUsualJuice();
   const live = products.filter((p) => !p.archived);
-  const [productId, setProductId] = useState(usual.productId);
-  const [size, setSize] = useState(usual.size);
+  const [chosenProduct, setProductId] = useState(usual.productId);
+  const [chosenSize, setSize] = useState(usual.size);
+  // the records may arrive after the page opens: fall back to the usual juice and size
+  const productId = live.some((p) => p.id === chosenProduct) ? chosenProduct : usual.productId;
+  const size = settings.sizes.some((s) => s.key === chosenSize) ? chosenSize : usual.size;
   const [bottles, setBottles] = useState(0);
   const [busy, setBusy] = useState(false);
   const made = batches.filter((b) => b.date === day).sort((a, b) => a.createdAt - b.createdAt);
   const st = dayStock(day, batches, sales, orders, writeOffs);
+  // The oldest batch with bottles still in the fridge (made on or before this day): where "left" comes from.
+  const oldestLeft = batches
+    .filter((b) => b.date <= day && (fridge.get(b.id)?.total ?? 0) > 0)
+    .reduce((m, b) => (!m || b.date < m ? b.date : m), '');
+  const lastMade = batches.filter((b) => b.date < day).reduce((m, b) => (!m || b.date > m ? b.date : m), '');
   const add = async () => {
     if (busy) return;
     setBusy(true);
@@ -231,6 +239,7 @@ function MadeCard({ day, sold }: { day: string; sold: number }) {
         <div className={cx('rounded-xl px-2 py-2', st.left > 0 ? 'bg-butter-soft' : 'bg-page')}>
           <span className="block text-2xl font-bold">{st.left}</span>
           <span className="text-xs text-muted">{day === today ? 'left now' : 'left that evening'}</span>
+          {st.left > 0 && st.left > st.made && oldestLeft && <span className="block text-[11px] text-muted">made {oldestLeft === day ? 'today' : `from ${showDay(oldestLeft)}`}</span>}
         </div>
       </div>
       {made.length > 0 && (
@@ -250,6 +259,11 @@ function MadeCard({ day, sold }: { day: string; sold: number }) {
           Add
         </Button>
       </div>
+      {st.made === 0 && lastMade && (
+        <p className="mb-2 rounded-lg bg-page px-3 py-2 text-sm text-muted">
+          Nothing made {day === today ? 'today' : `on ${showDay(day)}`}. The last bottles were made on <b className="text-ink">{showDay(lastMade)}</b>: use ‹ above to see that day.
+        </p>
+      )}
       <p className="mt-2 text-xs text-muted">
         Type the bottles made {day === today ? 'today' : 'that day'} and tap Add. Bottles left roll over to the next day and are sold first. Tap a line above to change or delete it, or to write off spoiled bottles
         {st.spoiled > 0 ? ` (${st.spoiled} written off this day)` : ''}.

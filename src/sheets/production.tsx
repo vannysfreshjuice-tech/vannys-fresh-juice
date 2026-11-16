@@ -329,7 +329,7 @@ export function WriteOffForm({ batchId, onClose }: { batchId?: string; onClose: 
     >
       <FormError message={error} />
       {!inFridge.length ? (
-        <p className="text-muted">There is no juice in the fridge.</p>
+        <p className="text-muted">No recorded bottles are left in the fridge, so there is nothing to write off. Bottles count as in the fridge once they are recorded as made (Day list: Bottles made, or Production) and until they are sold.</p>
       ) : (
         <div className="space-y-4">
           <Field label="Batch">

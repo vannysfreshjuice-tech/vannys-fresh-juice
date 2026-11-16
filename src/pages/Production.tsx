@@ -8,7 +8,6 @@ import { useData } from '../data/DataContext';
 import { addDays, showDate, weekdayShort } from '../lib/dates';
 import { batchCost, bottleCost, bottledLitres, fridgeCount, priceOf, recipeCostPerLitre } from '../lib/juice';
 import { qty as showQty, sum } from '../lib/money';
-import { weekStart } from '../lib/staff';
 import type { ProductKind } from '../lib/types';
 import { makePlan } from './Home';
 
@@ -16,8 +15,9 @@ export function Production() {
   const { batches, productsById, settings, avgCosts, orders, fridge, today, role } = useData();
   const j = useJuice();
   const sheets = useSheets();
-  const from = weekStart(today);
-  const week = batches.filter((b) => b.date >= from);
+  // The last 7 days (today and the 6 before), so a batch made yesterday still counts on a Monday.
+  const from = addDays(today, -6);
+  const week = batches.filter((b) => b.date >= from && b.date <= today);
   const L = sum(week, (b) => b.litres);
   const juiceCost = sum(week, (b) => batchCost(b, productsById.get(b.productId), settings.sizes, avgCosts).juice);
   const list = [...batches].sort((a, b) => b.date.localeCompare(a.date) || b.number.localeCompare(a.number));
@@ -26,9 +26,9 @@ export function Production() {
     <div>
       <PageHead title="Production" action={<Button icon={Plus} onClick={() => sheets.open({ t: 'batch' })}>New batch</Button>} />
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="Made this week" value={`${showQty(L)} L`} sub={`${week.length} batches since ${weekdayShort(from)} ${showDate(from).slice(0, 5)}`} />
-        {role === 'owner' && <StatCard label="Juice cost per litre" value={j.money(L ? juiceCost / L : 0)} sub="this week, average" />}
-        <StatCard label="Bottled this week" value={`${showQty(sum(week, (b) => bottledLitres(b, settings.sizes)))} L`} />
+        <StatCard label="Made in the last 7 days" value={`${showQty(L)} L`} sub={`${week.length} ${week.length === 1 ? 'batch' : 'batches'} since ${weekdayShort(from)} ${showDate(from).slice(0, 5)}`} />
+        {role === 'owner' && <StatCard label="Juice cost per litre" value={j.money(L ? juiceCost / L : 0)} sub="last 7 days, average" />}
+        <StatCard label="Bottled in the last 7 days" value={`${showQty(sum(week, (b) => bottledLitres(b, settings.sizes)))} L`} />
         <StatCard label="Being made" value={String(batches.filter((b) => !Object.values(b.filled ?? {}).some((n) => n > 0)).length)} sub="not bottled yet" />
       </div>
       {plan.length > 0 && (

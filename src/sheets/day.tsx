@@ -39,8 +39,10 @@ export function DayEntryForm({ date, customerName, onClose }: { date: string; cu
   const live = products.filter((p) => !p.archived);
   const [name, setName] = useState(customerName ?? '');
   const [qty, setQty] = useState(1);
-  const [productId, setProductId] = useState(usual.productId);
-  const [size, setSize] = useState(usual.size);
+  const [chosenProduct, setProductId] = useState(usual.productId);
+  const [chosenSize, setSize] = useState(usual.size);
+  const productId = live.some((p) => p.id === chosenProduct) ? chosenProduct : usual.productId;
+  const size = settings.sizes.some((s) => s.key === chosenSize) ? chosenSize : usual.size;
   const [price, setPrice] = useState(j.price(usual.productId, usual.size));
   const known = customers.find((c) => c.name.trim().toLowerCase() === name.trim().toLowerCase());
   const ahead = known ? (customerAdv.get(known.id) ?? 0) : 0;

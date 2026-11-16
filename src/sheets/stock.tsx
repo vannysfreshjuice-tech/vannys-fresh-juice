@@ -10,7 +10,8 @@ import { purchaseTotals } from '../lib/juice';
 import { money, qty as showQty } from '../lib/money';
 import { QUALITIES, type ItemKind } from '../lib/types';
 
-const UNITS = ['kg', 'pcs', 'bunches', 'litres', 'bags', 'boxes', 'trays'];
+const UNITS = ['pcs', 'kg', 'bunches', 'litres', 'bags', 'boxes', 'trays'];
+const NEW_ITEM = '__new';
 
 export function ItemForm({ id, kind, onClose }: { id?: string; kind?: ItemKind; onClose: () => void }) {
   const { items, actions } = useData();
@@ -105,9 +106,14 @@ export function CountForm({ itemId, onClose }: { itemId: string; onClose: () => 
 export function PurchaseForm({ itemId, onClose }: { itemId?: string; onClose: () => void }) {
   const { items, suppliers, actions, today, settings, lastCosts } = useData();
   const notify = useNotice();
-  const live = items.filter((i) => !i.archived);
-  const [iid, setIid] = useState(itemId ?? live[0]?.id ?? '');
-  const it = live.find((i) => i.id === iid);
+  const live = items.filter((i) => !i.archived).sort((a, b) => (a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === 'fruit' ? -1 : 1));
+  const [iid, setIid] = useState(itemId ?? live[0]?.id ?? NEW_ITEM);
+  const isNew = iid === NEW_ITEM;
+  const [newName, setNewName] = useState('');
+  const [newKind, setNewKind] = useState<ItemKind>('fruit');
+  const [newUnit, setNewUnit] = useState('pcs');
+  const it = isNew ? { name: newName, unit: newUnit, kind: newKind } : live.find((i) => i.id === iid);
+  const lookalike = isNew && newName.trim() ? items.find((i) => i.name.trim().toLowerCase().replace(/(es|s)$/, '') === newName.trim().toLowerCase().replace(/(es|s)$/, '')) : undefined;
   const [supplier, setSupplier] = useState('');
   const [q, setQ] = useState(0);
   const [price, setPrice] = useState(lastCosts.get(iid) ?? 0);
@@ -123,20 +129,40 @@ export function PurchaseForm({ itemId, onClose }: { itemId?: string; onClose: ()
       onClose={onClose}
       footer={
         <SheetButtons>
-          <Button busy={busy} onClick={() => run(() => actions.savePurchase({ date, supplierName: supplier, itemId: iid, qty: q, price, quality }, { amount: paid, method }), () => { notify('Purchase saved: stock is up'); onClose(); })}>
+          <Button
+            busy={busy}
+            onClick={() =>
+              run(
+                async () => {
+                  let id = iid;
+                  if (isNew) {
+                    if (!newName.trim()) throw new Error('Type the name of what was bought.');
+                    if (!(q > 0)) throw new Error('Type how much was bought.');
+                    id = await actions.saveItem({ name: newName, kind: newKind, unit: newUnit, reorderLevel: 0 });
+                  }
+                  await actions.savePurchase({ date, supplierName: supplier, itemId: id, qty: q, price, quality }, { amount: paid, method });
+                },
+                () => {
+                  notify(isNew ? `${newName.trim()} added to Stock, and the purchase saved` : 'Purchase saved: stock is up');
+                  onClose();
+                },
+              )
+            }
+          >
             Save purchase
           </Button>
         </SheetButtons>
       }
     >
       <FormError message={error} />
-      {!live.length ? (
-        <p className="text-muted">Add the fruit and packaging you buy first, in Stock.</p>
-      ) : (
+      {
         <div className="space-y-4">
           <Field label="What was bought">
             <Select
-              options={live.map((i) => ({ value: i.id, label: `${i.name} (${i.unit})` }))}
+              options={[
+                ...live.map((i) => ({ value: i.id, label: `${i.name} (${i.unit})${i.kind === 'packaging' ? ' · packaging' : ''}` })),
+                { value: NEW_ITEM, label: '+ New item (not in Stock yet)…' },
+              ]}
               value={iid}
               onChange={(e) => {
                 setIid(e.target.value);
@@ -144,6 +170,36 @@ export function PurchaseForm({ itemId, onClose }: { itemId?: string; onClose: ()
               }}
             />
           </Field>
+          {isNew && (
+            <div className="space-y-3 rounded-xl border border-line bg-card p-3">
+              <Field label="Name of the new item">
+                <TextInput value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. Mangoes, Sugar, Bottles 500 ml" />
+              </Field>
+              {lookalike && (
+                <p className="text-xs text-amber">
+                  Already in Stock as {lookalike.name}.{' '}
+                  <button type="button" className="font-semibold underline" onClick={() => (setIid(lookalike.id), setPrice(lastCosts.get(lookalike.id) ?? 0))}>
+                    Use {lookalike.name}
+                  </button>
+                </p>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="It is">
+                  <Select
+                    options={[
+                      { value: 'fruit', label: 'Fruit or ingredient' },
+                      { value: 'packaging', label: 'Bottles or packaging' },
+                    ]}
+                    value={newKind}
+                    onChange={(e) => setNewKind(e.target.value as ItemKind)}
+                  />
+                </Field>
+                <Field label="Counted in">
+                  <Select options={UNITS} value={newUnit} onChange={(e) => setNewUnit(e.target.value)} />
+                </Field>
+              </div>
+            </div>
+          )}
           <Field label="Supplier" hint="A new name is added to Suppliers">
             <TextInput list="purchase-suppliers" value={supplier} onChange={(e) => setSupplier(e.target.value)} placeholder="e.g. Mama Rose (Owino)" />
             <datalist id="purchase-suppliers">
@@ -187,7 +243,7 @@ export function PurchaseForm({ itemId, onClose }: { itemId?: string; onClose: ()
             </Button>
           )}
         </div>
-      )}
+      }
     </Sheet>
   );
 }

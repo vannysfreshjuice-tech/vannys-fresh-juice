@@ -7,7 +7,7 @@ import { useLock } from '../components/Lock';
 import { useSheets } from '../components/SheetHost';
 import { Button, StatCard, useNotice, useSaver } from '../components/ui';
 import { useData } from '../data/DataContext';
-import { addDays, longToday, showDay } from '../lib/dates';
+import { addDays, longToday, relativeDay, showDay } from '../lib/dates';
 import { fridgeCount, fridgeTotal } from '../lib/juice';
 import { qty as showQty, sum } from '../lib/money';
 import { mayOpen } from '../lib/nav';
@@ -55,6 +55,9 @@ export function Home() {
   const counter = role === 'owner' || role === 'sales';
   const day = dayFigures(d, today);
   const madeToday = batches.filter((b) => b.date === today);
+  // the most recent day something was made before today, for "Made today" when nothing was made yet today
+  const lastDay = batches.reduce((m, b) => (b.date < today && b.date > m ? b.date : m), '');
+  const lastMade = lastDay ? { date: lastDay, litres: sum(batches.filter((b) => b.date === lastDay), (b) => b.litres) } : null;
   const tomorrow = addDays(today, 1);
   const dueSoon = batches.filter((b) => (fridge.get(b.id)?.total ?? 0) > 0 && b.bestBefore <= tomorrow);
   const dueSoonBottles = sum(dueSoon, (b) => fridge.get(b.id)?.total ?? 0);
@@ -137,7 +140,7 @@ export function Home() {
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {counter && <StatCard label="Money in today" value={j.money(day.moneyIn)} sub={`Cash ${j.money(day.cash)} · Mobile ${j.money(day.mobile)}`} />}
-        {role !== 'rider' && <StatCard label="Made today" value={`${showQty(sum(madeToday, (b) => b.litres))} L`} sub={`${madeToday.length} batches`} onClick={mayOpen(role, '/make') ? () => navigate('/make') : undefined} />}
+        {role !== 'rider' && <StatCard label="Made today" value={`${showQty(sum(madeToday, (b) => b.litres))} L`} sub={madeToday.length ? `${madeToday.length} ${madeToday.length === 1 ? 'batch' : 'batches'}` : lastMade ? `Last made ${relativeDay(lastMade.date, today).toLowerCase() === 'yesterday' ? 'yesterday' : showDay(lastMade.date)}: ${showQty(lastMade.litres)} L` : 'Nothing made yet'} onClick={mayOpen(role, '/make') ? () => navigate('/make') : undefined} />}
         {role !== 'rider' && <StatCard label="Juice in the fridge" value={`${fridgeTotal(fridge)} bottles`} sub={dueSoonBottles ? `${dueSoonBottles} best before tomorrow` : 'All fresh'} onClick={() => navigate('/stock')} />}
         {owner && <StatCard label="Customers owe you" value={j.money(owed)} sub={`${[...customerBal.values()].filter((v) => v > 0).length} customers`} tone="warn" onClick={() => navigate('/customers')} />}
         {role === 'rider' && <StatCard label="Orders to deliver" value={String(toDeliver.length)} sub="today" onClick={() => navigate('/orders')} />}

@@ -56,9 +56,21 @@ export function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement
   return <textarea rows={3} {...props} className={cx('input', props.className)} />;
 }
 
+/**
+ * A drop-down. When the value is not one of the options (nothing chosen yet), it shows "Choose…"
+ * instead of looking as if the first option were chosen; with no options it says so.
+ */
 export function Select({ options, ...props }: React.SelectHTMLAttributes<HTMLSelectElement> & { options: (string | { value: string; label: string })[] }) {
+  const values = options.map((o) => (typeof o === 'string' ? o : o.value));
+  const current = props.value === undefined ? undefined : String(props.value);
+  const missing = current !== undefined && !values.includes(current);
   return (
     <select {...props} className={cx('input', props.className)}>
+      {missing && (
+        <option value={current} disabled>
+          {options.length ? 'Choose…' : 'Nothing to choose yet'}
+        </option>
+      )}
       {options.map((o) => {
         const v = typeof o === 'string' ? { value: o, label: o } : o;
         return (

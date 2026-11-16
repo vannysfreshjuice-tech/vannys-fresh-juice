@@ -74,7 +74,7 @@ Each person has their own PIN of 6 digits. It opens their part of the app (see *
 Home is the day at a glance:
 
 - **Sold today**: bottles sold at the counter and orders delivered today, and **Money in today**, split into cash and mobile money.
-- **Made today** (from Production or the Day list's bottles made), **Juice in the fridge** (and how many reach their best-before by tomorrow) and **Customers owe you**.
+- **Made today** (from Production or the Day list's bottles made; when nothing is made yet today it says when juice was last made), **Juice in the fridge** (and how many reach their best-before by tomorrow) and **Customers owe you**.
 - **Needs attention**: today's reminders, fruit and packaging below the reorder level, juice to sell first, orders due by tomorrow that are not ready, orders to deliver today, a fridge that is too warm, or no fridge reading yet today. Each line has a button that takes you straight to it.
 - **What the orders need by tomorrow**: each juice and size the orders need, what is in the fridge, and how many to make.
 
@@ -93,7 +93,7 @@ The day list is the Excel sheet in the app: each day, who took juice and who has
 5. For someone new, more bottles, another juice or another price (for example a 5,000 juice), tap **Someone else**. The juice and size chosen there become the usual one for the taps.
 6. The day's names are listed below in the Excel colours. Tap one to record a payment or to undo it.
 
-**Bottles made:** at the top of the day, type how many bottles you made (choose the juice and size if they differ) and tap **Add**. The three boxes then show **made**, **sold** and **left** (left now, or left that evening for a past day). Bottles left roll over to the next day and are sold first. If some went bad or were given away, tap **Some went bad or were given away**. Tap a count you added (e.g. "20 × Fresh juice 500 ml") to change it, delete it, or write off bottles from it. A juice with a recipe also takes its fruit off **Stock** for those litres.
+**Bottles made:** each count belongs to the day it was made: a batch recorded for yesterday shows as 0 made today, with its bottles under **left now** ("made from" that day), and a note says when the last bottles were made. At the top of the day, type how many bottles you made (choose the juice and size if they differ) and tap **Add**. The three boxes then show **made**, **sold** and **left** (left now, or left that evening for a past day). Bottles left roll over to the next day and are sold first. If some went bad or were given away, tap **Some went bad or were given away**. Tap a count you added (e.g. "20 × Fresh juice 500 ml") to change it, delete it, or write off bottles from it. A juice with a recipe also takes its fruit off **Stock** for those litres.
 
 **The week:** tap **Week** to see Monday to Friday side by side, like the sheet (Saturday and Sunday appear when juice was sold on them). On a phone, swipe sideways for Thursday and Friday. Tap a day to open it, or a name to see that sale. Under each day: made and left (once you count bottles made), sold and the money; below, the week's totals: days with juice, made, sold, spoiled, paid and not paid. Compare made with sold to see on which days you make too much or too little.
 
@@ -163,11 +163,32 @@ The **Reminders** page lists what is coming up (overdue, today, tomorrow, later)
 
 > Notifications sent by the app itself (without the calendar) are planned for later.
 
+## Making juice: how the four pages fit together
+
+Think of the business as a kitchen.
+
+| Page | In the kitchen | What you write there | What it changes |
+|---|---|---|---|
+| **Buying and suppliers** | Going to the market | What you bought, from whom, how many, the price, what you paid | Fruit and bottles go **into Stock**; the price of each fruit is known; what you owe a supplier shows |
+| **Stock** | The store cupboard (and the fridge) | Nothing new most days; a **Count** when you check what is really there | Shows what fruit, sugar and bottles you have, red when low; **Juice in the fridge** shows bottles made and not yet sold |
+| **Recipes and prices** | The cooking notebook | For each juice, what goes into 10 litres (or work it out from a real batch) | Uses the market prices to show what **one bottle costs** and the **profit** at your price |
+| **Production** | The cooking itself | Each batch: which juice, the fruit that went in, the bottles filled (quick way: **Bottles made** on the Day list) | Takes the fruit **out of Stock**, puts the bottles **into the fridge** |
+
+**The path of a mango:** market (**Buying**: 30 mangoes at 500 each) → cupboard (**Stock**: 30 mangoes) → notebook (**Recipe**: 25 mangoes make 10 litres) → kitchen (**Production** or **Bottles made**: 20 bottles of 500 ml; Stock goes down to 5 mangoes, the fridge up to 20 bottles) → customer (**Day list** or **Sell**: the fridge goes down) → money (**Reports**: sales less what those bottles cost = profit).
+
+**What happens if a step is skipped:**
+
+- No **Buying**: the app does not know what fruit costs, so profit shows too high (Reports warns you) and Stock stays empty.
+- No **Recipe**: the cost of a bottle is unknown and Production cannot suggest how much fruit to use.
+- No **Production** / **Bottles made**: the fridge count stays at 0 and leftovers cannot be followed. You can still sell (Settings: Sell only bottles recorded in the fridge is off).
+
+**The simplest way to keep it right:** record what you buy (**Buying**), type the **Bottles made** each morning on the Day list, and once a week use **Reconcile bottles made** to say what went into them. The app then works out the recipe, the stock, the cost of every bottle and the real profit.
+
 ## Production
 
 Where each batch of juice is recorded.
 
-- The tiles show the litres made and bottled this week, the juice cost per litre, and batches still being made.
+- The tiles show the litres made and bottled in the **last 7 days** (today and the 6 days before, so yesterday's batch still counts on a Monday), the juice cost per litre, and batches still being made.
 - **What to make for tomorrow's orders** compares the orders with the fridge.
 - Below is every batch (B-0001, B-0002...) with the juice, litres, bottles, best-before date and where it is: **Making**, **In the fridge**, **Best before today**, or **Finished**.
 
@@ -211,7 +232,7 @@ Stock is always worked out: bought, less what batches used (fruit, and one bottl
 
 Every purchase of fruit, sugar and packaging.
 
-**Buying:** tap **Buy**. Choose what was bought, type the supplier (a new name is added to Suppliers), the quantity (fruit in pieces) and the price per unit (per piece for fruit) (the total is worked out), what you paid now (leave 0 if on credit; **Paid in full** fills it) and, for fruit, the quality. Saving adds it to stock and updates the recipe costs.
+**Buying:** tap **Buy**. Choose what was bought (or **+ New item** for something not in Stock yet: its name, fruit or packaging, and what it is counted in; it is added to Stock with the purchase), type the supplier (a new name is added to Suppliers), the quantity (fruit in pieces) and the price per unit (per piece for fruit) (the total is worked out), what you paid now (leave 0 if on credit; **Paid in full** fills it) and, for fruit, the quality. Saving adds it to stock and updates the recipe costs.
 
 Open a purchase to **Pay the supplier** or delete it. The page also shows what was bought this month, what you **owe suppliers**, and the price of your most-bought fruit over the last purchases, to follow the season.
 
