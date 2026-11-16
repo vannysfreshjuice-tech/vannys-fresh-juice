@@ -364,41 +364,134 @@ interface RecipeName {
   name: string;
   unit: string;
   qty: number;
+  /** a new ingredient being typed (not in Stock yet) */
+  isNew?: boolean;
 }
 const RECIPE_UNITS = ['pcs', 'kg', 'bunches', 'litres'];
 /** Bought by weight, not counted: these default to kg. */
 const WEIGHED = /sugar|honey|salt|powder|flour/i;
+const NEW = '__new';
+/** "Mango" and "Mangoes", "lemon" and "Lemons": the same word for the check against mixing names. */
+const stem = (s: string) => s.trim().toLowerCase().replace(/(es|s)$/, '');
+
+/**
+ * Ingredient rows: each picked from Stock in a drop-down, or "+ New ingredient" to type one (added to
+ * Stock on Save). A new name that looks like one already in Stock offers that one instead.
+ */
+function IngredientRows({ lines, setLines, qtyLabel }: { lines: RecipeName[]; setLines: (f: (l: RecipeName[]) => RecipeName[]) => void; qtyLabel: string }) {
+  const { items } = useData();
+  const fruit = items.filter((i) => !i.archived && i.kind === 'fruit').sort((a, b) => a.name.localeCompare(b.name));
+  const known = (n: string) => items.find((i) => i.name.trim().toLowerCase() === n.trim().toLowerCase());
+  const setLine = (i: number, patch: Partial<RecipeName>) => setLines((ls) => ls.map((x, n) => (n === i ? { ...x, ...patch } : x)));
+  return (
+    <div>
+      <div className="mb-1 grid grid-cols-[1fr_5.5rem_auto] gap-2 text-xs text-muted">
+        <span>Fruit or ingredient</span>
+        <span>{qtyLabel}</span>
+        <span className="w-10" />
+      </div>
+      <div className="space-y-2">
+        {lines.map((l, i) => {
+          const k = !l.isNew ? known(l.name) : undefined;
+          const lookalike = l.isNew && l.name.trim() ? items.find((it) => stem(it.name) === stem(l.name) || it.name.trim().toLowerCase() === l.name.trim().toLowerCase()) : undefined;
+          return (
+            <div key={i} className="rounded-xl border border-line bg-card p-2">
+              <div className="grid grid-cols-[1fr_5.5rem_auto] items-center gap-2">
+                <Select
+                  aria-label="Fruit or ingredient"
+                  options={[{ value: '', label: 'Choose…' }, ...fruit.map((f) => ({ value: f.id, label: `${f.name} (${f.unit})` })), { value: NEW, label: '+ New ingredient…' }]}
+                  value={l.isNew ? NEW : (k?.id ?? '')}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === NEW) return setLine(i, { isNew: true, name: '', unit: 'pcs' });
+                    const it = items.find((x) => x.id === v);
+                    setLine(i, { isNew: false, name: it?.name ?? '', unit: it?.unit ?? 'pcs' });
+                  }}
+                />
+                <span className="flex items-center gap-1">
+                  <QtyInput aria-label={qtyLabel} value={l.qty} onChange={(q) => setLine(i, { qty: q })} />
+                </span>
+                <IconButton icon={X} label="Remove" onClick={() => setLines((ls) => ls.filter((_, n) => n !== i))} />
+              </div>
+              {k && <p className="mt-1 pl-1 text-xs text-muted">in {k.unit}</p>}
+              {l.isNew && (
+                <div className="mt-2 grid grid-cols-[1fr_6.5rem] gap-2">
+                  <TextInput aria-label="New ingredient's name" value={l.name} placeholder="Name, e.g. Ginger" onChange={(e) => setLine(i, { name: e.target.value, unit: WEIGHED.test(e.target.value) ? 'kg' : l.unit })} />
+                  <Select aria-label="Counted in" options={RECIPE_UNITS} value={l.unit} onChange={(e) => setLine(i, { unit: e.target.value })} />
+                </div>
+              )}
+              {lookalike && (
+                <p className="mt-1 flex flex-wrap items-center gap-2 pl-1 text-xs text-amber">
+                  Already in Stock as {lookalike.name} ({lookalike.unit}).
+                  <button type="button" className="font-semibold underline" onClick={() => setLine(i, { isNew: false, name: lookalike.name, unit: lookalike.unit })}>
+                    Use {lookalike.name}
+                  </button>
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <Button small variant="soft" icon={Plus} className="mt-2" onClick={() => setLines((ls) => [...ls, { name: '', unit: 'pcs', qty: 0, isNew: fruit.length === 0 }])}>
+        Add a fruit or ingredient
+      </Button>
+    </div>
+  );
+}
 
 const ICONS = ['🥭', '🍍', '🍉', '🍊', '🍋', '🍓', '🍌', '🍎', '🥕', '🥒', '🫐', '🟣', '🔴', '🍹', '🥤', '🌿'];
 const COLOURS = ['#FFA41B', '#E9B800', '#E8445A', '#F7811E', '#8E3FA0', '#3BA935', '#C2571A', '#A3203F', '#2F8F3A', '#D33A55'];
 
 export function ProductForm({ id, kind, onClose }: { id?: string; kind?: ProductKind; onClose: () => void }) {
-  const { products, items, actions, settings, lastCosts, avgCosts } = useData();
+  const { products, items, actions, settings, lastCosts, avgCosts, me } = useData();
   const j = useJuice();
   const notify = useNotice();
   const confirm = useConfirm();
   const p = id ? products.find((x) => x.id === id) : undefined;
-  const fruit = items.filter((i) => !i.archived && i.kind === 'fruit');
+  const hasFruit = items.some((i) => !i.archived && i.kind === 'fruit');
   const [name, setName] = useState(p?.name ?? '');
   const [k, setK] = useState<ProductKind>(p?.kind ?? kind ?? 'cocktail');
   const [icon, setIcon] = useState(p?.icon ?? (k === 'cocktail' ? '🍹' : '🥭'));
   const [colour, setColour] = useState(p?.colour ?? COLOURS[0]);
   const [premium, setPremium] = useState(p?.premium ?? false);
-  // Each line is typed by name: a fruit or ingredient in Stock, or a new one (added to Stock on Save).
-  const itemName = (itemId: string) => items.find((i) => i.id === itemId);
-  const [lines, setLines] = useState<RecipeName[]>(
-    p?.recipe.length ? p.recipe.map((r) => ({ name: itemName(r.itemId)?.name ?? '', unit: itemName(r.itemId)?.unit ?? 'pcs', qty: r.qty })) : [{ name: '', unit: 'pcs', qty: 0 }],
-  );
-  const known = (n: string) => items.find((i) => i.name.trim().toLowerCase() === n.trim().toLowerCase());
-  const recipe: RecipeLine[] = lines.map((l) => ({ itemId: known(l.name)?.id ?? '', qty: l.qty })).filter((r) => r.itemId);
-  const setLine = (i: number, patch: Partial<RecipeName>) => setLines((ls) => ls.map((x, n) => (n === i ? { ...x, ...patch } : x)));
-  const [water, setWater] = useState(p?.water ?? 0);
   const [keeps, setKeeps] = useState(p?.keepsDays ?? 3);
   const [tag, setTag] = useState(p?.tag ?? '');
+  const [mode, setMode] = useState<'ten' | 'batch'>('ten');
+  // Method 1: what goes into 10 litres
+  const itemOf = (itemId: string) => items.find((i) => i.id === itemId);
+  const [tenLines, setTenLines] = useState<RecipeName[]>(p?.recipe.length ? p.recipe.map((r) => ({ name: itemOf(r.itemId)?.name ?? '', unit: itemOf(r.itemId)?.unit ?? 'pcs', qty: r.qty })) : [{ name: '', unit: 'pcs', qty: 0, isNew: !hasFruit }]);
+  const [water, setWater] = useState(p?.water ?? 0);
+  // Method 2: one real batch, worked out backwards
+  const [usedLines, setUsedLines] = useState<RecipeName[]>([{ name: '', unit: 'pcs', qty: 0, isNew: !hasFruit }]);
+  const [waterUsed, setWaterUsed] = useState(0);
+  const [filled, setFilled] = useState<Record<string, number>>({});
+  const [record, setRecord] = useState(true);
   const { busy, error, run } = useSaver();
   const costs = useMemo(() => new Map([...avgCosts, ...lastCosts]), [avgCosts, lastCosts]);
-  const draft = { id: '', name, kind: k, icon, colour, premium, recipe, water, keepsDays: keeps, createdAt: 0, updatedAt: 0 };
+  const known = (n: string) => items.find((i) => i.name.trim().toLowerCase() === n.trim().toLowerCase());
+  const litres = Object.entries(filled).reduce((t, [key, n]) => t + Math.max(0, Math.round(n || 0)) * (sizeOf(settings.sizes, key)?.litres ?? 0), 0);
+  const per10 = (q: number) => (litres > 0 ? Math.round(((q || 0) * 10 * 1000) / litres) / 1000 : 0);
+  const shownLines = mode === 'ten' ? tenLines : usedLines.map((l) => ({ ...l, qty: per10(l.qty) }));
+  const recipe: RecipeLine[] = shownLines.map((l) => ({ itemId: known(l.name)?.id ?? '', qty: l.qty })).filter((r) => r.itemId);
+  const draft = { id: '', name, kind: k, icon, colour, premium, recipe, water: mode === 'ten' ? water : per10(waterUsed), keepsDays: keeps, createdAt: 0, updatedAt: 0 };
   const perL = recipeCostPerLitre(draft, costs);
+  const newNames = shownLines.filter((l) => l.isNew && l.name.trim() && !known(l.name)).map((l) => l.name.trim());
+  const base = { name, kind: k, icon, colour, premium, keepsDays: keeps, tag };
+  const saveNow = () =>
+    run(
+      async () => {
+        if (mode === 'ten') {
+          await actions.saveProductByNames({ ...base, water }, tenLines, id);
+          return '';
+        }
+        const r = await actions.saveProductFromBatch(base, usedLines, waterUsed, filled, record, me?.name, id);
+        return `Recipe worked out from ${showQty(r.litres)} litres${record ? '; the batch is recorded as made today' : ''}`;
+      },
+      (msg) => {
+        notify(msg || 'Saved');
+        onClose();
+      },
+    );
   return (
     <Sheet
       wide
@@ -410,7 +503,7 @@ export function ProductForm({ id, kind, onClose }: { id?: string; kind?: Product
             <Button
               variant="plain"
               onClick={async () => {
-                if (!(await confirm({ title: p.archived ? `Show ${p.name} again?` : `Hide ${p.name}?`, body: p.archived ? undefined : 'It disappears from Sell, Production and new orders. Its history stays.', yes: p.archived ? 'Show' : 'Hide' }))) return;
+                if (!(await confirm({ title: p.archived ? `Show ${p.name} again?` : `Hide ${p.name}?`, body: p.archived ? undefined : 'It disappears from Sell, the Day list, Production and new orders. Its history stays.', yes: p.archived ? 'Show' : 'Hide' }))) return;
                 await actions.archiveProduct(p.id, !p.archived);
                 onClose();
               }}
@@ -418,7 +511,7 @@ export function ProductForm({ id, kind, onClose }: { id?: string; kind?: Product
               {p.archived ? 'Show again' : 'Hide'}
             </Button>
           )}
-          <Button busy={busy} onClick={() => run(() => actions.saveProductByNames({ name, kind: k, icon, colour, premium, water, keepsDays: keeps, tag }, lines, id), () => { notify('Saved'); onClose(); })}>
+          <Button busy={busy} onClick={saveNow}>
             Save
           </Button>
         </SheetButtons>
@@ -450,57 +543,60 @@ export function ProductForm({ id, kind, onClose }: { id?: string; kind?: Product
             ))}
           </div>
         </div>
-        <div>
-          <span className="label">What goes into 10 litres</span>
-          <div className="mb-1 grid grid-cols-[1fr_5.5rem_5.5rem_auto] gap-2 text-xs text-muted">
-            <span>Fruit or ingredient</span>
-            <span>How much</span>
-            <span>Counted in</span>
-            <span className="w-10" />
-          </div>
-          <div className="space-y-2">
-            {lines.map((l, i) => {
-              const k2 = known(l.name);
-              return (
-                <div key={i} className="grid grid-cols-[1fr_5.5rem_5.5rem_auto] items-center gap-2">
-                  <TextInput
-                    list="recipe-items"
-                    aria-label="Fruit or ingredient"
-                    value={l.name}
-                    placeholder="e.g. Mangoes, Sugar"
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      const found = known(v);
-                      setLine(i, { name: v, unit: found?.unit ?? (WEIGHED.test(v) ? 'kg' : l.unit) });
-                    }}
-                  />
-                  <QtyInput aria-label="How much" value={l.qty} onChange={(q) => setLine(i, { qty: q })} />
-                  {k2 ? (
-                    <span className="px-1 text-sm text-muted">{k2.unit}</span>
-                  ) : (
-                    <Select aria-label="Counted in" options={RECIPE_UNITS} value={l.unit} onChange={(e) => setLine(i, { unit: e.target.value })} />
-                  )}
-                  <IconButton icon={X} label="Remove" onClick={() => setLines((ls) => ls.filter((_, n) => n !== i))} />
+
+        <div className="rounded-2xl border border-line bg-page p-3">
+          <span className="label">The recipe</span>
+          <Choice
+            options={[
+              { value: 'ten' as const, label: 'What goes into 10 litres' },
+              { value: 'batch' as const, label: 'Work it out from a batch' },
+            ]}
+            value={mode}
+            onChange={setMode}
+          />
+          {mode === 'ten' ? (
+            <div className="mt-3 space-y-3">
+              <IngredientRows lines={tenLines} setLines={setTenLines} qtyLabel="For 10 L" />
+              <Field label="Water for 10 litres (litres)" className="max-w-56">
+                <QtyInput value={water} onChange={setWater} />
+              </Field>
+            </div>
+          ) : (
+            <div className="mt-3 space-y-3">
+              <p className="text-sm text-muted">Make a batch as usual. Write down everything that went in, the water, and how many bottles of each size you filled: the app works out the recipe for 10 litres.</p>
+              <IngredientRows lines={usedLines} setLines={setUsedLines} qtyLabel="Used" />
+              <Field label="Water used (litres)" className="max-w-56">
+                <QtyInput value={waterUsed} onChange={setWaterUsed} />
+              </Field>
+              <div>
+                <span className="label">Bottles filled</span>
+                <BottleBoxes filled={filled} setFilled={setFilled} />
+              </div>
+              {litres > 0 ? (
+                <div className="rounded-xl bg-card px-3 py-2 text-sm">
+                  <p className="font-semibold">That is {showQty(litres)} litres. For 10 litres:</p>
+                  <ul className="mt-1 list-disc pl-5">
+                    {shownLines
+                      .filter((l) => l.name.trim() && l.qty > 0)
+                      .map((l, i) => (
+                        <li key={i} className="num">
+                          {showQty(l.qty)} {known(l.name)?.unit ?? l.unit} {l.name.trim()}
+                        </li>
+                      ))}
+                    {waterUsed > 0 && <li className="num">{showQty(per10(waterUsed))} litres water</li>}
+                  </ul>
                 </div>
-              );
-            })}
-          </div>
-          <datalist id="recipe-items">
-            {fruit.map((f) => (
-              <option key={f.id} value={f.name} />
-            ))}
-          </datalist>
-          <Button small variant="soft" icon={Plus} className="mt-2" onClick={() => setLines((ls) => [...ls, { name: '', unit: 'pcs', qty: 0 }])}>
-            Add a fruit or ingredient
-          </Button>
-          <p className="mt-1 text-xs text-muted">
-            Fruit in pieces (e.g. 30 mangoes), sugar in kg. A name that is not in Stock yet is added there when you save{lines.some((l) => l.name.trim() && !known(l.name)) ? `: ${lines.filter((l) => l.name.trim() && !known(l.name)).map((l) => l.name.trim()).join(', ')}` : ''}. Record what you pay for them on Buying so the cost below fills in.
-          </p>
+              ) : (
+                <p className="text-sm text-muted">Type the bottles filled to see the recipe.</p>
+              )}
+              <Tick on={record} set={setRecord} text="Also record this batch as made today (Day list: bottles made)" />
+            </div>
+          )}
+          {newNames.length > 0 && <p className="mt-2 text-xs text-muted">New in Stock when you save: {newNames.join(', ')}.</p>}
+          <p className="mt-1 text-xs text-muted">Fruit in pieces (e.g. 30 mangoes), sugar in kg. Record what you pay on Buying so the cost below fills in.</p>
         </div>
-        <div className="grid grid-cols-3 gap-3">
-          <Field label="Water (litres)">
-            <QtyInput value={water} onChange={setWater} />
-          </Field>
+
+        <div className="grid grid-cols-2 gap-3">
           <Field label="Keeps (days)">
             <TextInput inputMode="numeric" value={keeps ? String(keeps) : ''} onChange={(e) => setKeeps(Number(e.target.value.replace(/\D/g, '')) || 0)} />
           </Field>
@@ -539,6 +635,25 @@ export function ProductForm({ id, kind, onClose }: { id?: string; kind?: Product
           </table>
           {costs.size === 0 && <p className="mt-1 text-xs text-muted">Costs show once fruit has been bought (Buying).</p>}
         </div>
+        {p && (
+          <Button
+            small
+            variant="danger"
+            icon={Trash2}
+            onClick={async () => {
+              if (!(await confirm({ title: `Delete ${p.name} and its recipe?`, body: 'This cannot be undone. A juice that has been made, sold or ordered is kept for its history: Hide it instead.', yes: 'Delete', danger: true }))) return;
+              try {
+                await actions.deleteProduct(p.id);
+                notify(`${p.name} deleted`);
+                onClose();
+              } catch (e) {
+                notify((e as Error).message, 'info');
+              }
+            }}
+          >
+            Delete this juice and its recipe
+          </Button>
+        )}
       </div>
     </Sheet>
   );

@@ -92,6 +92,49 @@ export function makeActions(store: Store, now: () => Current) {
     return [...merged.values()];
   }
 
+  /** The changes that save a juice whose recipe lines are given by name (new names are added to Stock). */
+  function productOps(input: Omit<Input<Product>, 'recipe'>, lines: RecipeByName[], id: string | undefined, noQty: (name: string) => string) {
+    const name = text(input.name);
+    need(name, 'Type the name of the juice.');
+    const clash = cur().products.find((p) => p.id !== id && sameName(p.name, name));
+    need(!clash, `There is already a juice called ${clash?.name}.`);
+    const ops: Op[] = [];
+    const recipe: RecipeLine[] = [];
+    const itemIds = new Map<string, string>();
+    for (const l of lines) {
+      const n = text(l.name);
+      const qty = cleanQty(l.qty);
+      if (!n) continue;
+      need(qty > 0, noQty(n));
+      let itemId = cur().items.find((i) => sameName(i.name, n))?.id ?? itemIds.get(n.toLowerCase());
+      if (!itemId) {
+        itemId = newId();
+        ops.push({ op: 'set', col: 'items', id: itemId, data: { name: n, kind: 'fruit', unit: text(l.unit) || 'pcs', reorderLevel: 0, archived: false, ...created() } });
+      } else {
+        const item = cur().items.find((i) => i.id === itemId);
+        if (item?.archived) ops.push({ op: 'patch', col: 'items', id: itemId, data: { archived: false, ...touched() } });
+      }
+      itemIds.set(n.toLowerCase(), itemId);
+      const prev = recipe.find((r) => r.itemId === itemId);
+      if (prev) prev.qty = Math.round((prev.qty + qty) * 1000) / 1000;
+      else recipe.push({ itemId, qty });
+    }
+    const data = {
+      name,
+      kind: input.kind === 'cocktail' ? 'cocktail' : 'single',
+      icon: text(input.icon) || '🥤',
+      colour: text(input.colour) || '#F7931E',
+      premium: !!input.premium,
+      recipe,
+      water: cleanQty(input.water),
+      keepsDays: Math.max(1, Math.round(num(input.keepsDays)) || 3),
+      tag: text(input.tag),
+    };
+    const sv = save('products', id, data, { archived: false });
+    ops.push(sv.op);
+    return { ops, id: sv.id, itemIds };
+  }
+
   const cleanRecipe = (lines: RecipeLine[]) => lines.map((l) => ({ itemId: l.itemId, qty: cleanQty(l.qty) })).filter((l) => l.itemId && l.qty > 0);
 
   return {
@@ -117,58 +160,54 @@ export function makeActions(store: Store, now: () => Current) {
       return s.id;
     },
     /**
-     * A juice with its recipe typed by name: fruit and ingredients not in Stock yet are added to it
-     * (kind fruit, in the unit given) in the same save, so a recipe never needs Stock filled first.
+     * A juice with its recipe for 10 litres, each line by name: a fruit or ingredient in Stock, or a
+     * new one, added to Stock (kind fruit, in the unit given) in the same save, so a recipe never needs
+     * Stock filled first.
      */
-    async saveProductByNames(input: Omit<Input<Product>, 'recipe'>, lines: { name: string; unit: string; qty: number }[], id?: string): Promise<string> {
-      const name = text(input.name);
-      need(name, 'Type the name of the juice.');
-      const clash = cur().products.find((p) => p.id !== id && sameName(p.name, name));
-      need(!clash, `There is already a juice called ${clash?.name}.`);
-      const ops: Op[] = [];
-      const recipe: RecipeLine[] = [];
-      const added = new Map<string, string>();
-      for (const l of lines) {
-        const n = text(l.name);
-        const qty = cleanQty(l.qty);
-        if (!n) continue;
-        need(qty > 0, `Type how much ${n} goes into 10 litres.`);
-        let itemId = cur().items.find((i) => sameName(i.name, n))?.id ?? added.get(n.toLowerCase());
-        if (!itemId) {
-          itemId = newId();
-          added.set(n.toLowerCase(), itemId);
-          ops.push({ op: 'set', col: 'items', id: itemId, data: { name: n, kind: 'fruit', unit: text(l.unit) || 'pcs', reorderLevel: 0, archived: false, ...created() } });
-        } else {
-          const item = cur().items.find((i) => i.id === itemId);
-          if (item?.archived) ops.push({ op: 'patch', col: 'items', id: itemId, data: { archived: false, ...touched() } });
+    async saveProductByNames(input: Omit<Input<Product>, 'recipe'>, lines: RecipeByName[], id?: string): Promise<string> {
+      const b = productOps(input, lines, id, (n) => `Type how much ${n} goes into 10 litres.`);
+      await store.commit(b.ops);
+      return b.id;
+    },
+    /**
+     * The recipe worked out backwards from one real batch: everything that went in (in total), the
+     * water, and the bottles filled of each size. Litres = the bottles' litres; each amount per 10 litres
+     * = amount x 10 / litres. With record, the batch itself is saved too (made today, already bottled),
+     * so it counts on the Day list and takes the fruit off Stock.
+     */
+    async saveProductFromBatch(input: Omit<Input<Product>, 'recipe' | 'water'>, used: RecipeByName[], waterUsed: number, filled: Record<string, number>, record: boolean, madeBy = '', id?: string): Promise<{ id: string; litres: number }> {
+      const bottles: Record<string, number> = {};
+      for (const [k, n] of Object.entries(filled)) if (Math.round(num(n)) > 0) bottles[k] = Math.round(num(n));
+      const litres = Math.round(Object.entries(bottles).reduce((t, [k, n]) => t + n * num(sizeOf(now().settings.sizes, k)?.litres), 0) * 1000) / 1000;
+      need(litres > 0, 'Type how many bottles of each size you filled.');
+      const per10 = (q: number) => Math.round(((cleanQty(q) * 10) / litres) * 1000) / 1000;
+      const b = productOps({ ...input, water: per10(waterUsed) }, used.map((l) => ({ ...l, qty: per10(l.qty) })), id, (n) => `Type how much ${n} you used.`);
+      if (record) {
+        const today = todayYmd();
+        const keeps = Math.max(1, Math.round(num(input.keepsDays)) || 3);
+        const usedLines: RecipeLine[] = [];
+        for (const l of used) {
+          const itemId = b.itemIds.get(text(l.name).toLowerCase());
+          if (itemId && cleanQty(l.qty) > 0) usedLines.push({ itemId, qty: cleanQty(l.qty) });
         }
-        const prev = recipe.find((r) => r.itemId === itemId);
-        if (prev) prev.qty = Math.round((prev.qty + qty) * 1000) / 1000;
-        else recipe.push({ itemId, qty });
+        b.ops.push({
+          op: 'set',
+          col: 'batches',
+          id: newId(),
+          data: { number: nextNumber('B', cur().batches.map((x) => x.number)), date: today, productId: b.id, litres, used: usedLines, filled: bottles, madeBy: text(madeBy), bestBefore: addDays(today, keeps), checks: [], note: 'Recipe worked out from this batch', ...created() },
+        });
       }
-      const data = {
-        name,
-        kind: input.kind === 'cocktail' ? 'cocktail' : 'single',
-        icon: text(input.icon) || '🥤',
-        colour: text(input.colour) || '#F7931E',
-        premium: !!input.premium,
-        recipe,
-        water: cleanQty(input.water),
-        keepsDays: Math.max(1, Math.round(num(input.keepsDays)) || 3),
-        tag: text(input.tag),
-      };
-      const s = save('products', id, data, { archived: false });
-      ops.push(s.op);
-      await store.commit(ops);
-      return s.id;
+      await store.commit(b.ops);
+      return { id: b.id, litres };
     },
     async archiveProduct(id: string, archived: boolean) {
       await store.commit([{ op: 'patch', col: 'products', id, data: { archived, ...touched() } }]);
     },
+    /** Deletes a juice and its recipe, only while nothing refers to it (no batch, sale or order). */
     async deleteProduct(id: string) {
       const r = cur();
-      const used = r.batches.some((b) => b.productId === id) || r.orders.some((o) => o.lines.some((l) => l.productId === id));
-      need(!used, 'This juice has batches or orders, so it is kept. Use Hide instead.');
+      const used = r.batches.some((b) => b.productId === id) || r.orders.some((o) => o.lines.some((l) => l.productId === id)) || r.sales.some((s) => s.lines.some((l) => l.productId === id));
+      need(!used, 'This juice has been made, sold or ordered, so its history needs it. Use Hide instead: it leaves Sell, the Day list and new orders.');
       await store.commit([{ op: 'delete', col: 'products', id }]);
     },
 
@@ -655,6 +694,13 @@ export function makeActions(store: Store, now: () => Current) {
 }
 
 export type Actions = ReturnType<typeof makeActions>;
+
+/** A recipe line given by the ingredient's name (in Stock, or new), its unit for a new one, and the amount. */
+export interface RecipeByName {
+  name: string;
+  unit: string;
+  qty: number;
+}
 
 // ---------- the usual set, offered once on an empty app ----------
 

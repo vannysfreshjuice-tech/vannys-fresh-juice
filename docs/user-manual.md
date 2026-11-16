@@ -185,8 +185,12 @@ One card for each juice and juice cocktail. The chips show **All**, **Single fru
 
 Each card shows the recipe for **10 litres**, how many days it keeps, and for each bottle size: the **cost**, the **price**, the **profit** and the **margin** (green when healthy, yellow when thin, red when too low). Costs use the **last price paid** for each fruit, so when mangoes get dearer every juice with mango shows it.
 
-- **New cocktail** (or **New single-fruit juice**): give it a name, what is in it, a picture and colour, then each fruit or ingredient and how much goes into 10 litres: type its name (or pick one already in Stock), the amount, and what it is counted in (fruit in pieces, sugar in kg); **Add a fruit or ingredient** for more. A name not in Stock yet is added to Stock when you save, so you never have to fill Stock first, the water, how many days it keeps, and normal or premium price. The cost and margin of each size show as you type, so you can try mixes before you make them.
-- **Change recipe** opens the same form. **Hide** takes a juice off Sell, Production and new orders but keeps its history.
+- **New cocktail** (or **New single-fruit juice**): give it a name, what is in it, a picture and colour, how many days it keeps, and normal or premium price. Then the recipe, one of two ways:
+  - **What goes into 10 litres:** for each fruit or ingredient, pick it from the drop-down (the names already in Stock, so the same fruit is never written two ways), or choose **+ New ingredient…** and type its name and what it is counted in (fruit in pieces, sugar in kg). Type the amount for 10 litres, and the water. **Add a fruit or ingredient** for more.
+  - **Work it out from a batch:** make a batch as usual and write down everything that went in (in total), the water, and the **bottles filled** of each size (300 ml, 500 ml, 1 litre, 5 litre). The app adds up the litres and works out the recipe for 10 litres, shown before you save. Leave **Also record this batch as made today** ticked to count it on the Day list (bottles made) and take its fruit off Stock.
+  - A new name that looks like one already in Stock (Mango and Mangoes) shows **Use Mangoes**, to keep one name. New ingredients are added to Stock when you save.
+  - The cost and margin of each size show as you go (once fruit has been bought on Buying), so you can try mixes before you make them.
+- **Change recipe** opens the same form. **Hide** takes a juice off Sell, the Day list, Production and new orders but keeps its history. **Delete this juice and its recipe** (at the bottom of the form) removes it for good, only while it has never been made, sold or ordered; otherwise hide it.
 
 ## Stock
 

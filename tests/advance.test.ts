@@ -209,3 +209,50 @@ describe('a recipe typed by name', () => {
     await expect(app.actions.saveProductByNames({ name: 'Plain', kind: 'single', icon: '🥤', colour: '#F7931E', premium: false, water: 0, keepsDays: 3 }, [{ name: 'Lemons', unit: 'pcs', qty: 0 }])).rejects.toThrow(/how much Lemons/);
   });
 });
+
+describe('a recipe worked out from a batch', () => {
+  it('turns what was used and the bottles filled into a recipe for 10 litres, and can record the batch', async () => {
+    const app = await testApp();
+    await app.actions.saveItem({ name: 'Mangoes', kind: 'fruit', unit: 'pcs', reorderLevel: 0 });
+    const r0 = await app.actions.saveProductFromBatch(
+      { name: 'Mango', kind: 'single', icon: '🥭', colour: '#FFA41B', premium: false, keepsDays: 3 },
+      [
+        { name: 'Mangoes', unit: 'pcs', qty: 15 },
+        { name: 'Sugar', unit: 'kg', qty: 0.5 },
+      ],
+      1,
+      { '500': 6, '300': 2, '1000': 1 }, // 3 + 0.6 + 1 = 4.6 litres
+      true,
+      'Aisha',
+    );
+    expect(r0.litres).toBe(4.6);
+    const r = app.records();
+    const p = r.products.find((x) => x.id === r0.id)!;
+    const name = (itemId: string) => r.items.find((i) => i.id === itemId)!.name;
+    expect(p.recipe.map((l) => [name(l.itemId), l.qty])).toEqual([
+      ['Mangoes', 32.609],
+      ['Sugar', 1.087],
+    ]);
+    expect(p.water).toBe(2.174);
+    expect(r.batches).toHaveLength(1);
+    expect(r.batches[0]).toMatchObject({ productId: p.id, litres: 4.6, filled: { '500': 6, '300': 2, '1000': 1 }, madeBy: 'Aisha' });
+    expect(r.batches[0].used.map((u) => [name(u.itemId), u.qty])).toEqual([
+      ['Mangoes', 15],
+      ['Sugar', 0.5],
+    ]);
+    await expect(app.actions.saveProductFromBatch({ name: 'Other', kind: 'single', icon: '🥤', colour: '#F7931E', premium: false, keepsDays: 3 }, [{ name: 'Mangoes', unit: 'pcs', qty: 5 }], 0, {}, false)).rejects.toThrow(/how many bottles/);
+  });
+});
+
+describe('deleting a juice', () => {
+  it('deletes one nothing refers to, and keeps one that was sold', async () => {
+    const app = await testApp();
+    const a = await app.actions.saveProductByNames({ name: 'Trial mix', kind: 'cocktail', icon: '🍹', colour: '#3BA935', premium: false, water: 0, keepsDays: 2 }, [{ name: 'Lemons', unit: 'pcs', qty: 3 }]);
+    await app.actions.deleteProduct(a);
+    expect(app.records().products).toHaveLength(0);
+    expect(app.records().items.map((i) => i.name)).toEqual(['Lemons']); // the ingredient stays in Stock
+    const b = await app.actions.saveProductByNames({ name: 'Sold one', kind: 'single', icon: '🥤', colour: '#F7931E', premium: false, water: 0, keepsDays: 3 }, []);
+    await app.actions.saveSale({ lines: [{ productId: b, size: '500', qty: 1, price: 3000 }], customerName: '', method: 'Cash' });
+    await expect(app.actions.deleteProduct(b)).rejects.toThrow(/Hide instead/);
+  });
+});
