@@ -102,7 +102,7 @@ The day list is the Excel sheet in the app: each day, who took juice and who has
 | Blue name: paid | Blue name |
 | No colour: not paid | White name in red letters; part paid is orange |
 | Green side: paid in advance | Green name: paid from **money paid ahead** (see **Customers**) |
-| "Solo-2", "Esther-5k" | Written the same way: 2 bottles, one 5,000 juice |
+| "Apio-2", "Wasswa-5k" | Written the same way: 2 bottles, one 5,000 juice |
 
 What the app adds to the sheet: the totals are always right, who owes what is on **Customers**, a customer who pays for several days is cleared oldest first, money paid ahead goes down by itself, and **Reports** show the month.
 
@@ -209,7 +209,7 @@ Everyone who buys on order, on credit or from the day list. Search, or use the c
 
 Tap a customer to see what they owe, day by day, oldest first, and:
 
-- **Money received:** type the amount once, even for many days. It pays what they owe, **oldest day first**; anything more is kept as **money paid ahead**. A customer who owes nothing and pays (like Alvin's 42,000) has it all kept as paid ahead.
+- **Money received:** type the amount once, even for many days. It pays what they owe, **oldest day first**; anything more is kept as **money paid ahead**. A customer who owes nothing and pays ahead has it all kept as paid ahead.
 - **Pay from money paid ahead:** when they owe something and have money paid ahead, this uses it for what they owe (no new money comes in).
 - **Money paid ahead** list: each amount paid ahead, and how much has gone on bottles. The bin removes one entered by mistake (not once bottles have used it).
 - **Call**, **Send statement** on WhatsApp (what they owe each day, and what is paid ahead), **New order**, **Change** their details or **Hide** them.

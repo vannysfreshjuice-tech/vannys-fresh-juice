@@ -23,7 +23,7 @@ export function weekStart(day: string): string {
   return addDays(day, wd === 0 ? -6 : 1 - wd);
 }
 
-/** Bottles in a sale, written the Excel way: "Solo", "Solo-2", "Esther-5k". */
+/** Bottles in a sale, written the Excel way: "Apio", "Apio-2", "Wasswa-5k". */
 export function excelName(s: Sale, usualPrice: number): string {
   const qty = sum(s.lines, (l) => num(l.qty));
   const value = linesValue(s.lines);
