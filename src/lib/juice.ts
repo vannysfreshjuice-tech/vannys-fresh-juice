@@ -1,7 +1,7 @@
 // The figures of the juice business, worked out from the records. Nothing here is stored.
 // Pages and actions both use these functions, so a figure is worked out one way only.
 import { num, sum } from './money';
-import type { Batch, BottleLine, Customer, Order, OrderLine, Payment, Product, Purchase, Records, Sale, Size, StockCount, StockItem, WriteOff } from './types';
+import { FROM_ADVANCE, type Batch, type BottleLine, type Customer, type Order, type OrderLine, type Payment, type Product, type Purchase, type Records, type Sale, type Size, type StockCount, type StockItem, type WriteOff } from './types';
 
 export const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
@@ -177,7 +177,11 @@ export function fridgeTotal(byBatch: Map<string, BatchLeft>, productId?: string)
  * Takes bottles from the batches with the nearest best-before first.
  * Returns the lines with their batch, or throws a plain message when the fridge has too few.
  */
-export function takeFromFridge(byBatch: Map<string, BatchLeft>, wanted: OrderLine[], productName: (id: string) => string, sizeLabel: (k: string) => string): BottleLine[] {
+/**
+ * strict (Settings: "Sell only bottles recorded in the fridge"): refuse when the batches do not hold enough.
+ * Not strict: take what the batches hold, oldest first, and sell the rest without a batch (production not recorded).
+ */
+export function takeFromFridge(byBatch: Map<string, BatchLeft>, wanted: OrderLine[], productName: (id: string) => string, sizeLabel: (k: string) => string, strict = true): BottleLine[] {
   // A working copy, so two lines for the same juice and size do not take the same bottles.
   const left = new Map([...byBatch].map(([id, bl]) => [id, { ...bl.left }]));
   const ordered = [...byBatch.values()].sort((a, b) => (a.batch.bestBefore || '').localeCompare(b.batch.bestBefore || '') || a.batch.number.localeCompare(b.batch.number));
@@ -195,7 +199,8 @@ export function takeFromFridge(byBatch: Map<string, BatchLeft>, wanted: OrderLin
         out.push({ productId: w.productId, size: w.size, qty: take, price: num(w.price), batchId: bl.batch.id });
       }
     }
-    if (need > 0) {
+    if (need > 0 && !strict) out.push({ productId: w.productId, size: w.size, qty: need, price: num(w.price) });
+    else if (need > 0) {
       const have = num(w.qty) - need;
       throw new Error(`Only ${have} × ${productName(w.productId)} ${sizeLabel(w.size)} in the fridge.`);
     }
@@ -251,6 +256,52 @@ export function customerBalances(customers: Customer[], orders: Order[], sales: 
   for (const s of sales) if (s.customerId) out.set(s.customerId, (out.get(s.customerId) ?? 0) + saleTotals(s, byRef.get(s.id)).balance);
   return out;
 }
+
+/**
+ * Money each customer paid ahead and has not used yet: what they paid ahead (payments of kind 'advance')
+ * minus what their sales and orders took from it (payments made "From money paid ahead").
+ */
+export function customerAdvances(customers: Customer[], orders: Order[], sales: Sale[], payments: Payment[]): Map<string, number> {
+  const out = new Map<string, number>(customers.map((c) => [c.id, 0]));
+  const owner = new Map<string, string>();
+  for (const s of sales) if (s.customerId) owner.set(s.id, s.customerId);
+  for (const o of orders) if (o.customerId) owner.set(o.id, o.customerId);
+  for (const p of payments) {
+    if (p.kind === 'advance') out.set(p.refId, (out.get(p.refId) ?? 0) + num(p.amount));
+    else if (p.method === FROM_ADVANCE) {
+      const c = owner.get(p.refId);
+      if (c) out.set(c, (out.get(c) ?? 0) - num(p.amount));
+    }
+  }
+  return out;
+}
+
+export interface Debt {
+  kind: 'sale' | 'order';
+  id: string;
+  number: string;
+  date: string;
+  balance: number;
+}
+
+/** What one customer still owes, oldest first: credit sales by their date, orders by their delivery day. */
+export function debtsOf(customerId: string, orders: Order[], sales: Sale[], byRef: Map<string, Payment[]>): Debt[] {
+  const out: (Debt & { at: number })[] = [];
+  for (const s of sales) {
+    if (s.customerId !== customerId) continue;
+    const b = saleTotals(s, byRef.get(s.id)).balance;
+    if (b > 0) out.push({ kind: 'sale', id: s.id, number: s.number, date: s.date, balance: b, at: s.createdAt });
+  }
+  for (const o of orders) {
+    if (o.customerId !== customerId) continue;
+    const b = orderTotals(o, byRef.get(o.id)).balance;
+    if (b > 0) out.push({ kind: 'order', id: o.id, number: o.number, date: o.deliveredOn || o.dueDate, balance: b, at: o.createdAt });
+  }
+  return out.sort((a, b) => a.date.localeCompare(b.date) || a.at - b.at).map(({ at: _at, ...d }) => d);
+}
+
+/** Money that really came in: payments for sales and orders, except those taken from money paid ahead, plus money paid ahead. */
+export const isMoneyIn = (p: Payment) => p.kind === 'advance' || ((p.kind === 'order' || p.kind === 'sale') && p.method !== FROM_ADVANCE);
 
 export function supplierOwed(r: Pick<Records, 'purchases' | 'suppliers'>, byRef: Map<string, Payment[]>): Map<string, number> {
   const out = new Map<string, number>(r.suppliers.map((s) => [s.id, 0]));

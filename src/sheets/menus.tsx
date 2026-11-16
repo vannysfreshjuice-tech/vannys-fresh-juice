@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSheets, type SheetSpec } from '../components/SheetHost';
 import { Sheet, cx } from '../components/ui';
 import { useData } from '../data/DataContext';
-import { mayOpen, pagesFor } from '../lib/nav';
+import { isTab, mayOpen, pagesFor } from '../lib/nav';
 import { ROLE_NAMES } from '../lib/types';
 
 const tile = 'card flex min-h-24 flex-col items-start gap-2 p-4 text-left font-semibold active:bg-accent-soft';
@@ -43,7 +43,7 @@ export function QuickSheet({ onClose }: { onClose: () => void }) {
 export function MoreSheet({ onClose }: { onClose: () => void }) {
   const { role } = useData();
   const navigate = useNavigate();
-  const list = pagesFor(role).filter((p) => !p.tab);
+  const list = pagesFor(role).filter((p) => !isTab(p, role));
   return (
     <Sheet title="More" onClose={onClose}>
       <div className="grid grid-cols-2 gap-2.5">

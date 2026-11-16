@@ -2,7 +2,7 @@
 // works out the shared figures once. Pages read from here; they never load records themselves.
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { todayYmd } from '../lib/dates';
-import { averageCosts, customerBalances, fridgeByBatch, itemLevels, latestCosts, paymentsByRef, supplierOwed, type BatchLeft, type ItemLevel } from '../lib/juice';
+import { averageCosts, customerAdvances, customerBalances, fridgeByBatch, itemLevels, latestCosts, paymentsByRef, supplierOwed, type BatchLeft, type ItemLevel } from '../lib/juice';
 import { COLLECTIONS, DEFAULT_SETTINGS, EMPTY_RECORDS, RECORD_COLS, type Col, type Customer, type Order, type Payment, type Product, type Records, type Role, type Settings, type Staff, type StockItem } from '../lib/types';
 import { makeActions, type Actions } from './actions';
 import type { Row, SnapshotInfo, Store } from './store';
@@ -33,6 +33,8 @@ interface DataValue extends Records {
   levels: Map<string, ItemLevel>;
   fridge: Map<string, BatchLeft>;
   customerBal: Map<string, number>;
+  /** Money each customer paid ahead and has not used yet */
+  customerAdv: Map<string, number>;
   supplierBal: Map<string, number>;
   /** Who is using the app on this device, and what they may open */
   me: Staff | null;
@@ -86,7 +88,13 @@ export function withDefaults(row: Partial<Settings> | null): Settings {
   for (const key of Object.keys(DEFAULT_SETTINGS) as (keyof Settings)[]) {
     const v = row[key];
     const d = DEFAULT_SETTINGS[key];
-    const ok = Array.isArray(d) ? Array.isArray(v) && v.length > 0 : typeof d === 'number' ? typeof v === 'number' && Number.isFinite(v) : typeof v === 'string' && (v !== '' || key === 'merchantCode');
+    const ok = Array.isArray(d)
+      ? Array.isArray(v) && v.length > 0
+      : typeof d === 'boolean'
+        ? typeof v === 'boolean'
+        : typeof d === 'number'
+          ? typeof v === 'number' && Number.isFinite(v)
+          : typeof v === 'string' && (v !== '' || key === 'merchantCode');
     if (ok) (out as unknown as Record<string, unknown>)[key] = v;
   }
   return out;
@@ -162,6 +170,7 @@ export function DataProvider({ store, identity, onWriteError, children }: { stor
       levels: itemLevels(records.items, records.purchases, records.batches, records.counts, settings.sizes, settings.perBottle),
       fridge: fridgeByBatch(records.batches, records.sales, records.orders, records.writeOffs),
       customerBal: customerBalances(records.customers, records.orders, records.sales, byRef),
+      customerAdv: customerAdvances(records.customers, records.orders, records.sales, records.payments),
       supplierBal: supplierOwed(records, byRef),
     };
   }, [records, settings.sizes, settings.perBottle]);

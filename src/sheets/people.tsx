@@ -1,5 +1,5 @@
 // Customers, expenses, staff and wages, and reminders.
-import { CalendarPlus, MessageCircle, Phone, Trash2 } from 'lucide-react';
+import { CalendarPlus, HandCoins, MessageCircle, Phone, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { PayBadge, StageBadge } from '../components/bits';
 import { useSheets } from '../components/SheetHost';
@@ -61,16 +61,26 @@ export function CustomerForm({ id, onClose }: { id?: string; onClose: () => void
 }
 
 export function CustomerView({ id, onClose }: { id: string; onClose: () => void }) {
-  const { customers, orders, sales, byRef, customerBal, actions, settings } = useData();
+  const { customers, orders, sales, payments, byRef, customerBal, customerAdv, actions, settings } = useData();
   const sheets = useSheets();
   const confirm = useConfirm();
   const notify = useNotice();
   const c = customers.find((x) => x.id === id);
   if (!c) return null;
   const os = orders.filter((o) => o.customerId === id).sort((a, b) => b.dueDate.localeCompare(a.dueDate));
-  const credit = sales.filter((s) => s.customerId === id && saleTotals(s, byRef.get(s.id)).balance > 0);
+  const credit = sales.filter((s) => s.customerId === id && saleTotals(s, byRef.get(s.id)).balance > 0).sort((a, b) => a.date.localeCompare(b.date));
   const owes = customerBal.get(id) ?? 0;
-  const statement = [`${settings.businessName}: statement for ${c.name}`, ...os.filter((o) => orderTotals(o, byRef.get(o.id)).balance > 0).map((o) => `${o.number} (${showDate(o.dueDate)}): ${money(orderTotals(o, byRef.get(o.id)).balance, settings.currency)}`), ...credit.map((s) => `${s.number} (${showDate(s.date)}): ${money(saleTotals(s, byRef.get(s.id)).balance, settings.currency)}`), `Total owed: ${money(owes, settings.currency)}`, `Thank you. ${settings.whatsapp}`].join('\n');
+  const ahead = customerAdv.get(id) ?? 0;
+  const paidAhead = payments.filter((p) => p.kind === 'advance' && p.refId === id).sort((a, b) => b.date.localeCompare(a.date));
+  const cur = (n: number) => money(n, settings.currency);
+  const statement = [
+    `${settings.businessName}: statement for ${c.name}`,
+    ...os.filter((o) => orderTotals(o, byRef.get(o.id)).balance > 0).map((o) => `${o.number} (${showDate(o.dueDate)}): ${cur(orderTotals(o, byRef.get(o.id)).balance)}`),
+    ...credit.map((s) => `${showDate(s.date)}: ${cur(saleTotals(s, byRef.get(s.id)).balance)}`),
+    `Total owed: ${cur(owes)}`,
+    ...(ahead > 0 ? [`Paid ahead, not used yet: ${cur(ahead)}`] : []),
+    `Thank you. ${settings.whatsapp}`,
+  ].join('\n');
   return (
     <Sheet
       title={c.name}
@@ -89,9 +99,18 @@ export function CustomerView({ id, onClose }: { id: string; onClose: () => void 
       </p>
       {c.notes && <p className="mt-2 rounded-xl bg-butter-soft px-3 py-2 text-sm">{c.notes}</p>}
       <div className="mt-3">
-        <Line strong label="Owes" value={money(owes, settings.currency)} tone={owes ? 'bad' : 'good'} />
+        <Line strong label="Owes" value={cur(owes)} tone={owes ? 'bad' : 'good'} />
+        {(ahead > 0 || paidAhead.length > 0) && <Line strong label="Paid ahead, not used yet" value={cur(ahead)} tone={ahead > 0 ? 'good' : 'muted'} />}
       </div>
       <div className="mt-2 flex flex-wrap gap-2">
+        <Button small icon={HandCoins} onClick={() => sheets.open({ t: 'receive', customerId: id })}>
+          Money received
+        </Button>
+        {owes > 0 && ahead > 0 && (
+          <Button small variant="plain" onClick={() => sheets.open({ t: 'receive', customerId: id, fromAdvance: true })}>
+            Pay from money paid ahead
+          </Button>
+        )}
         {c.phone && (
           <Button small variant="plain" icon={Phone} onClick={() => window.open(`tel:${c.phone}`)}>
             Call
@@ -135,18 +154,52 @@ export function CustomerView({ id, onClose }: { id: string; onClose: () => void 
       </div>
       {credit.length > 0 && (
         <>
-          <h3 className="mt-4 mb-1 text-sm font-semibold">Sales on credit</h3>
+          <h3 className="mt-4 mb-1 text-sm font-semibold">Not paid yet (oldest first)</h3>
           {credit.map((s) => (
             <button key={s.id} type="button" className="flex w-full items-center gap-3 py-2 text-left" onClick={() => sheets.open({ t: 'saleView', id: s.id })}>
               <span className="flex-1">
-                {s.number} · {showDate(s.date)}
+                {showDay(s.date)} <span className="text-sm text-muted">· {s.number}</span>
               </span>
+              <span className="num text-sm text-cherry">{cur(saleTotals(s, byRef.get(s.id)).balance)}</span>
               <PayBadge status={saleTotals(s, byRef.get(s.id)).status} />
             </button>
           ))}
         </>
       )}
-      {!os.length && !credit.length && (
+      {paidAhead.length > 0 && (
+        <>
+          <h3 className="mt-4 mb-1 text-sm font-semibold">Money paid ahead</h3>
+          <div className="divide-y divide-line">
+            {paidAhead.map((p) => (
+              <div key={p.id} className="flex items-center gap-3 py-2 text-sm">
+                <span className="min-w-0 flex-1">
+                  {showDay(p.date)} · {p.method}
+                  {p.note && <span className="block text-xs text-muted">{p.note}</span>}
+                </span>
+                <span className="num text-leaf">{cur(p.amount)}</span>
+                <button
+                  type="button"
+                  className="rounded-lg p-1.5 text-muted hover:text-cherry"
+                  aria-label="Remove this money paid ahead"
+                  onClick={async () => {
+                    if (!(await confirm({ title: 'Remove this money paid ahead?', body: `${cur(p.amount)} on ${showDate(p.date)}. Only for a mistake: money really received should stay.`, yes: 'Remove', danger: true }))) return;
+                    try {
+                      await actions.deletePayment(p.id);
+                      notify('Removed');
+                    } catch (e) {
+                      notify((e as Error).message, 'info');
+                    }
+                  }}
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
+          <p className="mt-1 text-xs text-muted">Bottles paid from it so far: {cur(Math.max(0, paidAhead.reduce((t, p) => t + p.amount, 0) - ahead))}.</p>
+        </>
+      )}
+      {!os.length && !credit.length && !paidAhead.length && !sales.some((s) => s.customerId === id) && (
         <Button
           small
           variant="danger"

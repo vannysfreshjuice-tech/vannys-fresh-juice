@@ -211,14 +211,14 @@ export function useSaver() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const running = useRef(false);
-  const run = useCallback(async (fn: () => Promise<unknown>, done?: () => void) => {
+  const run = useCallback(async <T,>(fn: () => Promise<T>, done?: (result: T) => void) => {
     if (running.current) return;
     running.current = true;
     setBusy(true);
     setError('');
     try {
-      await fn();
-      done?.();
+      const result = await fn();
+      done?.(result);
     } catch (e) {
       setError((e as Error).message || 'That could not be saved. Try again.');
     } finally {

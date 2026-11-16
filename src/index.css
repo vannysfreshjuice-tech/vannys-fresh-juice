@@ -21,6 +21,9 @@
   --color-leaf-soft: #e5f5e1;
   --color-amber: #946200;
   --color-amber-soft: #fff1cc;
+  /* The owner's Excel sheet: blue = paid. Used by the day list and week sheet. */
+  --color-sky: #2a64a8;
+  --color-sky-soft: #dde9f8;
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 

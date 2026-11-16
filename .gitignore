@@ -4,3 +4,6 @@ dist/
 backups/
 Thumbs.db
 *.log
+
+# Customer data from the owner (never in the public repo)
+private/

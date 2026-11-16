@@ -5,7 +5,7 @@ import { Cloud, CloudOff, Ellipsis, Lock, Plus, RefreshCw, Smartphone } from 'lu
 import { useEffect, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useData, type SyncState } from '../data/DataContext';
-import { GROUPS, pagesFor } from '../lib/nav';
+import { GROUPS, isTab, pagesFor } from '../lib/nav';
 import { ROLE_NAMES } from '../lib/types';
 import { useLock } from './Lock';
 import { useSheets } from './SheetHost';
@@ -126,7 +126,7 @@ function PhoneTabs() {
   const sheets = useSheets();
   const list = pagesFor(role);
   const active = activePage(pathname, list);
-  const tabs = list.filter((m) => m.tab);
+  const tabs = list.filter((m) => isTab(m, role));
   const moreOn = !tabs.some((t) => t.to === active);
   const tab = 'flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium';
   return (

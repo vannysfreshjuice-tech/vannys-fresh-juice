@@ -2,7 +2,7 @@
 // Sold = counter sales on their date + orders on the day they were delivered.
 // Cost of a bottle = the juice cost per litre of the batch it came from x litres + bottle, cap and label.
 import { inPeriod, type Period } from './dates';
-import { batchCost, bottleCost, paymentsByRef, recipeCostPerLitre, sizeOf } from './juice';
+import { batchCost, bottleCost, isMoneyIn, paymentsByRef, recipeCostPerLitre, sizeOf } from './juice';
 import { num, sum } from './money';
 import type { Batch, BottleLine, Product, ProductKind, Records, Settings } from './types';
 
@@ -93,7 +93,8 @@ export function buildReport(r: Records, settings: Settings, period: Period, cost
     return lineCost({ productId: b?.productId ?? '', size: w.size, qty: w.qty, price: 0, batchId: w.batchId });
   });
 
-  const pays = r.payments.filter((p) => (p.kind === 'order' || p.kind === 'sale') && inPeriod(p.date, period));
+  // Money in: what customers paid, including money paid ahead, but not a delivery taken from it (that money came in earlier).
+  const pays = r.payments.filter((p) => isMoneyIn(p) && inPeriod(p.date, period));
   const methods = new Map<string, number>();
   for (const p of pays) methods.set(p.method, (methods.get(p.method) ?? 0) + num(p.amount));
 
@@ -128,7 +129,7 @@ export function buildReport(r: Records, settings: Settings, period: Period, cost
 export function dayFigures(r: Records, day: string) {
   const byRef = paymentsByRef(r.payments);
   const sales = r.sales.filter((s) => s.date === day);
-  const pays = r.payments.filter((p) => (p.kind === 'order' || p.kind === 'sale') && p.date === day);
+  const pays = r.payments.filter((p) => isMoneyIn(p) && p.date === day);
   const cash = sum(pays.filter((p) => p.method === 'Cash'), (p) => p.amount);
   const delivered = r.orders.filter((o) => o.stage === 'Delivered' && o.deliveredOn === day);
   return {

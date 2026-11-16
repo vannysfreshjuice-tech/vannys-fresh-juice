@@ -15,6 +15,7 @@ import { cloudConfig } from './firebase-config';
 import { mayOpen } from './lib/nav';
 import { onUpdateReady } from './lib/update';
 import { Customers, Expenses, StaffPage } from './pages/Business';
+import { DayList } from './pages/DayList';
 import { Home } from './pages/Home';
 import { ManualPage } from './pages/Manual';
 import { Orders, Reminders } from './pages/Orders';
@@ -83,6 +84,7 @@ function Pages() {
       <ErrorBoundary>
         <Routes>
           <Route path="/" element={<Page to="/"><Home /></Page>} />
+          <Route path="/day" element={<Page to="/day"><DayList /></Page>} />
           <Route path="/sell" element={<Page to="/sell"><Sell /></Page>} />
           <Route path="/orders" element={<Page to="/orders"><Orders /></Page>} />
           <Route path="/reminders" element={<Page to="/reminders"><Reminders /></Page>} />

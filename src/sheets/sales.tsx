@@ -9,15 +9,18 @@ import { showDate } from '../lib/dates';
 import { linesValue, orderTotals, purchaseTotals, saleTotals } from '../lib/juice';
 import { fmt, money } from '../lib/money';
 import { whatsappLink } from '../lib/reminders';
-import type { OrderLine, PaymentKind } from '../lib/types';
+import { FROM_ADVANCE, type OrderLine, type PaymentKind } from '../lib/types';
 
 export function Checkout({ lines, onDone, onClose }: { lines: OrderLine[]; onDone: () => void; onClose: () => void }) {
-  const { actions, customers, settings } = useData();
+  const { actions, customers, settings, customerAdv } = useData();
   const j = useJuice();
   const sheets = useSheets();
   const [customer, setCustomer] = useState('');
-  const methods = [...settings.methods.filter((m) => m !== 'Bank'), 'On credit'];
-  const [method, setMethod] = useState(methods[0]);
+  const known = customers.find((c) => c.name.trim().toLowerCase() === customer.trim().toLowerCase());
+  const ahead = known ? (customerAdv.get(known.id) ?? 0) : 0;
+  const methods = [...settings.methods.filter((m) => m !== 'Bank'), 'On credit', ...(ahead > 0 ? [FROM_ADVANCE] : [])];
+  const [chosen, setMethod] = useState(settings.methods[0]);
+  const method = methods.includes(chosen) ? chosen : methods[0];
   const [received, setReceived] = useState(0);
   const [empties, setEmpties] = useState(0);
   const { busy, error, run } = useSaver();
@@ -78,6 +81,12 @@ export function Checkout({ lines, onDone, onClose }: { lines: OrderLine[]; onDon
           </Field>
         )}
         {method === 'On credit' && <p className="rounded-xl bg-butter-soft px-3 py-2 text-sm">The amount goes on the customer's account and shows on Customers until it is paid.</p>}
+        {ahead > 0 && (
+          <p className="rounded-xl bg-leaf-soft px-3 py-2 text-sm">
+            {known!.name} has <b className="num">{money(ahead, settings.currency)}</b> paid ahead.
+            {method === FROM_ADVANCE && (ahead >= total ? ` After this sale: ${money(ahead - total, settings.currency)}.` : ` That covers ${money(ahead, settings.currency)}; the other ${money(total - ahead, settings.currency)} stays owed.`)}
+          </p>
+        )}
         <Field label="Empty bottles brought back" hint={settings.bottleDeposit ? `Deposit ${money(settings.bottleDeposit, settings.currency)} a bottle` : undefined}>
           <TextInput inputMode="numeric" value={empties ? String(empties) : ''} onChange={(e) => setEmpties(Number(e.target.value.replace(/\D/g, '')) || 0)} placeholder="0" />
         </Field>
@@ -173,7 +182,7 @@ export function SaleView({ id, onClose }: { id: string; onClose: () => void }) {
           <div key={i} className="flex items-center gap-3 py-2">
             <span className="min-w-0 flex-1">
               {j.lineText(l)}
-              <span className="block text-xs text-muted">from batch {batchNo(l.batchId)}</span>
+              {l.batchId && <span className="block text-xs text-muted">from batch {batchNo(l.batchId)}</span>}
             </span>
             <span className="num">{j.money(l.qty * l.price)}</span>
           </div>
@@ -243,6 +252,77 @@ export function PaymentForm({ kind, refId, onClose }: { kind: PaymentKind; refId
             <DateInput value={date} onChange={setDate} />
           </Field>
         </div>
+      </div>
+    </Sheet>
+  );
+}
+
+/**
+ * Money from a customer as one amount: pays what they owe, oldest first; anything over is kept as
+ * money paid ahead. fromAdvance: uses their money paid ahead to pay what they owe.
+ */
+export function ReceiveForm({ customerId, fromAdvance, onClose }: { customerId: string; fromAdvance?: boolean; onClose: () => void }) {
+  const { actions, customersById, customerBal, customerAdv, settings, today } = useData();
+  const c = customersById.get(customerId);
+  const owes = customerBal.get(customerId) ?? 0;
+  const ahead = customerAdv.get(customerId) ?? 0;
+  const [amount, setAmount] = useState(fromAdvance ? Math.min(owes, ahead) : owes);
+  const [date, setDate] = useState(today);
+  const [method, setMethod] = useState(settings.methods[0]);
+  const { busy, error, run } = useSaver();
+  const notify = useNotice();
+  if (!c) return null;
+  const cur = (n: number) => money(n, settings.currency);
+  const over = fromAdvance ? 0 : Math.max(0, amount - owes);
+  return (
+    <Sheet
+      title={fromAdvance ? 'Use money paid ahead' : `Money from ${c.name}`}
+      onClose={onClose}
+      footer={
+        <SheetButtons>
+          <Button
+            busy={busy}
+            onClick={() =>
+              run(
+                () => actions.receiveMoney(customerId, { amount, date, method: fromAdvance ? FROM_ADVANCE : method }),
+                (r) => {
+                  notify(r.kept ? (r.paid ? `${cur(r.paid)} paid what they owed; ${cur(r.kept)} kept as paid ahead` : `${cur(r.kept)} kept as paid ahead`) : `${cur(r.paid)} paid`);
+                  onClose();
+                },
+              )
+            }
+          >
+            Save
+          </Button>
+        </SheetButtons>
+      }
+    >
+      <FormError message={error} />
+      <div className="mb-3 divide-y divide-line">
+        <Line label="Owes" value={cur(owes)} tone={owes ? 'bad' : 'good'} />
+        <Line label="Paid ahead" value={cur(ahead)} tone={ahead ? 'good' : 'muted'} />
+      </div>
+      <div className="space-y-4">
+        <Field label="Amount">
+          <MoneyInput value={amount} onChange={setAmount} />
+        </Field>
+        <div className={fromAdvance ? '' : 'grid grid-cols-2 gap-3'}>
+          {!fromAdvance && (
+            <Field label="Paid by">
+              <Select options={settings.methods} value={method} onChange={(e) => setMethod(e.target.value)} />
+            </Field>
+          )}
+          <Field label="Date">
+            <DateInput value={date} onChange={setDate} />
+          </Field>
+        </div>
+        <p className="rounded-xl bg-sky-soft px-3 py-2 text-sm">
+          {fromAdvance
+            ? 'This pays what they owe, oldest day first, from the money they paid ahead. No new money comes in.'
+            : owes > 0
+              ? `This pays what they owe, oldest day first.${over ? ` The extra ${cur(over)} is kept as money paid ahead, and their next bottles can come out of it.` : ''}`
+              : 'They owe nothing, so all of it is kept as money paid ahead. Their next bottles can come out of it.'}
+        </p>
       </div>
     </Sheet>
   );

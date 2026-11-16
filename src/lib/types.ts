@@ -146,10 +146,15 @@ export interface Order extends Base {
   notes?: string;
 }
 
-export type PaymentKind = 'order' | 'sale' | 'purchase';
+/** 'advance' = money a customer paid ahead (refId = the customer); deliveries then take from it. */
+export type PaymentKind = 'order' | 'sale' | 'purchase' | 'advance';
+
+/** How a sale or order is paid when it comes out of the customer's money paid ahead (not new money). */
+export const FROM_ADVANCE = 'From money paid ahead';
 
 export interface Payment extends Base {
   kind: PaymentKind;
+  /** The order, sale or purchase paid; for kind 'advance', the customer */
   refId: string;
   amount: number;
   date: string;
@@ -259,6 +264,8 @@ export interface Settings {
   fridgeMax: number;
   hygieneChecks: string[];
   bottleDeposit: number;
+  /** true: a bottle can be sold only if a batch put it in the fridge. false (default): sell even when production is not recorded. */
+  fridgeCheck: boolean;
 }
 
 export const DEFAULT_SIZES: Size[] = [
@@ -283,6 +290,7 @@ export const DEFAULT_SETTINGS: Settings = {
   fridgeMax: 5,
   hygieneChecks: ['Hands washed, hairnet and apron on', 'Fruit washed in clean water', 'Blender, strainer and jugs sanitised', 'Bottles rinsed and dried', 'Fridge at 0 to 5 °C'],
   bottleDeposit: 500,
+  fridgeCheck: false,
 };
 
 /** Collections kept in the store. 'settings' holds one record with id 'main'. */

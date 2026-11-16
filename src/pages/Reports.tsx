@@ -7,6 +7,7 @@ import { Bars, Button, Line, PageHead, PeriodPicker, StatCard, usePeriod } from 
 import { useData } from '../data/DataContext';
 import { giveFile, toCsv } from '../lib/backup';
 import { money as m, qty as showQty } from '../lib/money';
+import { recipeCostPerLitre } from '../lib/juice';
 import { buildReport } from '../lib/reports';
 
 export function Reports() {
@@ -15,6 +16,8 @@ export function Reports() {
   const period = usePeriod('thisMonth');
   const r = useMemo(() => buildReport(d, settings, period.period, avgCosts), [d, settings, period.period, avgCosts]);
   const money = (n: number) => m(n, settings.currency);
+  // Juices sold whose fruit costs nothing in the records: their profit is overstated.
+  const noCost = r.rows.filter((x) => x.bottles > 0 && recipeCostPerLitre(x.product, avgCosts) <= 0).map((x) => x.product.name);
   const csv = () =>
     giveFile(
       `vannys-report-${period.period.from || 'start'}-${period.period.to || 'today'}.csv`,
@@ -43,6 +46,11 @@ export function Reports() {
       <div className="no-print mb-4">
         <PeriodPicker state={period} />
       </div>
+      {noCost.length > 0 && (
+        <p className="mb-4 rounded-xl bg-amber-soft px-3 py-2 text-sm text-amber">
+          {noCost.join(', ')} {noCost.length === 1 ? 'has' : 'have'} no fruit cost yet (no recipe, or its fruit was never bought in the app), so the profit shown is too high. Add the recipe on Recipes and prices and record fruit on Buying.
+        </p>
+      )}
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Sales" value={money(r.sales + r.deliveryFees)} sub={`${r.bottles} bottles`} />
         <StatCard label="Profit" value={money(r.profit)} tone={r.profit >= 0 ? 'good' : 'warn'} sub={r.sales ? `${Math.round(share(r.profit, r.sales + r.deliveryFees) * 100)}% of sales` : undefined} />

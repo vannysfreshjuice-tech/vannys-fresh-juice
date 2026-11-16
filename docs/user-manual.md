@@ -1,6 +1,6 @@
 # Vanny's Fresh Juice user manual
 
-Last updated: 12 November 2026 (records in the cloud)
+Last updated: 16 November 2026 (day list, money paid ahead)
 
 This app keeps the whole juice business in one place: the fruit you buy, the juice you make, what is in the fridge, what you sell and deliver, what customers owe, reminders, expenses, staff and profit. It works on a phone like an app and on a laptop in the browser.
 
@@ -34,7 +34,8 @@ Before this, the owner sets up her PIN (see **Opening the app**).
 2. Tap **Add the staff** and add everyone who works at Vanny's, the owner too (see **Staff and wages**).
 3. Give each person who will use the app their own **PIN** (Staff > the person; see **Opening the app**).
 4. Check the bottle sizes and prices in **Settings**.
-5. Record what you buy (**Buying**), then each batch you make (**Production**). The fridge fills up, and you can sell.
+5. Write each day's juice on the **Day list** (who took juice and whether they paid), or sell at the counter on **Sell**.
+6. When you are ready, record what you buy (**Buying**) and each batch you make (**Production**): the app then knows what is in the fridge and what each juice really costs. Until then you can still sell (see **Settings**, Lists and freshness).
 
 ## Opening the app
 
@@ -60,7 +61,7 @@ Each person has their own PIN of 6 digits. It opens their part of the app (see *
 
 ## Finding your way
 
-- **On a phone:** the main pages are in the **tabs along the bottom**: Home, Sell, Orders, Make and **More** (all the other pages). The round orange **+ button** adds things: a sale, an order, a batch, a purchase, an expense, spoiled juice, a fridge temperature or a reminder.
+- **On a phone:** the main pages are in the **tabs along the bottom**: Home, Day list, Sell, Orders and **More** (all the other pages, Production included). The round orange **+ button** adds things: a sale, an order, a batch, a purchase, an expense, spoiled juice, a fridge temperature or a reminder.
 - **On a laptop:** the pages are listed down the left in three groups: **Daily work**, **Making juice** and **The business**. The orange **New** button does the same as the + button.
 - Tap any row (an order, a batch, a customer, a purchase) to open it.
 - To close a window, tap the **X** at its top right.
@@ -77,18 +78,48 @@ Home is the day at a glance:
 
 Staff who should not see money see counts instead of shillings.
 
+## Day list
+
+The day list is the Excel sheet in the app: each day, who took juice and who has paid.
+
+**Writing the day:**
+
+1. Open **Day list**. It opens on today; the arrows and the date go to another day.
+2. Above the names, choose how a tap is paid: **Not yet** (on credit), **Cash**, **MTN MoMo** or **Airtel Money**.
+3. **Tap a name** to add one bottle of the usual juice (shown above the names, e.g. Fresh juice 500 ml at UGX 3,000). The names are the customers who took juice most often; they stay in the same place all day.
+4. A customer with **money paid ahead** (green button, with what is left) pays from it by itself.
+5. For someone new, more bottles, another juice or another price (for example a 5,000 juice), tap **Someone else**. The juice and size chosen there become the usual one for the taps.
+6. The day's names are listed below in the Excel colours. Tap one to record a payment or to undo it.
+
+**The week:** tap **Week** to see Monday to Friday side by side, like the sheet (Saturday and Sunday appear when juice was sold on them). On a phone, swipe sideways for Thursday and Friday. Tap a day to open it, or a name to see that sale. Below are the week's totals: days with juice, bottles, paid and not paid.
+
+**The Excel colours in the app:**
+
+| In the Excel sheet | In the app |
+|---|---|
+| Yellow day: juice supplied | Yellow day (worked out: someone took juice that day) |
+| Red day: no juice | Red day (a weekday with nothing written; today stays plain until the day is over) |
+| Blue name: paid | Blue name |
+| No colour: not paid | White name in red letters; part paid is orange |
+| Green side: paid in advance | Green name: paid from **money paid ahead** (see **Customers**) |
+| "Solo-2", "Esther-5k" | Written the same way: 2 bottles, one 5,000 juice |
+
+What the app adds to the sheet: the totals are always right, who owes what is on **Customers**, a customer who pays for several days is cleared oldest first, money paid ahead goes down by itself, and **Reports** show the month.
+
+> **Records from the Excel sheet (14 September to 13 November 2026)** were put in as a juice called **Fresh juice** (3,000 = 500 ml; a 5,000 juice = 1 litre at 5,000), each marked "From the Excel sheet". The sheet does not say when the blue names paid, so they show as paid in cash on the day. The week of 21 to 25 September is not in the sheet, so those days show red.
+
 ## Sell
 
 For sales at the counter.
 
-1. The juices are in two groups: **Single fruit** and **Juice cocktails**. Each card shows the price of each size and how many bottles are left in the fridge.
-2. Tap a size to add one bottle; tap again for more. A size with none left is greyed out.
+1. The juices are in two groups: **Single fruit** and **Juice cocktails**. Each card shows the price of each size (and the bottles in the fridge, once batches are recorded).
+2. Tap a size to add one bottle; tap again for more. (With **Sell only bottles recorded in the fridge** on in Settings, a size with none left is greyed out.)
 3. On a laptop the sale builds up on the right (use **−** and **+** to change it). On a phone a dark bar at the bottom shows the bottles and the total.
-4. Tap **Take payment**. Type the customer's name, or leave it blank for a walk-in. Choose how they paid: **Cash**, **MTN MoMo**, **Airtel Money** or **On credit**. For cash, type what they gave you and the app shows the **change**. On credit needs the customer's name; the amount goes on their account.
+4. Tap **Take payment**. Type the customer's name, or leave it blank for a walk-in. Choose how they paid: **Cash**, **MTN MoMo**, **Airtel Money**, **On credit**, or **From money paid ahead** (shown when the customer has some left). For cash, type what they gave you and the app shows the **change**. On credit needs the customer's name; the amount goes on their account.
 5. Type how many **empty bottles** they brought back, if any.
 6. Tap **Complete sale**. The receipt appears; **WhatsApp** sends it to the customer.
 
-The bottles come off the batch with the **nearest best-before first**, so older juice goes out first. To undo a mistake, open the sale from **Today's sales** (beside the sale on a laptop, at the bottom of the page on a phone) and tap **Undo sale**: the bottles go back into the fridge.
+The bottles come off the batch with the **nearest best-before first**, so older juice goes out first. Bottles not recorded in a batch are still sold (unless Settings says otherwise). To undo a mistake, open the sale from **Today's sales** (beside the sale on a laptop, at the bottom of the page on a phone) and tap **Undo sale**: the bottles go back into the fridge.
 
 ## Orders and deliveries
 
@@ -105,7 +136,7 @@ For shops, schools, offices, canteens and events that order ahead.
 
 **Following an order:** tap it. The bar at the top shows where it is: **To make**, **Ready**, **Out for delivery**, **Delivered**.
 
-- **Mark ready** takes the bottles out of the fridge for the order (oldest first). If the fridge has too few, the app says how many are there: make a batch first.
+- **Mark ready** takes the bottles out of the fridge for the order (oldest first). With **Sell only bottles recorded in the fridge** on in Settings, the app refuses when the fridge has too few and says how many are there.
 - **Mark out for delivery**, then **Mark delivered** when it arrives. A delivered order counts as sold that day.
 - **Record payment** each time the customer pays. You cannot record more than the balance.
 - **Delivery note** sends the order to the customer on WhatsApp. **Remind me** adds a reminder for this order.
@@ -174,7 +205,16 @@ Open a purchase to **Pay the supplier** or delete it. The page also shows what w
 
 ## Customers
 
-Everyone who buys on order or on credit. Search, or use the chips: by type, **Owing**, **Hidden**. Each shows what they **owe**. Tap one to see their orders and credit sales, **Call**, **Send statement** on WhatsApp, start a **New order**, **Change** their details or **Hide** them.
+Everyone who buys on order, on credit or from the day list. Search, or use the chips: by type, **Owing**, **Paid ahead**, **Hidden**. Each shows what they **owe**, how many times they bought, and any **money paid ahead** not used yet. The tiles at the top add up what customers owe you and the money paid ahead (bottles you still owe them).
+
+Tap a customer to see what they owe, day by day, oldest first, and:
+
+- **Money received:** type the amount once, even for many days. It pays what they owe, **oldest day first**; anything more is kept as **money paid ahead**. A customer who owes nothing and pays (like Alvin's 42,000) has it all kept as paid ahead.
+- **Pay from money paid ahead:** when they owe something and have money paid ahead, this uses it for what they owe (no new money comes in).
+- **Money paid ahead** list: each amount paid ahead, and how much has gone on bottles. The bin removes one entered by mistake (not once bottles have used it).
+- **Call**, **Send statement** on WhatsApp (what they owe each day, and what is paid ahead), **New order**, **Change** their details or **Hide** them.
+
+Every bottle paid from money paid ahead (Day list, Sell or an order) takes it down by itself; undoing that sale puts the money back.
 
 ## Expenses
 
@@ -197,7 +237,9 @@ Open a person to give them their **PIN** (their phone number and 6 digits), a **
 Choose the period at the top: this month, last month, this year, last year, all time, or your own dates.
 
 - **Profit:** bottles sold (counter sales on their day, orders on the day delivered) and delivery charges, less the juice and bottles of what was sold, running costs, wages and advances, and spoiled juice.
+- **Money in:** what customers paid, money paid ahead included on the day it came. A bottle paid from money paid ahead is a sale but not new money.
 - **How customers paid** and **Where sales came from** (counter, and orders by type of customer).
+- A yellow note says when a juice has **no fruit cost** in the records (no recipe, or its fruit never bought in the app): its profit then shows too high.
 - **Profit by juice:** single fruit and juice cocktails apart, each with its share of sales, so you can see which juices and mixes earn the most and which need a new price.
 - **Running costs by group.**
 
@@ -208,7 +250,7 @@ Choose the period at the top: this month, last month, this year, last year, all 
 - **Your PIN:** lock the app now, change your PIN, or sign out of this phone (see **Opening the app**).
 - **Business:** name, WhatsApp and phone numbers, the message at the bottom of receipts, mobile money merchant code.
 - **Bottle sizes and prices:** the normal and premium price of each size, what the bottle, cap and label cost, which bottle from Stock each size uses up, which packaging **every bottle also uses** (caps, labels), and the deposit on a returnable bottle. New prices apply to new sales and orders only.
-- **Lists and freshness:** ways of paying, expense groups, fridges, the highest fridge temperature, and the hygiene checks.
+- **Lists and freshness:** ways of paying, expense groups, fridges, the highest fridge temperature, the hygiene checks, and **Sell only bottles recorded in the fridge** (off at first: you can sell before recording production; turn it on once every batch is recorded).
 - **Backup:** **Download a backup** saves every record in one file; keep one every week somewhere safe (send it to yourself on WhatsApp, or save it to Drive). **Restore a backup** reads such a file back. **Delete all records** wipes everything on every phone (you must type DELETE), and stops every staff PIN. If records were saved on a phone before the app moved to the cloud, Backup shows **Add them to the cloud records**: tap it once on that phone.
 
 ## People and what they can open
@@ -217,7 +259,7 @@ Choose the period at the top: this month, last month, this year, last year, all 
 |---|---|
 | Owner | Everything, including profit, wages and Settings |
 | Production | Home, Production, Recipes, Stock, Buying |
-| Sales (counter) | Home, Sell, Orders, Customers, Stock |
+| Sales (counter) | Home, Day list, Sell, Orders, Customers, Stock |
 | Rider | Home and Orders (the balance to collect, no other money) |
 
 Everyone also has **Reminders** (their own) and **Help**.
@@ -226,6 +268,7 @@ Each person's own PIN decides what they can open. The cloud checks it too: a sta
 
 ## What's new
 
+- **16 November 2026:** **Day list** with a **Week** view, in the colours of the Excel sheet (a tab on the phone; Production moved under More). **Money paid ahead** for customers who pay in advance, **Money received** that pays several days at once (oldest first), and selling before production is recorded. The records of the Excel sheet (14 September to 13 November) go in once, from a file, with Settings > Backup > Restore.
 - **12 November 2026:** the records are now kept in the cloud: every phone and laptop sees the same records. Each person opens the app with their own PIN (the owner with hers; staff with their phone number and the PIN the owner gives them in Staff). Records saved on a phone before can be added in Settings > Backup.
 - **12 November 2026:** PIN lock. It is off until the owner sets a PIN in Settings; then the app opens with a PIN, locks after 5 minutes away, and each person can have their own PIN that opens only their part of the app.
 - **12 November 2026:** first version of the app: selling, orders and deliveries, reminders (phone calendar and WhatsApp, made automatically for orders), production batches, recipes and prices with 5 single-fruit juices and 7 juice cocktails, stock of fruit and packaging, buying and suppliers, customers, expenses, staff and wages, reports, settings and backup. Records are kept on the device for now.

@@ -8,7 +8,8 @@ import { MoreSheet, QuickSheet, WhoSheet } from '../sheets/menus';
 import { OrderForm, OrderView } from '../sheets/orders';
 import { CustomerForm, CustomerView, ExpenseForm, ReminderForm, StaffForm, WageForm } from '../sheets/people';
 import { BatchForm, BatchView, BottleForm, ProductForm, WriteOffForm } from '../sheets/production';
-import { Checkout, PaymentForm, Receipt, SaleView } from '../sheets/sales';
+import { DayEntryForm } from '../sheets/day';
+import { Checkout, PaymentForm, Receipt, ReceiveForm, SaleView } from '../sheets/sales';
 import { CountForm, ItemForm, PurchaseForm, PurchaseView, ReadingForm, SupplierForm } from '../sheets/stock';
 
 export type SheetSpec =
@@ -19,6 +20,8 @@ export type SheetSpec =
   | { t: 'receipt'; id: string }
   | { t: 'saleView'; id: string }
   | { t: 'payment'; kind: PaymentKind; refId: string }
+  | { t: 'receive'; customerId: string; fromAdvance?: boolean }
+  | { t: 'dayEntry'; date: string; customerName?: string }
   | { t: 'order'; id?: string; customerName?: string }
   | { t: 'orderView'; id: string }
   | { t: 'batch'; productId?: string }
@@ -65,6 +68,10 @@ function render(spec: SheetSpec, close: () => void) {
       return <SaleView id={spec.id} onClose={close} />;
     case 'payment':
       return <PaymentForm kind={spec.kind} refId={spec.refId} onClose={close} />;
+    case 'receive':
+      return <ReceiveForm customerId={spec.customerId} fromAdvance={spec.fromAdvance} onClose={close} />;
+    case 'dayEntry':
+      return <DayEntryForm date={spec.date} customerName={spec.customerName} onClose={close} />;
     case 'order':
       return <OrderForm id={spec.id} customerName={spec.customerName} onClose={close} />;
     case 'orderView':

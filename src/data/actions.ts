@@ -6,8 +6,9 @@
 // - bottles leave the fridge only here, oldest best-before first.
 // A refused action throws an Error whose message is plain words for the screen.
 import { addDays, todayYmd } from '../lib/dates';
-import { fridgeByBatch, linesValue, nextNumber, orderTotals, orderValue, purchaseTotals, sameName, saleTotals, sizeOf, takeFromFridge } from '../lib/juice';
-import { cleanAmount, cleanQty, money, num } from '../lib/money';
+import { customerAdvances, debtsOf, fridgeByBatch, linesValue, nextNumber, orderTotals, orderValue, paymentsByRef, purchaseTotals, sameName, saleTotals, sizeOf, takeFromFridge } from '../lib/juice';
+import { cleanAmount, cleanQty, money, num, sum } from '../lib/money';
+import { FROM_ADVANCE } from '../lib/types';
 import type {
   Batch,
   Customer,
@@ -55,7 +56,8 @@ export function makeActions(store: Store, now: () => Current) {
   const productName = (id: string) => cur().products.find((p) => p.id === id)?.name ?? 'that juice';
   const sizeLabel = (k: string) => sizeOf(now().settings.sizes, k)?.label ?? k;
   const fridge = () => fridgeByBatch(cur().batches, cur().sales, cur().orders, cur().writeOffs);
-  const paymentsOf = (refId: string) => cur().payments.filter((p) => p.refId === refId);
+  const paymentsOf = (refId: string) => cur().payments.filter((p) => p.refId === refId && p.kind !== 'advance');
+  const advanceLeft = (customerId: string) => customerAdvances(cur().customers, cur().orders, cur().sales, cur().payments).get(customerId) ?? 0;
   const paymentOp = (kind: PaymentKind, refId: string, amount: number, date: string, method: string, note = ''): Op => ({
     op: 'set',
     col: 'payments',
@@ -262,15 +264,23 @@ export function makeActions(store: Store, now: () => Current) {
     },
 
     // ---------- counter sales ----------
-    async saveSale(input: { lines: OrderLine[]; customerName: string; method: string; received?: number; emptiesBack?: number; note?: string }): Promise<string> {
+    /**
+     * A counter sale, or a line on the day list (date = that day). method 'On credit' leaves it owed;
+     * FROM_ADVANCE takes it from the customer's money paid ahead (what is not covered stays owed).
+     */
+    async saveSale(input: { lines: OrderLine[]; customerName: string; method: string; received?: number; emptiesBack?: number; note?: string; date?: string }): Promise<string> {
       const wanted = cleanOrderLines(input.lines);
       need(wanted.length, 'Add at least one bottle.');
-      const lines = takeFromFridge(fridge(), wanted, productName, sizeLabel);
+      const lines = takeFromFridge(fridge(), wanted, productName, sizeLabel, now().settings.fridgeCheck);
       const ops: Op[] = [];
       const credit = input.method === 'On credit';
+      const fromAdvance = input.method === FROM_ADVANCE;
       const customerId = resolveCustomer(ops, input.customerName);
       need(!credit || customerId, 'A sale on credit needs the customer\'s name.');
-      const date = todayYmd();
+      need(!fromAdvance || customerId, 'Money paid ahead belongs to a customer: type their name.');
+      const today = todayYmd();
+      const date = input.date || today;
+      need(date <= today, 'A sale cannot be on a day that has not come yet.');
       const d = new Date();
       const id = newId();
       ops.push({
@@ -280,9 +290,9 @@ export function makeActions(store: Store, now: () => Current) {
         data: {
           number: nextNumber('S', cur().sales.map((s) => s.number)),
           date,
-          time: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`,
+          time: date === today ? `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` : '',
           customerId,
-          customerName: customerId ? text(input.customerName) : 'Walk-in',
+          customerName: customerId ? (cur().customers.find((c) => c.id === customerId)?.name ?? text(input.customerName)) : 'Walk-in',
           lines,
           method: input.method || 'Cash',
           emptiesBack: Math.max(0, Math.round(num(input.emptiesBack))),
@@ -290,7 +300,11 @@ export function makeActions(store: Store, now: () => Current) {
           ...created(),
         },
       });
-      if (!credit) ops.push(paymentOp('sale', id, linesValue(lines), date, input.method || 'Cash'));
+      if (fromAdvance) {
+        const take = Math.min(linesValue(lines), Math.max(0, advanceLeft(customerId)));
+        need(take > 0, `${text(input.customerName)} has no money paid ahead left. Choose On credit or another way of paying.`);
+        ops.push(paymentOp('sale', id, take, date, FROM_ADVANCE));
+      } else if (!credit) ops.push(paymentOp('sale', id, linesValue(lines), date, input.method || 'Cash'));
       await store.commit(ops);
       return id;
     },
@@ -351,7 +365,7 @@ export function makeActions(store: Store, now: () => Current) {
       need(o, 'That order no longer exists.');
       const data: Partial<Order> & { updatedAt: number } = { stage, ...touched() };
       const packedNow = (o!.packed ?? []).length > 0;
-      if ((stage === 'Ready' || stage === 'Out for delivery' || stage === 'Delivered') && !packedNow) data.packed = takeFromFridge(fridge(), o!.lines, productName, sizeLabel);
+      if ((stage === 'Ready' || stage === 'Out for delivery' || stage === 'Delivered') && !packedNow) data.packed = takeFromFridge(fridge(), o!.lines, productName, sizeLabel, now().settings.fridgeCheck);
       if (stage === 'To make' || stage === 'Cancelled') data.packed = [];
       data.deliveredOn = stage === 'Delivered' ? todayYmd() : '';
       await store.commit([{ op: 'patch', col: 'orders', id, data }]);
@@ -390,7 +404,48 @@ export function makeActions(store: Store, now: () => Current) {
       await store.commit([paymentOp(kind, refId, amount, input.date, input.method, text(input.note))]);
     },
     async deletePayment(id: string) {
+      const p = cur().payments.find((x) => x.id === id);
+      if (p?.kind === 'advance') {
+        const left = advanceLeft(p.refId);
+        need(left >= num(p.amount), `${money(num(p.amount) - Math.max(0, left))} of this money paid ahead is already used for bottles, so it is kept. Undo those sales first.`);
+      }
       await store.commit([{ op: 'delete', col: 'payments', id }]);
+    },
+
+    /**
+     * Money from a customer, as one amount: it pays what they owe, oldest first, and anything left
+     * over is kept as money paid ahead. With method FROM_ADVANCE it uses their money paid ahead
+     * (only to pay what they owe; nothing is kept).
+     * Returns how much went to their debts and how much was kept as paid ahead.
+     */
+    async receiveMoney(customerId: string, input: { amount: number; date: string; method: string; note?: string }): Promise<{ paid: number; kept: number }> {
+      const c = cur().customers.find((x) => x.id === customerId);
+      need(c, 'That customer no longer exists.');
+      let amount = cleanAmount(input.amount);
+      need(amount > 0, 'Type an amount above zero.');
+      need(input.date, 'Choose the date.');
+      const fromAdvance = input.method === FROM_ADVANCE;
+      const r = cur();
+      const debts = debtsOf(customerId, r.orders, r.sales, paymentsByRef(r.payments));
+      const owed = sum(debts, (d) => d.balance);
+      if (fromAdvance) {
+        const left = advanceLeft(customerId);
+        need(owed > 0, `${c!.name} owes nothing.`);
+        need(left > 0, `${c!.name} has no money paid ahead left.`);
+        need(amount <= left, `${c!.name} has only ${money(left)} paid ahead.`);
+        amount = Math.min(amount, owed);
+      }
+      const ops: Op[] = [];
+      let rest = amount;
+      for (const d of debts) {
+        if (rest <= 0) break;
+        const pay = Math.min(rest, d.balance);
+        ops.push(paymentOp(d.kind, d.id, pay, input.date, input.method, text(input.note)));
+        rest -= pay;
+      }
+      if (rest > 0 && !fromAdvance) ops.push(paymentOp('advance', customerId, rest, input.date, input.method, text(input.note)));
+      await store.commit(ops);
+      return { paid: amount - (fromAdvance ? 0 : rest), kept: fromAdvance ? 0 : rest };
     },
 
     // ---------- customers ----------
@@ -407,8 +462,8 @@ export function makeActions(store: Store, now: () => Current) {
       await store.commit([{ op: 'patch', col: 'customers', id, data: { archived, ...touched() } }]);
     },
     async deleteCustomer(id: string) {
-      const used = cur().orders.some((o) => o.customerId === id) || cur().sales.some((s) => s.customerId === id);
-      need(!used, 'This customer has orders or sales, so the record is kept. Use Hide instead.');
+      const used = cur().orders.some((o) => o.customerId === id) || cur().sales.some((s) => s.customerId === id) || cur().payments.some((p) => p.kind === 'advance' && p.refId === id);
+      need(!used, 'This customer has orders, sales or money paid ahead, so the record is kept. Use Hide instead.');
       await store.commit([{ op: 'delete', col: 'customers', id }]);
     },
 

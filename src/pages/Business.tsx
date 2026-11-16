@@ -11,23 +11,28 @@ import { wageLines, weekDays } from '../lib/staff';
 import { ROLE_NAMES } from '../lib/types';
 
 export function Customers() {
-  const { customers, customerBal, orders, settings } = useData();
+  const { customers, customerBal, customerAdv, orders, sales, settings } = useData();
+  const bought = new Map<string, number>();
+  for (const s of sales) if (s.customerId) bought.set(s.customerId, (bought.get(s.customerId) ?? 0) + 1);
+  const timesBought = (id: string) => bought.get(id) ?? 0;
   const sheets = useSheets();
   const [q, setQ] = useState('');
   const [type, setType] = useState('All');
-  const types = ['All', ...new Set(customers.filter((c) => !c.archived).map((c) => c.type)), 'Owing', 'Hidden'];
+  const types = ['All', ...new Set(customers.filter((c) => !c.archived).map((c) => c.type)), 'Owing', 'Paid ahead', 'Hidden'];
   const list = customers
     .filter((c) => (type === 'Hidden' ? c.archived : !c.archived))
-    .filter((c) => type === 'All' || type === 'Hidden' || (type === 'Owing' ? (customerBal.get(c.id) ?? 0) > 0 : c.type === type))
+    .filter((c) => type === 'All' || type === 'Hidden' || (type === 'Owing' ? (customerBal.get(c.id) ?? 0) > 0 : type === 'Paid ahead' ? (customerAdv.get(c.id) ?? 0) > 0 : c.type === type))
     .filter((c) => !q.trim() || `${c.name} ${c.place} ${c.phone}`.toLowerCase().includes(q.trim().toLowerCase()))
     .sort((a, b) => (customerBal.get(b.id) ?? 0) - (customerBal.get(a.id) ?? 0) || a.name.localeCompare(b.name));
   const owed = sum([...customerBal.values()], (v) => v);
+  const ahead = sum([...customerAdv.values()], (v) => Math.max(0, v));
   return (
     <div>
       <PageHead title="Customers" action={<Button icon={Plus} onClick={() => sheets.open({ t: 'customer' })}>Customer</Button>} />
-      <div className="mb-3 grid grid-cols-2 gap-3">
+      <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-3">
         <StatCard label="Customers" value={String(customers.filter((c) => !c.archived).length)} />
         <StatCard label="They owe you" value={money(owed, settings.currency)} tone="warn" />
+        <StatCard label="Paid ahead, not used yet" value={money(ahead, settings.currency)} sub="Bottles you still owe them" />
       </div>
       <SearchBox value={q} onChange={setQ} placeholder="Search customers" />
       <div className="mt-3">
@@ -46,8 +51,11 @@ export function Customers() {
                     <span className="block font-semibold">{c.name}</span>
                     <span className="block truncate text-sm text-muted">
                       {c.type}
-                      {c.place ? ` · ${c.place}` : ''} · {orders.filter((o) => o.customerId === c.id).length} orders
+                      {c.place ? ` · ${c.place}` : ''}
+                      {timesBought(c.id) > 0 && (timesBought(c.id) === 1 ? ' · bought once' : ` · bought ${timesBought(c.id)} times`)}
+                      {orders.some((o) => o.customerId === c.id) && ` · ${orders.filter((o) => o.customerId === c.id).length} orders`}
                     </span>
+                    {(customerAdv.get(c.id) ?? 0) > 0 && <span className="block text-sm font-medium text-leaf">{money(customerAdv.get(c.id) ?? 0, settings.currency)} paid ahead</span>}
                   </span>
                   <span className={cx('num text-right font-semibold', b ? 'text-cherry' : 'text-leaf')}>
                     {money(b, settings.currency)}

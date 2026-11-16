@@ -284,9 +284,10 @@ function Lists() {
   const [fridges, setFridges] = useState(settings.fridges.join('\n'));
   const [checks, setChecks] = useState(settings.hygieneChecks.join('\n'));
   const [max, setMax] = useState(String(settings.fridgeMax));
+  const [fridgeCheck, setFridgeCheck] = useState(settings.fridgeCheck);
   const { busy, error, run } = useSaver();
   const save = () => {
-    const fields: Partial<S> = { methods: lines(methods), expenseGroups: lines(groups), fridges: lines(fridges), hygieneChecks: lines(checks), fridgeMax: Number(max.replace(',', '.')) || 5 };
+    const fields: Partial<S> = { methods: lines(methods), expenseGroups: lines(groups), fridges: lines(fridges), hygieneChecks: lines(checks), fridgeMax: Number(max.replace(',', '.')) || 5, fridgeCheck };
     return run(() => actions.saveSettings(fields), () => notify('Saved'));
   };
   return (
@@ -311,6 +312,13 @@ function Lists() {
         </Field>
       </div>
       <p className="mt-2 text-xs text-muted">How long each juice keeps is set on its recipe (Recipes and prices).</p>
+      <label className="mt-3 flex items-start gap-3 rounded-xl bg-page px-3 py-2 text-[15px]">
+        <input type="checkbox" className="mt-1 h-5 w-5 accent-[var(--accent)]" checked={fridgeCheck} onChange={(e) => setFridgeCheck(e.target.checked)} />
+        <span>
+          Sell only bottles recorded in the fridge
+          <span className="block text-xs text-muted">On: every batch must be recorded in Production before its bottles can be sold. Off: sell even when production is not recorded (bottles from recorded batches are still taken first).</span>
+        </span>
+      </label>
       <Button className="mt-3" busy={busy} onClick={save}>
         Save
       </Button>

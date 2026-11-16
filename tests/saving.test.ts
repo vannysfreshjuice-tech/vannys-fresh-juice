@@ -74,10 +74,21 @@ describe('counter sales', () => {
     expect(saleTotals(sale, paymentsByRef(r.payments).get(id)).status).toBe('Paid');
     expect(r.payments.find((p) => p.refId === id)!.amount).toBe(36000);
   });
-  it('refuses to sell more than the fridge holds', async () => {
+  it('refuses to sell more than the fridge holds (Settings: recorded bottles only)', async () => {
     const app = await stocked();
+    await app.actions.saveSettings({ fridgeCheck: true });
     await expect(app.actions.saveSale({ lines: [{ productId: app.mango.id, size: '500', qty: 31, price: 3000 }], customerName: '', method: 'Cash' })).rejects.toThrow('Only 30 × Mango 500 ml in the fridge.');
     expect(app.records().sales).toHaveLength(0);
+  });
+  it('by default sells past the fridge: recorded bottles first, the rest without a batch', async () => {
+    const app = await stocked();
+    const id = await app.actions.saveSale({ lines: [{ productId: app.mango.id, size: '500', qty: 32, price: 3000 }], customerName: '', method: 'Cash' });
+    const lines = app.records().sales.find((s) => s.id === id)!.lines;
+    expect(lines.map((l) => [l.qty, !!l.batchId])).toEqual([
+      [10, true],
+      [20, true],
+      [2, false],
+    ]);
   });
   it('a credit sale needs a name, takes no payment and shows as owed', async () => {
     const app = await stocked();
@@ -130,8 +141,9 @@ describe('orders', () => {
     expect(fridgeCount(fridgeByBatch(r.batches, r.sales, r.orders, r.writeOffs), app.mango.id, '500')).toBe(30);
     expect(orderTotals(r.orders[0], []).balance).toBe(0);
   });
-  it('cannot be marked Ready when the fridge is short', async () => {
+  it('cannot be marked Ready when the fridge is short (Settings: recorded bottles only)', async () => {
     const app = await stocked();
+    await app.actions.saveSettings({ fridgeCheck: true });
     const id = await app.actions.saveOrder({ customerName: 'Kato', date: '2026-11-12', dueDate: '2026-11-13', lines: line(app.mango.id, 40) });
     await expect(app.actions.setOrderStage(id, 'Ready')).rejects.toThrow('Only 30 × Mango 500 ml in the fridge.');
     expect(app.records().orders[0].stage).toBe('To make');

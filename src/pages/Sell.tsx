@@ -32,12 +32,12 @@ export function Sell() {
     const k = `${productId}|${size}`;
     const have = cart[k] ?? 0;
     const inFridge = fridgeCount(fridge, productId, size);
-    if (d > 0 && have >= inFridge) return notify(`Only ${inFridge} × ${j.name(productId)} ${j.sizeLabel(size)} in the fridge`, 'info');
+    if (settings.fridgeCheck && d > 0 && have >= inFridge) return notify(`Only ${inFridge} × ${j.name(productId)} ${j.sizeLabel(size)} in the fridge`, 'info');
     setCart((c) => ({ ...c, [k]: Math.max(0, have + d) }));
   };
   const checkout = () => sheets.open({ t: 'checkout', lines, onDone: () => setCart({}) });
 
-  if (!live.length) return <Empty icon={ShoppingCart} title="No juices yet" body="Add your juices on Recipes and prices (or from Home), then make a batch." />;
+  if (!live.length) return <Empty icon={ShoppingCart} title="No juices yet" body="Add your juices on Recipes and prices (or from Home)." />;
 
   return (
     <div className="pb-20 lg:pb-0">
@@ -63,16 +63,21 @@ export function Sell() {
                           </span>
                           {p.tag && <span className="block truncate text-xs text-muted">{p.tag}</span>}
                         </span>
-                        <span className="text-xs text-muted">{fridgeTotal(fridge, p.id)} in fridge</span>
+                        {(settings.fridgeCheck || fridgeTotal(fridge, p.id) > 0) && <span className="text-xs text-muted">{fridgeTotal(fridge, p.id)} in fridge</span>}
                       </div>
                       <div className="grid grid-cols-4 gap-1.5">
                         {settings.sizes.map((s) => {
                           const left = fridgeCount(fridge, p.id, s.key) - (cart[`${p.id}|${s.key}`] ?? 0);
+                          const inCart = cart[`${p.id}|${s.key}`] ?? 0;
                           return (
-                            <button key={s.key} type="button" disabled={left <= 0} onClick={() => add(p.id, s.key)} className={cx('min-h-14 rounded-xl border border-line bg-page px-1 py-1.5 text-center active:bg-accent-soft disabled:opacity-40')}>
+                            <button key={s.key} type="button" disabled={settings.fridgeCheck && left <= 0} onClick={() => add(p.id, s.key)} className={cx('min-h-14 rounded-xl border border-line bg-page px-1 py-1.5 text-center active:bg-accent-soft disabled:opacity-40')}>
                               <span className="block text-[13px] font-bold">{s.label}</span>
                               <span className="num block text-[11px] text-muted">{j.money(j.price(p.id, s.key)).replace('UGX ', '')}</span>
-                              <span className={cx('block text-[10px] font-bold', left > 0 ? 'text-leaf' : 'text-faint')}>{left > 0 ? `${left} left` : 'none'}</span>
+                              {settings.fridgeCheck ? (
+                                <span className={cx('block text-[10px] font-bold', left > 0 ? 'text-leaf' : 'text-faint')}>{left > 0 ? `${left} left` : 'none'}</span>
+                              ) : (
+                                <span className="block text-[10px] font-bold text-leaf">{inCart ? `${inCart} in sale` : ' '}</span>
+                              )}
                             </button>
                           );
                         })}
