@@ -2,7 +2,7 @@
 // Day: tap a regular's name to add one bottle (paid from money paid ahead when they have some, otherwise
 // the way chosen above the names). Week: Monday to Friday side by side (Saturday and Sunday when used),
 // a day with juice in yellow, a weekday without in red, names in blue when paid, green when paid ahead.
-import { CalendarDays, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, HandCoins, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useJuice } from '../components/bits';
 import { useSheets } from '../components/SheetHost';
@@ -131,8 +131,11 @@ function DayView({ day, setDay, firstDay }: { day: string; setDay: (d: string) =
 
       {!later && (
         <section className="card p-4">
-          <div className="mb-2 flex items-center gap-2">
+          <div className="mb-2 flex flex-wrap items-center gap-2">
             <h2 className="min-w-0 flex-1 font-semibold">Tap a name: 1 bottle</h2>
+            <Button small variant="plain" icon={HandCoins} onClick={() => sheets.open({ t: 'receive' })}>
+              Money received
+            </Button>
             <Button small icon={Plus} onClick={() => sheets.open({ t: 'dayEntry', date: day })}>
               Someone else
             </Button>

@@ -5,7 +5,7 @@ import { Card, JuiceBadge, useJuice } from '../components/bits';
 import { useSheets } from '../components/SheetHost';
 import { Badge, Button, Choice, Empty, PageHead, StatCard, cx } from '../components/ui';
 import { useData } from '../data/DataContext';
-import { relativeDay, showDate } from '../lib/dates';
+import { relativeDay, showDate, showDay } from '../lib/dates';
 import { fridgeCount, fridgeTotal, purchaseTotals } from '../lib/juice';
 import { qty as showQty, sum } from '../lib/money';
 import type { ItemKind, ProductKind } from '../lib/types';
@@ -148,42 +148,63 @@ export function Stock() {
             return (
               <>
                 {list.length === 0 ? (
-                  <Empty icon={Boxes} title="Nothing here yet" body={tab === 'fruit' ? 'Add the fruit, sugar and other ingredients you buy.' : 'Add the bottles, caps and labels you buy.'} />
+                  <Empty icon={Boxes} title="Nothing here yet" body={tab === 'fruit' ? 'Add the fruit, sugar and other ingredients you buy (or use + New item on Buy).' : 'Add the bottles, caps and labels you buy (or use + New item on Buy).'} />
                 ) : (
-                  <div className="card divide-y divide-line overflow-hidden">
-                    {list.map((it) => {
-                      const l = levels.get(it.id);
-                      const on = l?.onHand ?? 0;
-                      return (
-                        <div key={it.id} className="flex items-center gap-3 px-4 py-3">
-                          <button type="button" className="min-w-0 flex-1 text-left" onClick={() => canChange && sheets.open({ t: 'item', id: it.id })}>
-                            <span className="block font-semibold">{it.name}</span>
-                            <span className="mt-1 block h-2 overflow-hidden rounded-full bg-line">
-                              <span className={cx('block h-full rounded-full', l?.low ? 'bg-cherry' : 'bg-leaf')} style={{ width: `${Math.min(100, it.reorderLevel ? (on / (it.reorderLevel * 2)) * 100 : 60)}%` }} />
-                            </span>
-                            <span className="mt-0.5 block text-xs text-muted">
-                              reorder at {showQty(it.reorderLevel)} {it.unit}
-                              {role === 'owner' && avgCosts.get(it.id) ? ` · ${j.money(avgCosts.get(it.id) ?? 0)} per ${it.unit}` : ''}
-                            </span>
-                          </button>
-                          <span className={cx('num text-right font-semibold', l?.low && 'text-cherry')}>
-                            {showQty(on)} {it.unit}
-                          </span>
-                          {canChange && (
-                            <div className="flex flex-col gap-1">
-                              <Button small variant="plain" onClick={() => sheets.open({ t: 'purchase', itemId: it.id })}>
-                                Buy
-                              </Button>
-                              <Button small variant="plain" onClick={() => sheets.open({ t: 'count', itemId: it.id })}>
-                                Count
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                  <div className="card overflow-x-auto p-0">
+                    <table className="tbl min-w-[40rem]">
+                      <thead>
+                        <tr>
+                          <th className="pl-4">{tab === 'fruit' ? 'Fruit or ingredient' : 'Item'}</th>
+                          <th className="n">Left</th>
+                          <th className="n">Bought</th>
+                          <th className="n">Used</th>
+                          <th className="n">Reorder at</th>
+                          {role === 'owner' && <th className="n">Cost each</th>}
+                          {role === 'owner' && <th className="n">Worth</th>}
+                          {canChange && <th className="pr-4" />}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...list]
+                          .sort((a, b) => Number(levels.get(b.id)?.low ?? false) - Number(levels.get(a.id)?.low ?? false) || a.name.localeCompare(b.name))
+                          .map((it) => {
+                            const l = levels.get(it.id);
+                            const on = l?.onHand ?? 0;
+                            const each = avgCosts.get(it.id) ?? 0;
+                            return (
+                              <tr key={it.id} className={cx(l?.low && 'bg-cherry-soft/40')}>
+                                <td className="pl-4">
+                                  <button type="button" className="text-left font-semibold" onClick={() => canChange && sheets.open({ t: 'item', id: it.id })}>
+                                    {it.name}
+                                  </button>
+                                  {l?.low && <span className="block text-xs text-cherry">{on < 0 ? 'used more than was bought' : 'running low'}</span>}
+                                </td>
+                                <td className={cx('n num text-base font-bold', l?.low ? 'text-cherry' : 'text-leaf')}>
+                                  {showQty(on)} <span className="text-xs font-normal text-muted">{it.unit}</span>
+                                </td>
+                                <td className="n num">{showQty(l?.bought ?? 0)}</td>
+                                <td className="n num">{showQty(l?.used ?? 0)}</td>
+                                <td className="n num text-muted">{showQty(it.reorderLevel)}</td>
+                                {role === 'owner' && <td className="n num">{each ? j.money(each) : '–'}</td>}
+                                {role === 'owner' && <td className="n num">{each && on > 0 ? j.money(on * each) : '–'}</td>}
+                                {canChange && (
+                                  <td className="pr-4 text-right whitespace-nowrap">
+                                    <Button small variant="plain" onClick={() => sheets.open({ t: 'purchase', itemId: it.id })}>
+                                      Buy
+                                    </Button>{' '}
+                                    <Button small variant="plain" onClick={() => sheets.open({ t: 'count', itemId: it.id })}>
+                                      Count
+                                    </Button>
+                                  </td>
+                                )}
+                              </tr>
+                            );
+                          })}
+                      </tbody>
+                    </table>
                   </div>
                 )}
+                <p className="mt-2 text-xs text-muted">Left = bought, less what batches used, plus or minus counts. Red: below the reorder level (or used more than was recorded as bought).</p>
                 {role === 'owner' && list.length > 0 && <p className="mt-2 text-sm text-muted">Worth about {j.money(value)} at what it cost.</p>}
                 {canChange && (
                   <Button variant="soft" icon={Plus} className="mt-3" onClick={() => sheets.open({ t: 'item', kind: tab })}>
@@ -227,26 +248,45 @@ export function Buying() {
           {list.length === 0 ? (
             <Empty icon={ShoppingBasket} title="No purchases yet" body={items.length ? 'Each time fruit, sugar or bottles are bought, save it here. Stock goes up and recipe costs use the new price.' : 'Add your fruit and packaging in Stock first, or the usual set from Home.'} />
           ) : (
-            <div className="card divide-y divide-line overflow-hidden">
-              {list.map((p) => {
-                const t = purchaseTotals(p, byRef.get(p.id));
-                const it = itemsById.get(p.itemId);
+            <div className="space-y-3">
+              {[...new Set(list.map((p) => p.date))].map((day) => {
+                const ofDay = list.filter((p) => p.date === day);
+                const dayTotal = sum(ofDay, (p) => p.qty * p.price);
+                const dayOwed = sum(ofDay, (p) => purchaseTotals(p, byRef.get(p.id)).balance);
                 return (
-                  <button key={p.id} type="button" className="row" onClick={() => sheets.open({ t: 'purchaseView', id: p.id })}>
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-semibold">
-                        {it?.name ?? 'Item'} · {showQty(p.qty)} {it?.unit}
+                  <section key={day} className="card overflow-hidden">
+                    <div className="flex items-center gap-2 border-b border-line bg-page px-4 py-2">
+                      <span className="min-w-0 flex-1 font-semibold">{showDay(day)}</span>
+                      <span className="text-xs text-muted">
+                        {ofDay.length} {ofDay.length === 1 ? 'item' : 'items'}
+                        {dayOwed > 0 && <span className="text-cherry"> · owe {j.money(dayOwed)}</span>}
                       </span>
-                      <span className="block truncate text-sm text-muted">
-                        {showDate(p.date)} · {p.supplierName} · {j.money(p.price)}/{it?.unit}
-                        {p.quality ? ` · ${p.quality}` : ''}
-                      </span>
-                    </span>
-                    <span className="text-right">
-                      <span className="num block font-semibold">{j.money(t.value)}</span>
-                      <span className={`text-xs ${t.balance ? 'text-cherry' : 'text-leaf'}`}>{t.balance ? `owe ${j.money(t.balance)}` : 'paid'}</span>
-                    </span>
-                  </button>
+                      <span className="num font-semibold">{j.money(dayTotal)}</span>
+                    </div>
+                    <div className="divide-y divide-line">
+                      {ofDay.map((p) => {
+                        const t = purchaseTotals(p, byRef.get(p.id));
+                        const it = itemsById.get(p.itemId);
+                        return (
+                          <button key={p.id} type="button" className="row" onClick={() => sheets.open({ t: 'purchaseView', id: p.id })}>
+                            <span className="min-w-0 flex-1">
+                              <span className="block font-semibold">
+                                {it?.name ?? 'Item'} · {showQty(p.qty)} {it?.unit}
+                              </span>
+                              <span className="block truncate text-sm text-muted">
+                                {p.supplierName} · {j.money(p.price)}/{it?.unit}
+                                {p.quality ? ` · ${p.quality}` : ''}
+                              </span>
+                            </span>
+                            <span className="text-right">
+                              <span className="num block font-semibold">{j.money(t.value)}</span>
+                              <span className={`text-xs ${t.balance ? 'text-cherry' : 'text-leaf'}`}>{t.balance ? `owe ${j.money(t.balance)}` : 'paid'}</span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
                 );
               })}
             </div>

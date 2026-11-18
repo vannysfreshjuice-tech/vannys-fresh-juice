@@ -17,6 +17,7 @@ export function QuickSheet({ onClose }: { onClose: () => void }) {
   const items: { page: string; label: string; icon: typeof Bell; go: () => void }[] = [
     { page: '/sell', label: 'New sale', icon: ShoppingCart, go: () => { onClose(); navigate('/sell'); } },
     { page: '/orders', label: 'New order', icon: Truck, go: () => sheets.swap({ t: 'order' }) },
+    { page: '/orders', label: 'Event quote', icon: Truck, go: () => sheets.swap({ t: 'eventQuote' }) },
     { page: '/make', label: 'New batch', icon: Blend, go: () => sheets.swap({ t: 'batch' }) },
     { page: '/buying', label: 'Buy fruit or supplies', icon: ShoppingBasket, go: () => sheets.swap({ t: 'purchase' }) },
     { page: '/expenses', label: 'Expense', icon: ReceiptText, go: () => sheets.swap({ t: 'expense' }) },

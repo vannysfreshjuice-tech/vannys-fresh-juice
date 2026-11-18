@@ -8,6 +8,8 @@ import { useSheets } from '../components/SheetHost';
 import { Button, StatCard, useNotice, useSaver } from '../components/ui';
 import { useData } from '../data/DataContext';
 import { addDays, longToday, relativeDay, showDay } from '../lib/dates';
+import { weeklySeries } from '../lib/performance';
+import { WeeklyChart } from '../components/WeeklyChart';
 import { fridgeCount, fridgeTotal } from '../lib/juice';
 import { qty as showQty, sum } from '../lib/money';
 import { mayOpen } from '../lib/nav';
@@ -145,6 +147,12 @@ export function Home() {
         {owner && <StatCard label="Customers owe you" value={j.money(owed)} sub={`${[...customerBal.values()].filter((v) => v > 0).length} customers`} tone="warn" onClick={() => navigate('/customers')} />}
         {role === 'rider' && <StatCard label="Orders to deliver" value={String(toDeliver.length)} sub="today" onClick={() => navigate('/orders')} />}
       </div>
+
+      {owner && (
+        <Card title="The last 8 weeks">
+          <WeeklyChart points={weeklySeries(d.sales, d.orders, d.payments, today, 8)} currency={d.settings.currency} onOpen={() => navigate('/reports')} />
+        </Card>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card title="Needs attention" icon={<AlertTriangle size={18} className="text-cherry" aria-hidden />}>

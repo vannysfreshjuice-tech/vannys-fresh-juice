@@ -60,7 +60,7 @@ export function buildReport(r: Records, settings: Settings, period: Period, cost
   };
 
   const sold: { line: BottleLine; channel: string }[] = [];
-  for (const s of r.sales) if (inPeriod(s.date, period)) for (const l of s.lines ?? []) sold.push({ line: l, channel: 'Counter' });
+  for (const s of r.sales) if (!s.opening && inPeriod(s.date, period)) for (const l of s.lines ?? []) sold.push({ line: l, channel: 'Counter' });
   let deliveryFees = 0;
   for (const o of r.orders)
     if (o.stage === 'Delivered' && inPeriod(o.deliveredOn || o.dueDate, period)) {
@@ -155,7 +155,7 @@ export function buildReport(r: Records, settings: Settings, period: Period, cost
 /** Bottles sold and money taken on one day, for Home. */
 export function dayFigures(r: Records, day: string) {
   const byRef = paymentsByRef(r.payments);
-  const sales = r.sales.filter((s) => s.date === day);
+  const sales = r.sales.filter((s) => s.date === day && !s.opening);
   const pays = r.payments.filter((p) => isMoneyIn(p) && p.date === day);
   const cash = sum(pays.filter((p) => p.method === 'Cash'), (p) => p.amount);
   const delivered = r.orders.filter((o) => o.stage === 'Delivered' && o.deliveredOn === day);

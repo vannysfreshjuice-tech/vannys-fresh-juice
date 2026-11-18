@@ -1,14 +1,16 @@
 // Settings: business details, bottle sizes and prices, lists, freshness rules, backup and restore.
 // Only the fields a person changes are saved (defaults are never written back).
 import { Download, Lock, Upload } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Card } from '../components/bits';
 import { PinInput, ownerPinKey, useLock } from '../components/Lock';
-import { Button, Field, FormError, MoneyInput, PageHead, Select, TextArea, TextInput, useConfirm, useNotice, useSaver } from '../components/ui';
+import { Button, DateInput, Field, FormError, MoneyInput, PageHead, Select, TextArea, TextInput, useConfirm, useNotice, useSaver } from '../components/ui';
 import { useData } from '../data/DataContext';
 import { readDeviceRecords } from '../data/localStore';
 import { backupFileName, countRows, deleteAllOps, giveFile, makeBackup, readBackup, restoreOps } from '../lib/backup';
-import { showDate } from '../lib/dates';
+import { addDays, showDate, showDay } from '../lib/dates';
+import { money } from '../lib/money';
+import { startAgainPlan } from '../lib/startAgain';
 import { OWNER_KEY, PIN_LENGTH, findPin, pinKeys, removeAllPins, removePin, setPin } from '../lib/pinLock';
 import type { Settings as S, Size } from '../lib/types';
 
@@ -188,7 +190,7 @@ function CloudPin() {
 function Business() {
   const { settings, actions } = useData();
   const notify = useNotice();
-  const [f, setF] = useState({ businessName: settings.businessName, whatsapp: settings.whatsapp, phone: settings.phone, receiptNote: settings.receiptNote, merchantCode: settings.merchantCode });
+  const [f, setF] = useState({ businessName: settings.businessName, whatsapp: settings.whatsapp, phone: settings.phone, receiptNote: settings.receiptNote, merchantCode: settings.merchantCode, cardPay: settings.cardPay, airtelNumber: settings.airtelNumber });
   const { busy, error, run } = useSaver();
   return (
     <Card title="Business">
@@ -198,7 +200,7 @@ function Business() {
           <TextInput value={f.businessName} onChange={(e) => setF({ ...f, businessName: e.target.value })} />
         </Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="WhatsApp">
+          <Field label="WhatsApp and calls">
             <TextInput inputMode="tel" value={f.whatsapp} onChange={(e) => setF({ ...f, whatsapp: e.target.value })} />
           </Field>
           <Field label="Phone">
@@ -211,6 +213,16 @@ function Business() {
         <Field label="Mobile money merchant code (optional)">
           <TextInput value={f.merchantCode} onChange={(e) => setF({ ...f, merchantCode: e.target.value })} />
         </Field>
+        <p className="pt-1 text-sm font-semibold">On the statement card</p>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Ways to pay">
+            <TextInput value={f.cardPay} onChange={(e) => setF({ ...f, cardPay: e.target.value })} placeholder="Airtel Money · Cash" />
+          </Field>
+          <Field label="Airtel Money number">
+            <TextInput inputMode="tel" value={f.airtelNumber} onChange={(e) => setF({ ...f, airtelNumber: e.target.value })} />
+          </Field>
+        </div>
+        <p className="text-xs text-muted">The card shows the ways to pay, "WhatsApp & call" with the WhatsApp number above, and the Airtel Money number.</p>
         <Button busy={busy} onClick={() => run(() => actions.saveSettings(f), () => notify('Saved'))}>
           Save
         </Button>
@@ -392,10 +404,94 @@ function Backup() {
         </Button>
         <input ref={file} type="file" accept="application/json,.json" className="hidden" onChange={(e) => e.target.files?.[0] && restore(e.target.files[0])} />
       </div>
+      <StartAgain />
       <Button small variant="danger" className="mt-4" onClick={wipe}>
         Delete all records
       </Button>
     </Card>
+  );
+}
+
+/**
+ * Start again from a date: a backup is downloaded first, then everything dated before the day goes.
+ * Money paid ahead is always carried over; what customers still owe is carried over unless unticked.
+ */
+function StartAgain() {
+  const d = useData();
+  const { ready, settingsRow, actions, today } = d;
+  const confirm = useConfirm();
+  const notify = useNotice();
+  // the Saturday before this week: "the weekend's juice and this week's sales"
+  const wd = new Date(`${today}T12:00:00`).getDay();
+  const [cutoff, setCutoff] = useState(addDays(today, (wd === 0 ? -6 : 1 - wd) - 2));
+  const [carry, setCarry] = useState(true);
+  const [open, setOpen] = useState(false);
+  const [err, setErr] = useState('');
+  const plan = useMemo(() => (open && ready ? startAgainPlan(d, cutoff, carry, () => 'x') : null), [open, ready, d, cutoff, carry]);
+  const cur = (n: number) => money(n, d.settings.currency);
+  const words: Record<string, string> = { sales: 'sales', payments: 'payments', orders: 'orders', purchases: 'purchases', batches: 'batches', writeOffs: 'write-offs', counts: 'counts', expenses: 'expenses', attendance: 'attendance marks', wages: 'wage payments', readings: 'fridge readings', reminders: 'reminders' };
+  const go = async () => {
+    setErr('');
+    if (!ready || !plan) return setErr('Wait until the records have loaded.');
+    const total = Object.values(plan.removed).reduce((t, n) => t + n, 0);
+    if (!(await confirm({ title: `Start again from ${showDay(cutoff)}?`, body: `${total} records dated before ${showDate(cutoff)} are removed for good. A backup file is downloaded first. ${carry ? `What customers still owe (${cur(plan.owedCarried)}) is kept as one line each` : `What customers still owe from before (${cur(plan.owedDropped)}) is NOT kept`}; money paid ahead (${cur(plan.aheadCarried)}) is kept.`, yes: 'Start again', danger: true, typeWord: 'START' }))) return;
+    try {
+      await giveFile(`vannys-backup-before-start-again-${today}.json`, JSON.stringify(makeBackup(d, settingsRow), null, 1), 'application/json');
+      const done = await actions.startAgainFrom(cutoff, carry);
+      notify(`Started again from ${showDay(cutoff)}: ${Object.values(done.removed).reduce((t, n) => t + n, 0)} old records removed`);
+      setOpen(false);
+    } catch (e) {
+      setErr((e as Error).message);
+    }
+  };
+  return (
+    <div className="mt-4 rounded-xl border border-line bg-page p-3">
+      <button type="button" className="flex w-full items-center text-left font-semibold" onClick={() => setOpen(!open)}>
+        <span className="flex-1">Start again from a date</span>
+        <span className="text-sm text-accent-dark">{open ? 'Close' : 'Open'}</span>
+      </button>
+      {open && (
+        <div className="mt-2 space-y-3">
+          <FormError message={err} />
+          <p className="text-sm text-muted">For a fresh start: removes every sale, payment, batch, purchase and other record dated before the day you choose. Customers, juices, recipes, stock items, suppliers, staff and settings stay. A backup file is downloaded first.</p>
+          <Field label="Keep everything from" className="max-w-56">
+            <DateInput value={cutoff} max={today} onChange={(v) => v && setCutoff(v)} />
+          </Field>
+          <label className="flex items-start gap-3 text-[15px]">
+            <input type="checkbox" className="mt-1 h-5 w-5 accent-[var(--accent)]" checked={carry} onChange={(e) => setCarry(e.target.checked)} />
+            <span>
+              Keep what customers still owe from before
+              <span className="block text-xs text-muted">One "owed from before" line for each customer, so it can still be collected. Untick to forget old debts.</span>
+            </span>
+          </label>
+          {plan && (
+            <div className="rounded-lg bg-card px-3 py-2 text-sm">
+              <p className="font-semibold">Before {showDay(cutoff)}, this removes:</p>
+              <p className="text-muted">
+                {Object.entries(plan.removed)
+                  .map(([k, n]) => `${n} ${words[k] ?? k}`)
+                  .join(', ') || 'nothing'}
+              </p>
+              <p className="mt-1">
+                {carry ? (
+                  <>
+                    Kept as owed from before: <b className="num">{cur(plan.owedCarried)}</b>
+                  </>
+                ) : (
+                  <>
+                    Old debts forgotten: <b className="num text-cherry">{cur(plan.owedDropped)}</b>
+                  </>
+                )}
+                {' · '}money paid ahead kept: <b className="num">{cur(plan.aheadCarried)}</b>
+              </p>
+            </div>
+          )}
+          <Button variant="danger" onClick={go}>
+            Start again from {showDay(cutoff)}
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
 

@@ -1,6 +1,6 @@
 # Vanny's Fresh Juice user manual
 
-Last updated: 16 November 2026 (day list, money paid ahead)
+Last updated: 18 November 2026 (event quote, start again from a date)
 
 This app keeps the whole juice business in one place: the fruit you buy, the juice you make, what is in the fridge, what you sell and deliver, what customers owe, reminders, expenses, staff and profit. It works on a phone like an app and on a laptop in the browser.
 
@@ -77,6 +77,7 @@ Home is the day at a glance:
 - **Made today** (from Production or the Day list's bottles made; when nothing is made yet today it says when juice was last made), **Juice in the fridge** (and how many reach their best-before by tomorrow) and **Customers owe you**.
 - **Needs attention**: today's reminders, fruit and packaging below the reorder level, juice to sell first, orders due by tomorrow that are not ready, orders to deliver today, a fridge that is too warm, or no fridge reading yet today. Each line has a button that takes you straight to it.
 - **What the orders need by tomorrow**: each juice and size the orders need, what is in the fridge, and how many to make.
+- **The last 8 weeks** (owner only): a bar for each week's sales (orange) and a line for the money that came in (blue), Monday to Sunday. Tap a week to see its figures; the row below compares this week with last week. **More in Reports** opens the full report.
 
 Staff who should not see money see counts instead of shillings.
 
@@ -92,7 +93,8 @@ The day list is the Excel sheet in the app: each day, who took juice and who has
    - **Discount:** tick **Discount** and type the amount (2,000 at first; the app remembers the last amount). Every tap then takes it off, and the sum shows: 3,000 − 2,000 = 1,000. A customer with a **standing discount** (shown on their name, e.g. − 3,000 each) always gets theirs, ticked or not.
 4. A customer with **money paid ahead** (green button, with what is left) pays from it by itself.
 5. For someone new, more bottles, another juice or another price (for example a 5,000 juice), tap **Someone else**. It has the same **Discount** switch, already on with the customer's standing discount when they have one, and **Always give ... this discount** to keep it for them (or untick it to stop it).
-6. The day's names are listed below in the Excel colours. Tap one to record a payment or to undo it.
+6. **Money received** (next to Someone else) is for someone who pays without taking juice, for example money paid ahead or paying old days: choose or type who (a new name is added to Customers), the amount and how they paid. It pays what they owe, oldest day first; anything more is kept as money paid ahead.
+7. The day's names are listed below in the Excel colours. Tap one to record a payment or to undo it.
 
 **Bottles made:** each count belongs to the day it was made: a batch recorded for yesterday shows as 0 made today, with its bottles under **left now** ("made from" that day), and a note says when the last bottles were made. At the top of the day, type how many bottles you made (choose the juice and size if they differ) and tap **Add**. The three boxes then show **made**, **sold** and **left** (left now, or left that evening for a past day). Bottles left roll over to the next day and are sold first. If some went bad or were given away, tap **Some went bad or were given away**. Tap a count you added (e.g. "20 × Fresh juice 500 ml") to change it, delete it, or write off bottles from it. A juice with a recipe also takes its fruit off **Stock** for those litres.
 
@@ -148,6 +150,8 @@ For shops, schools, offices, canteens and events that order ahead.
 - **Change** (while To make), **Back to To make** (puts packed bottles back), **Cancel order** (keeps the history and payments; bottles go back), **Delete** (removes it for good).
 
 The chips at the top show **Open**, **To make**, **Ready**, **Out for delivery**, **Delivered**, **Unpaid** or **All**.
+
+**Event quote** (weddings, parties, meetings): tap **Event quote** (next to New order, or **+**). Type the event, the customer, the day, the number of guests and bottles per guest, choose the size, the juices and the event price of a bottle, and any delivery charge. The app works out the bottles (shared evenly between the juices), the litres, the fruit the recipes need against what is in Stock (and what to buy), the cost, the total, the profit and a deposit of half. **Send quote** shows the message to check before it goes on WhatsApp; **Save as order** turns it into an order for the event day. Nothing is saved until then.
 
 ## Reminders
 
@@ -223,7 +227,7 @@ Each card shows the recipe for **10 litres**, how many days it keeps, and for ea
 Three tabs:
 
 - **Juice in the fridge:** bottles of each juice and size, single fruit and cocktails apart, worked out from the batches. **Fridge temperatures today** (tap **Record** each morning; keep 0 to 5 °C). **By batch**: every batch in the fridge with its best-before; sell the oldest first. **Write off spoiled** records juice that went bad, broke or was given away.
-- **Fruit and ingredients** and **Bottles and packaging:** what you have, with a bar that turns red below the reorder level. **Buy** records a purchase; **Count** corrects the stock after counting (rotten fruit thrown away, a miscount). Tap an item to change its name, unit or reorder level, or to hide it. **New fruit or ingredient** / **New packaging item** adds one.
+- **Fruit and ingredients** and **Bottles and packaging:** a table of what is **left** of each item (red below the reorder level, and those come first), with what was **bought** and **used**, the **reorder level**, and for the owner the **cost each** and what the stock is **worth**. **Buy** records a purchase; **Count** corrects the stock after counting (rotten fruit thrown away, a miscount). Tap an item to change its name, unit or reorder level, or to hide it. **New fruit or ingredient** / **New packaging item** adds one.
 
 **Fruit is counted in pieces** (mangoes, passion fruits, oranges, lemons...), so buy, count and write recipes in pieces; sugar stays in kg and mint in bunches. The usual set comes with typical counts per 10 litres (e.g. 30 mangoes); change them on **Recipes and prices** to what you really use. A new item starts in pieces; choose another unit in its form if needed.
 
@@ -235,7 +239,7 @@ Every purchase of fruit, sugar and packaging.
 
 **Buying:** tap **Buy**. Choose what was bought (or **+ New item** for something not in Stock yet: its name, fruit or packaging, and what it is counted in; it is added to Stock with the purchase), type the supplier (a new name is added to Suppliers), the quantity (fruit in pieces) and the price per unit (per piece for fruit) (the total is worked out), what you paid now (leave 0 if on credit; **Paid in full** fills it) and, for fruit, the quality. Saving adds it to stock and updates the recipe costs.
 
-Open a purchase to **Pay the supplier** or delete it. The page also shows what was bought this month, what you **owe suppliers**, and the price of your most-bought fruit over the last purchases, to follow the season.
+Purchases are grouped by the **day they were bought**, newest first: each day shows how many things were bought, the day's total and anything still owed. Open a purchase to **Pay the supplier** or delete it. The page also shows what was bought this month, what you **owe suppliers**, and the price of your most-bought fruit over the last purchases, to follow the season.
 
 ## Customers
 
@@ -258,7 +262,7 @@ Tap a customer to see what they owe, day by day, oldest first, and:
 - **Money paid ahead** list: each amount paid ahead, and how much has gone on bottles. The bin removes one entered by mistake (not once bottles have used it).
 - **Call**, **Send statement**, **New order**, **Change** their details (including a **standing discount**: an amount taken off every sale to them) or **Hide** them.
 
-**The statement card:** **Statement** (on the card) or **Send statement** (in the customer) makes a picture in Vanny's colours, with the juice photo as a watermark, that tells the customer one thing: their balance (what they owe less anything paid ahead), or **All paid up**, or what they have **paid ahead** (and about how many bottles that is), as at today. No list of days. **Send on WhatsApp** opens the phone's share list: choose WhatsApp, then the customer. On a laptop the picture is saved and WhatsApp opens, to attach it. **Save picture** keeps it; **Send the list of days instead** sends the old text list.
+**The statement card:** **Statement** (on the card) or **Send statement** (in the customer) makes a picture in Vanny's colours, with the juice photo as a watermark, that tells the customer one thing: their balance (what they owe less anything paid ahead), or **All paid up**, or what they have **paid ahead** (and about how many bottles that is), as at today. No list of days. **Send on WhatsApp** opens the phone's share list: choose WhatsApp, then the customer. On a laptop the picture is saved and WhatsApp opens, to attach it. **Save picture** keeps it; **Send the list of days instead** sends the old text list. The bottom of the card shows the ways to pay (Airtel Money and Cash), the number for **WhatsApp and calls** and the **Airtel Money** number; change them in **Settings > Business**.
 
 Every bottle paid from money paid ahead (Day list, Sell or an order) takes it down by itself; undoing that sale puts the money back.
 
@@ -298,10 +302,11 @@ Choose the period at the top: this month, last month, this year, last year, all 
 ## Settings
 
 - **Your PIN:** lock the app now, change your PIN, or sign out of this phone (see **Opening the app**).
-- **Business:** name, WhatsApp and phone numbers, the message at the bottom of receipts, mobile money merchant code.
+- **Business:** name, the number for **WhatsApp and calls**, the message at the bottom of receipts, mobile money merchant code, and **On the statement card**: the ways to pay and the Airtel Money number printed on the card.
 - **Bottle sizes and prices:** the price of each size (one price for every juice), what the bottle, cap and label cost, which bottle from Stock each size uses up (both filled in by themselves when you buy a bottle with its size in the name, e.g. "Bottles 500 ml" or "1 litre bottles": the bottle is linked to that size and its cost becomes the price you paid, plus caps and labels), which packaging **every bottle also uses** (caps, labels), and the deposit on a returnable bottle. New prices apply to new sales and orders only.
 - **Lists and freshness:** ways of paying, expense groups, fridges, the highest fridge temperature, the hygiene checks, and **Sell only bottles recorded in the fridge** (off at first: you can sell before recording production; turn it on once every batch is recorded).
 - **Backup:** **Download a backup** saves every record in one file; keep one every week somewhere safe (send it to yourself on WhatsApp, or save it to Drive). **Restore a backup** reads such a file back. **Delete all records** wipes everything on every phone (you must type DELETE), and stops every staff PIN. If records were saved on a phone before the app moved to the cloud, Backup shows **Add them to the cloud records**: tap it once on that phone.
+- **Start again from a date** (in Backup): for a fresh start without losing customers, juices, recipes, stock items, suppliers or staff. Choose the first day to keep; everything dated before it (sales, payments, orders already delivered or cancelled, batches, purchases, counts, expenses, attendance, wages, fridge readings, finished reminders) is removed. **Money paid ahead** is always kept, as it stood that day. **Keep what customers still owe from before** (ticked at first) keeps each customer's old balance as one line, **Owed from before**, so it can still be collected; untick it to forget old debts. The app shows what will go before you start, asks you to type START, and downloads a backup first. Money paid on or after the day for older days stays recorded on the Owed-from-before line.
 
 ## People and what they can open
 
@@ -318,6 +323,7 @@ Each person's own PIN decides what they can open. The cloud checks it too: a sta
 
 ## What's new
 
+- **18 November 2026:** Buying grouped by the day bought; Stock as a table of what is left; a **Money received** button on the Day list; **The last 8 weeks** chart on Home; **Event quote** for weddings and other events; the statement card shows Airtel Money and Cash, the WhatsApp and calls number and the Airtel Money number; **Start again from a date** in Settings > Backup.
 - **16 November 2026:** one price per bottle size (no premium price); a **Discount** switch on Day list taps, Someone else and Sell (2,000 at first, remembered), and a **standing discount** per customer that applies by itself; the Day list's taps show and switch the size and price, starting on the size sold most.
 - **16 November 2026:** **Day list** with a **Week** view, in the colours of the Excel sheet (a tab on the phone; Production moved under More). **Money paid ahead** for customers who pay in advance, **Money received** that pays several days at once (oldest first), selling before production is recorded, **bottles made** each day with made / sold / left, **cards** with how each customer pays (collection rate, overdue days) and how each juice sells, profit **by what was bought** beside profit by recipe, recipes **worked out from a batch** (any day), **reconciling** bottles already made, and **deleting** a juice (moving its history to another juice first). The records of the Excel sheet (14 September to 13 November) go in once, from a file, with Settings > Backup > Restore.
 - **12 November 2026:** the records are now kept in the cloud: every phone and laptop sees the same records. Each person opens the app with their own PIN (the owner with hers; staff with their phone number and the PIN the owner gives them in Staff). Records saved on a phone before can be added in Settings > Backup.

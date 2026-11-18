@@ -14,6 +14,9 @@ export interface CardInput {
   phone: string;
   merchantCode: string;
   note: string;
+  /** e.g. "Airtel Money · Cash" */
+  pay: string;
+  airtel: string;
 }
 
 const W = 1080;
@@ -261,7 +264,7 @@ export async function drawStatementCard(input: CardInput, base = './'): Promise<
     ctx.fillText('Pay easily', 100, by);
     ctx.font = `500 30px ${FONT}`;
     ctx.fillStyle = C.ink;
-    ctx.fillText('MTN MoMo · Airtel Money · Cash', 100, by + 50);
+    ctx.fillText(input.pay || 'Airtel Money · Cash', 100, by + 50);
     if (input.merchantCode) ctx.fillText(`Merchant code: ${input.merchantCode}`, 100, by + 95);
   } else {
     ctx.fillText('Fresh juice, every day', 100, by);
@@ -271,8 +274,9 @@ export async function drawStatementCard(input: CardInput, base = './'): Promise<
   ctx.fillStyle = C.muted;
   ctx.font = `600 30px ${FONT}`;
   const cy = by + (s.kind === 'owes' && input.merchantCode ? 160 : 120);
-  if (input.whatsapp) ctx.fillText(`WhatsApp ${input.whatsapp}`, 100, cy);
-  if (input.phone && input.phone !== input.whatsapp) ctx.fillText(`Call ${input.phone}`, 100, cy + 44);
+  // WhatsApp and calls on one number; the Airtel Money number on its own line
+  if (input.whatsapp) ctx.fillText(`WhatsApp & call ${input.whatsapp}`, 100, cy);
+  if (input.airtel) ctx.fillText(`Airtel Money ${input.airtel}`, 100, cy + 44);
 
   // Green thank-you strip
   const strip = ctx.createLinearGradient(0, H - 110, W, H);

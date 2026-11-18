@@ -120,6 +120,8 @@ export interface Sale extends Base {
   method: string; // how it was paid, or 'On credit'
   /** Money taken off this sale (already in the line prices; kept to show it) */
   discount?: number;
+  /** A balance brought forward by "Start again from a date": owed from before, not a sale of juice */
+  opening?: boolean;
   emptiesBack?: number;
   note?: string;
 }
@@ -157,6 +159,9 @@ export type PaymentKind = 'order' | 'sale' | 'purchase' | 'advance';
 
 /** How a sale or order is paid when it comes out of the customer's money paid ahead (not new money). */
 export const FROM_ADVANCE = 'From money paid ahead';
+
+/** The note on records made by "Start again from a date": balances brought forward, not new sales or new money. */
+export const OPENING_NOTE = 'Brought forward';
 
 export interface Payment extends Base {
   kind: PaymentKind;
@@ -262,6 +267,10 @@ export interface Settings {
   phone: string;
   receiptNote: string;
   merchantCode: string;
+  /** The ways to pay printed on the statement card */
+  cardPay: string;
+  /** The Airtel Money number printed on the statement card */
+  airtelNumber: string;
   currency: string;
   methods: string[];
   expenseGroups: string[];
@@ -289,6 +298,8 @@ export const DEFAULT_SETTINGS: Settings = {
   phone: '+256 751 349633',
   receiptNote: 'Thank you! Fresh every day.',
   merchantCode: '',
+  cardPay: 'Airtel Money · Cash',
+  airtelNumber: '+256 751 349633',
   currency: 'UGX',
   methods: ['Cash', 'MTN MoMo', 'Airtel Money', 'Bank'],
   expenseGroups: ['Rent', 'Power and water', 'Gas and fuel', 'Transport', 'Repairs', 'Cleaning', 'Market and licences', 'Other'],

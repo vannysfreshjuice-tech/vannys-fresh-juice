@@ -28,7 +28,8 @@ export function JuiceBadge({ product, size = 40 }: { product: Product | undefine
 
 export function useJuice() {
   const { productsById, settings } = useData();
-  const name = (id: string) => productsById.get(id)?.name ?? 'Juice no longer in the list';
+  // a line with no juice is a balance brought forward by "Start again from a date"
+  const name = (id: string) => (id ? (productsById.get(id)?.name ?? 'Juice no longer in the list') : 'Owed from before');
   const sizeLabel = (k: string) => sizeOf(settings.sizes, k)?.label ?? k;
   const lineText = (l: Pick<OrderLine, 'productId' | 'size' | 'qty'>) => `${l.qty} × ${name(l.productId)} ${sizeLabel(l.size)}`;
   const price = (productId: string, size: string) => priceOf(productsById.get(productId), sizeOf(settings.sizes, size));

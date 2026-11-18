@@ -29,6 +29,7 @@ import type {
   WagePayment,
 } from '../lib/types';
 import { accessRemoval, newId, type Op, type Store } from './store';
+import { startAgainPlan } from '../lib/startAgain';
 
 type Input<T> = Omit<T, 'id' | 'createdAt' | 'updatedAt'>;
 export interface PaidNow {
@@ -798,6 +799,14 @@ export function makeActions(store: Store, now: () => Current) {
       const perBottle = now().settings.perBottle.length ? now().settings.perBottle : ['Caps', 'Labels (stickers)'].map((n) => itemId.get(n) ?? '').filter(Boolean);
       ops.push({ op: 'patch', col: 'settings', id: 'main', data: { sizes, perBottle, ...touched() } });
       await store.commit(ops);
+    },
+
+    /** Start again from a date: everything dated before it goes; balances are carried over (see lib/startAgain). */
+    async startAgainFrom(cutoff: string, carryOwed: boolean) {
+      need(cutoff && cutoff <= todayYmd(), 'Choose a day that has come.');
+      const plan = startAgainPlan(cur(), cutoff, carryOwed, newId);
+      if (plan.ops.length) await store.commit(plan.ops);
+      return plan;
     },
 
     /** For restore and "delete all records". */

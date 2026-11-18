@@ -286,22 +286,28 @@ export function PaymentForm({ kind, refId, onClose }: { kind: PaymentKind; refId
  * Money from a customer as one amount: pays what they owe, oldest first; anything over is kept as
  * money paid ahead. fromAdvance: uses their money paid ahead to pay what they owe.
  */
-export function ReceiveForm({ customerId, fromAdvance, onClose }: { customerId: string; fromAdvance?: boolean; onClose: () => void }) {
-  const { actions, customersById, customerBal, customerAdv, settings, today } = useData();
-  const c = customersById.get(customerId);
+export function ReceiveForm({ customerId: givenId, fromAdvance, onClose }: { customerId?: string; fromAdvance?: boolean; onClose: () => void }) {
+  const { actions, customers, customersById, customerBal, customerAdv, settings, today } = useData();
+  // Opened from the Day list there is no customer yet: type the name (a new name becomes a customer).
+  const [name, setName] = useState('');
+  const typed = !givenId ? customers.find((x) => !x.archived && x.name.trim().toLowerCase() === name.trim().toLowerCase()) : undefined;
+  const customerId = givenId ?? typed?.id ?? '';
+  const c = customerId ? customersById.get(customerId) : undefined;
   const owes = customerBal.get(customerId) ?? 0;
   const ahead = customerAdv.get(customerId) ?? 0;
-  const [amount, setAmount] = useState(fromAdvance ? Math.min(owes, ahead) : owes);
+  const [chosenAmount, setAmount] = useState<number | null>(null);
+  const amount = chosenAmount ?? (fromAdvance ? Math.min(owes, ahead) : owes);
   const [date, setDate] = useState(today);
   const [method, setMethod] = useState(settings.methods[0]);
   const { busy, error, run } = useSaver();
   const notify = useNotice();
-  if (!c) return null;
+  if (givenId && !c) return null;
   const cur = (n: number) => money(n, settings.currency);
   const over = fromAdvance ? 0 : Math.max(0, amount - owes);
+  const who = c?.name ?? name.trim();
   return (
     <Sheet
-      title={fromAdvance ? 'Use money paid ahead' : `Money from ${c.name}`}
+      title={fromAdvance ? 'Use money paid ahead' : givenId ? `Money from ${who}` : 'Money received'}
       onClose={onClose}
       footer={
         <SheetButtons>
@@ -309,7 +315,11 @@ export function ReceiveForm({ customerId, fromAdvance, onClose }: { customerId: 
             busy={busy}
             onClick={() =>
               run(
-                () => actions.receiveMoney(customerId, { amount, date, method: fromAdvance ? FROM_ADVANCE : method }),
+                async () => {
+                  if (!who) throw new Error("Type the customer's name.");
+                  const id = customerId || (await actions.saveCustomer({ name: who, type: 'Person' }));
+                  return actions.receiveMoney(id, { amount, date, method: fromAdvance ? FROM_ADVANCE : method });
+                },
                 (r) => {
                   notify(r.kept ? (r.paid ? `${cur(r.paid)} paid what they owed; ${cur(r.kept)} kept as paid ahead` : `${cur(r.kept)} kept as paid ahead`) : `${cur(r.paid)} paid`);
                   onClose();
@@ -323,6 +333,16 @@ export function ReceiveForm({ customerId, fromAdvance, onClose }: { customerId: 
       }
     >
       <FormError message={error} />
+      {!givenId && (
+        <Field label="From whom" hint="A new name is added to Customers." className="mb-3">
+          <TextInput list="receive-customers" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+          <datalist id="receive-customers">
+            {customers.filter((x) => !x.archived).map((x) => (
+              <option key={x.id} value={x.name} />
+            ))}
+          </datalist>
+        </Field>
+      )}
       <div className="mb-3 divide-y divide-line">
         <Line label="Owes" value={cur(owes)} tone={owes ? 'bad' : 'good'} />
         <Line label="Paid ahead" value={cur(ahead)} tone={ahead ? 'good' : 'muted'} />

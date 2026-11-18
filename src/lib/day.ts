@@ -51,7 +51,7 @@ export interface DaySummary {
  * record, and days to come, are not coloured.
  */
 export function daySummary(day: string, today: string, firstDay: string, sales: Sale[], orders: Order[], byRef: Map<string, Payment[]>): DaySummary {
-  const list = sales.filter((s) => s.date === day).sort((a, b) => (a.time || '').localeCompare(b.time || '') || a.createdAt - b.createdAt);
+  const list = sales.filter((s) => s.date === day && !s.opening).sort((a, b) => (a.time || '').localeCompare(b.time || '') || a.createdAt - b.createdAt);
   const delivered = orders.some((o) => o.stage === 'Delivered' && o.deliveredOn === day);
   const wd = fromYmd(day).getDay();
   const state: DayState = list.length || delivered ? 'supplied' : day > today ? 'later' : day === today ? 'today' : !firstDay || day < firstDay ? 'before' : wd === 0 || wd === 6 ? 'weekend' : 'none';
@@ -108,7 +108,7 @@ export function mostSold(sales: Sale[], day: string): { productId: string; size:
   const from = addDays(day, -60);
   const count = new Map<string, number>();
   for (const s of sales) {
-    if (s.date < from || s.date > day) continue;
+    if (s.opening || s.date < from || s.date > day) continue;
     for (const l of s.lines ?? []) count.set(`${l.productId}|${l.size}`, (count.get(`${l.productId}|${l.size}`) ?? 0) + num(l.qty));
   }
   const top = [...count].sort((a, b) => b[1] - a[1])[0];
@@ -126,7 +126,7 @@ export function regulars(sales: Sale[], day: string, max = 16): string[] {
   const count = new Map<string, { n: number; last: string }>();
   const onTheDay: string[] = [];
   for (const s of sales) {
-    if (!s.customerId) continue;
+    if (!s.customerId || s.opening) continue;
     if (s.date === day && !onTheDay.includes(s.customerId)) onTheDay.push(s.customerId);
     if (s.date < from || s.date >= day) continue;
     const c = count.get(s.customerId) ?? { n: 0, last: '' };

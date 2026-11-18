@@ -10,6 +10,7 @@ import { CustomerForm, CustomerView, ExpenseForm, ReminderForm, StaffForm, WageF
 import { BatchForm, BatchView, BottleForm, DeleteJuiceForm, ProductForm, ReconcileForm, WriteOffForm } from '../sheets/production';
 import { DayEntryForm } from '../sheets/day';
 import { MessagePreview } from '../sheets/message';
+import { EventQuoteSheet } from '../sheets/quote';
 import { StatementCardSheet } from '../sheets/statement';
 import { Checkout, PaymentForm, Receipt, ReceiveForm, SaleView } from '../sheets/sales';
 import { CountForm, ItemForm, PurchaseForm, PurchaseView, ReadingForm, SupplierForm } from '../sheets/stock';
@@ -22,8 +23,9 @@ export type SheetSpec =
   | { t: 'receipt'; id: string }
   | { t: 'saleView'; id: string }
   | { t: 'payment'; kind: PaymentKind; refId: string }
-  | { t: 'receive'; customerId: string; fromAdvance?: boolean }
+  | { t: 'receive'; customerId?: string; fromAdvance?: boolean }
   | { t: 'statementCard'; customerId: string }
+  | { t: 'eventQuote' }
   | { t: 'message'; title: string; to?: string; phone?: string; text: string }
   | { t: 'dayEntry'; date: string; customerName?: string }
   | { t: 'order'; id?: string; customerName?: string }
@@ -76,6 +78,8 @@ function render(spec: SheetSpec, close: () => void) {
       return <PaymentForm kind={spec.kind} refId={spec.refId} onClose={close} />;
     case 'message':
       return <MessagePreview title={spec.title} to={spec.to} phone={spec.phone} text={spec.text} onClose={close} />;
+    case 'eventQuote':
+      return <EventQuoteSheet onClose={close} />;
     case 'statementCard':
       return <StatementCardSheet customerId={spec.customerId} onClose={close} />;
     case 'receive':

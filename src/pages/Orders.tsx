@@ -34,7 +34,21 @@ export function Orders() {
   const unpaid = sum(orders, (o) => orderTotals(o, byRef.get(o.id)).balance);
   return (
     <div>
-      <PageHead title="Orders and deliveries" action={role !== 'rider' && <Button icon={Plus} onClick={() => sheets.open({ t: 'order' })}>New order</Button>} />
+      <PageHead
+        title="Orders and deliveries"
+        action={
+          role !== 'rider' && (
+            <div className="flex flex-wrap gap-2">
+              <Button variant="plain" onClick={() => sheets.open({ t: 'eventQuote' })}>
+                Event quote
+              </Button>
+              <Button icon={Plus} onClick={() => sheets.open({ t: 'order' })}>
+                New order
+              </Button>
+            </div>
+          )
+        }
+      />
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="To make" value={String(count('To make'))} />
         <StatCard label="Ready to go" value={String(count('Ready'))} />

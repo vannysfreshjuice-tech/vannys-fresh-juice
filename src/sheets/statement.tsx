@@ -35,7 +35,7 @@ export function StatementCardSheet({ customerId, onClose }: { customerId: string
     if (!c) return;
     let gone = false;
     let made = '';
-    drawStatementCard({ businessName: settings.businessName, customerName: name, standing: st, currency: settings.currency, dateText: longDate(today), whatsapp: settings.whatsapp, phone: settings.phone, merchantCode: settings.merchantCode, note: settings.receiptNote })
+    drawStatementCard({ businessName: settings.businessName, customerName: name, standing: st, currency: settings.currency, dateText: longDate(today), whatsapp: settings.whatsapp, phone: settings.phone, merchantCode: settings.merchantCode, note: settings.receiptNote, pay: settings.cardPay, airtel: settings.airtelNumber })
       .then((b) => {
         if (gone) return;
         made = URL.createObjectURL(b);

@@ -3,10 +3,10 @@
 // Juices (for a period): bottles, sales, profit, margin, share of sales, customers, days sold,
 // change against the period before, spoiled bottles.
 import { addDays, daysBetween, inPeriod, showDate, type Period } from './dates';
-import { customerAdvances, linesValue, orderTotals, orderValue, saleTotals, type Debt } from './juice';
+import { customerAdvances, isMoneyIn, linesValue, orderTotals, orderValue, saleTotals, type Debt } from './juice';
 import { money, num, sum } from './money';
 import type { Report } from './reports';
-import type { Batch, Customer, Order, Payment, Product, Sale, WriteOff } from './types';
+import { OPENING_NOTE, type Batch, type Customer, type Order, type Payment, type Product, type Sale, type WriteOff } from './types';
 
 /** An unpaid day older than this many days counts as overdue. */
 export const OVERDUE_DAYS = 7;
@@ -39,20 +39,22 @@ export function customerStats(customers: Customer[], sales: Sale[], orders: Orde
   for (const c of customers) at(c.id);
   const recent = addDays(today, -27);
   const overdueBefore = addDays(today, -OVERDUE_DAYS);
-  const add = (id: string, date: string, value: number, balance: number, bottles: number) => {
+  const add = (id: string, date: string, value: number, balance: number, bottles: number, opening = false) => {
     const s = at(id);
     s.billed += value;
     s.owed += balance;
-    s.times += 1;
-    s.bottles += bottles;
-    if (date >= recent && date <= today) s.perWeek += bottles / 4;
-    if (date > s.lastActive) s.lastActive = date;
+    if (!opening) {
+      s.times += 1;
+      s.bottles += bottles;
+    }
+    if (!opening && date >= recent && date <= today) s.perWeek += bottles / 4;
+    if (!opening && date > s.lastActive) s.lastActive = date;
     if (balance > 0) {
       if (date < overdueBefore) s.overdue += 1;
       if (!s.oldestUnpaid || date < s.oldestUnpaid) s.oldestUnpaid = date;
     }
   };
-  for (const s of sales) if (s.customerId) add(s.customerId, s.date, linesValue(s.lines), saleTotals(s, byRef.get(s.id)).balance, sum(s.lines, (l) => num(l.qty)));
+  for (const s of sales) if (s.customerId) add(s.customerId, s.date, linesValue(s.lines), saleTotals(s, byRef.get(s.id)).balance, sum(s.lines, (l) => num(l.qty)), !!s.opening);
   for (const o of orders) if (o.customerId && o.stage !== 'Cancelled') add(o.customerId, o.deliveredOn || o.dueDate, orderValue(o), orderTotals(o, byRef.get(o.id)).balance, sum(o.lines, (l) => num(l.qty)));
   for (const s of out.values()) {
     s.paid = s.billed - s.owed;
@@ -76,6 +78,49 @@ export function standing(owes: number, ahead: number, bottlePrice: number): Stan
   if (net > 0) return { kind: 'owes', amount: net, bottles: 0 };
   if (net < 0) return { kind: 'ahead', amount: -net, bottles: bottlePrice > 0 ? Math.floor(-net / bottlePrice) : 0 };
   return { kind: 'clear', amount: 0, bottles: 0 };
+}
+
+export interface WeekPoint {
+  /** the Monday */
+  start: string;
+  sales: number;
+  moneyIn: number;
+  bottles: number;
+}
+
+/**
+ * The last n weeks (Monday to Sunday), oldest first, the current week last: what was sold
+ * (counter and day list sales on their day, orders on the day delivered) and the money that came in.
+ */
+export function weeklySeries(sales: Sale[], orders: Order[], payments: Payment[], today: string, weeks = 8): WeekPoint[] {
+  const wd = new Date(`${today}T12:00:00`).getDay();
+  const thisMon = addDays(today, wd === 0 ? -6 : 1 - wd);
+  const points: WeekPoint[] = Array.from({ length: weeks }, (_, i) => ({ start: addDays(thisMon, -7 * (weeks - 1 - i)), sales: 0, moneyIn: 0, bottles: 0 }));
+  const first = points[0].start;
+  const at = (date: string) => {
+    if (date < first || date > addDays(thisMon, 6)) return undefined;
+    return points[Math.floor(daysBetween(first, date) / 7)];
+  };
+  for (const s of sales) {
+    if (s.opening) continue;
+    const pt = at(s.date);
+    if (!pt) continue;
+    pt.sales += linesValue(s.lines);
+    pt.bottles += sum(s.lines, (l) => num(l.qty));
+  }
+  for (const o of orders) {
+    if (o.stage !== 'Delivered') continue;
+    const pt = at(o.deliveredOn || o.dueDate);
+    if (!pt) continue;
+    pt.sales += orderValue(o);
+    pt.bottles += sum(o.lines, (l) => num(l.qty));
+  }
+  for (const p of payments) {
+    if (!isMoneyIn(p) || p.note === OPENING_NOTE) continue;
+    const pt = at(p.date);
+    if (pt) pt.moneyIn += num(p.amount);
+  }
+  return points;
 }
 
 /** The WhatsApp statement: what is owed day by day (oldest first), the total, and money paid ahead. */
@@ -134,7 +179,7 @@ export function juiceStats(report: Report, before: Report | null, sales: Sale[],
       customers.get(productId)!.add(customerId);
     }
   };
-  for (const s of sales) for (const l of s.lines ?? []) note(l.productId, s.date, s.customerId);
+  for (const s of sales) if (!s.opening) for (const l of s.lines ?? []) note(l.productId, s.date, s.customerId);
   for (const o of orders) if (o.stage === 'Delivered') for (const l of o.lines) note(l.productId, o.deliveredOn || o.dueDate, o.customerId);
   const batchProduct = new Map(batches.map((b) => [b.id, b.productId]));
   const spoiled = new Map<string, number>();

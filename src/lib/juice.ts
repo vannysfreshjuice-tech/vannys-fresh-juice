@@ -1,7 +1,7 @@
 // The figures of the juice business, worked out from the records. Nothing here is stored.
 // Pages and actions both use these functions, so a figure is worked out one way only.
 import { num, sum } from './money';
-import { FROM_ADVANCE, type Batch, type BottleLine, type Customer, type Order, type OrderLine, type Payment, type Product, type Purchase, type Records, type Sale, type Size, type StockCount, type StockItem, type WriteOff } from './types';
+import { FROM_ADVANCE, OPENING_NOTE, type Batch, type BottleLine, type Customer, type Order, type OrderLine, type Payment, type Product, type Purchase, type Records, type Sale, type Size, type StockCount, type StockItem, type WriteOff } from './types';
 
 export const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
@@ -324,7 +324,7 @@ export function debtsOf(customerId: string, orders: Order[], sales: Sale[], byRe
 }
 
 /** Money that really came in: payments for sales and orders, except those taken from money paid ahead, plus money paid ahead. */
-export const isMoneyIn = (p: Payment) => p.kind === 'advance' || ((p.kind === 'order' || p.kind === 'sale') && p.method !== FROM_ADVANCE);
+export const isMoneyIn = (p: Payment) => p.note !== OPENING_NOTE && (p.kind === 'advance' || ((p.kind === 'order' || p.kind === 'sale') && p.method !== FROM_ADVANCE));
 
 export function supplierOwed(r: Pick<Records, 'purchases' | 'suppliers'>, byRef: Map<string, Payment[]>): Map<string, number> {
   const out = new Map<string, number>(r.suppliers.map((s) => [s.id, 0]));
