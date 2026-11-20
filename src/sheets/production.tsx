@@ -6,9 +6,9 @@ import { useSheets } from '../components/SheetHost';
 import { Badge, Button, Choice, DateInput, Field, FormError, IconButton, Line, QtyInput, Select, Sheet, SheetButtons, TextInput, cx, useConfirm, useNotice, useSaver } from '../components/ui';
 import { useData } from '../data/DataContext';
 import { addDays, showDate, showDay } from '../lib/dates';
-import { batchCost, bottleCost, priceOf, recipeCostPerLitre, sizeOf } from '../lib/juice';
+import { averageRecipe, batchCost, bottleCost, priceOf, recipeCostPerLitre, sizeOf } from '../lib/juice';
 import { qty as showQty } from '../lib/money';
-import { WRITE_OFF_REASONS, type ProductKind, type RecipeLine } from '../lib/types';
+import { WRITE_OFF_REASONS, type Batch, type ProductKind, type RecipeLine } from '../lib/types';
 
 function Tick({ on, set, text }: { on: boolean; set: (v: boolean) => void; text: string }) {
   return (
@@ -34,27 +34,35 @@ function BottleBoxes({ filled, setFilled }: { filled: Record<string, number>; se
 }
 
 export function BatchForm({ productId, onClose }: { productId?: string; onClose: () => void }) {
-  const { actions, products, items, itemsById, levels, settings, today, staff, avgCosts, me } = useData();
+  const { actions, products, items, itemsById, levels, settings, today, staff, avgCosts, me, batches } = useData();
   const j = useJuice();
   const notify = useNotice();
   const live = products.filter((p) => !p.archived);
   const [pid, setPid] = useState(productId ?? live[0]?.id ?? '');
   const product = live.find((p) => p.id === pid);
-  const [litres, setLitres] = useState(10);
-  const suggest = (l: number): Record<string, number> => {
-    const out: Record<string, number> = {};
-    const k = (key: string) => settings.sizes.find((s) => s.key === key);
-    if (k('300') && k('500') && k('1000')) {
-      out['300'] = Math.floor((l * 0.3) / 0.3);
-      out['500'] = Math.floor((l * 0.5) / 0.5);
-      out['1000'] = Math.floor(l * 0.2);
-    }
-    return out;
+  // Bottles first: the litres follow the bottles unless typed (e.g. still being made, or some left over)
+  const lastFilled = (id: string): Record<string, number> => {
+    const last = batches.filter((b) => b.productId === id && Object.keys(b.filled ?? {}).length).sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt)[0];
+    return last ? Object.fromEntries(Object.keys(last.filled).map((k) => [k, 0])) : {};
   };
-  const [filled, setFilled] = useState<Record<string, number>>(suggest(10));
+  const [filled, setFilled] = useState<Record<string, number>>({});
   const [bottleLater, setBottleLater] = useState(false);
-  const recipeFor = (l: number, p = product): RecipeLine[] => (p?.recipe ?? []).map((r) => ({ itemId: r.itemId, qty: Math.round(((r.qty * l) / 10) * 1000) / 1000 }));
-  const [used, setUsed] = useState<RecipeLine[]>(recipeFor(10));
+  const [litresTyped, setLitresTyped] = useState<number | null>(null);
+  const bottled = Object.entries(bottleLater ? {} : filled).reduce((t, [k, n]) => t + n * (sizeOf(settings.sizes, k)?.litres ?? 0), 0);
+  const litres = litresTyped ?? Math.round(bottled * 1000) / 1000;
+  // What went in: the juice's own ingredients, filled in for these litres until changed by hand
+  type Row = { itemId: string; qty: number; typed: boolean };
+  const rowsFor = (p = product): Row[] => (p?.recipe ?? []).map((r) => ({ itemId: r.itemId, qty: 0, typed: false }));
+  const [rows, setRows] = useState<Row[]>(rowsFor());
+  const [water, setWater] = useState<number | null>(null);
+  const expected = (itemId: string) => {
+    const r = product?.recipe.find((x) => x.itemId === itemId);
+    return r ? Math.round(((r.qty * litres) / 10) * 10) / 10 : 0;
+  };
+  const used: RecipeLine[] = rows.map((r) => ({ itemId: r.itemId, qty: r.typed ? r.qty : expected(r.itemId) })).filter((u) => u.qty > 0);
+  const waterUsed = water ?? Math.round((((product?.water ?? 0) * litres) / 10) * 10) / 10;
+  const [adding, setAdding] = useState('');
+  const canAdd = items.filter((i) => !i.archived && i.kind === 'fruit' && !rows.some((r) => r.itemId === i.id));
   const makers = staff.filter((s) => !s.archived && (s.role === 'production' || s.role === 'owner')).map((s) => s.name);
   const [madeBy, setMadeBy] = useState(me?.name ?? makers[0] ?? '');
   const [date, setDate] = useState(today);
@@ -62,17 +70,15 @@ export function BatchForm({ productId, onClose }: { productId?: string; onClose:
   const { busy, error, run } = useSaver();
 
   const changeProduct = (id: string) => {
+    const p = live.find((x) => x.id === id);
     setPid(id);
-    setUsed(recipeFor(litres, live.find((p) => p.id === id)));
+    setRows(rowsFor(p));
+    setWater(null);
+    if (!Object.values(filled).some((n) => n > 0)) setFilled(lastFilled(id));
   };
-  const changeLitres = (l: number) => {
-    setLitres(l);
-    setUsed(recipeFor(l));
-    setFilled(suggest(l));
-  };
-  const fakeBatch = { id: '', number: '', date, productId: pid, litres, used, filled: bottleLater ? {} : filled, madeBy, bestBefore: '', checks, createdAt: 0, updatedAt: 0 };
+  const fakeBatch: Batch = { id: 'new', number: '', date, productId: pid, litres, used, filled: bottleLater ? {} : filled, madeBy, bestBefore: '', checks, water: waterUsed, measured: true, createdAt: Date.now(), updatedAt: Date.now() };
   const cost = batchCost(fakeBatch, product, settings.sizes, avgCosts);
-  const bottled = Object.entries(bottleLater ? {} : filled).reduce((t, [k, n]) => t + n * (sizeOf(settings.sizes, k)?.litres ?? 0), 0);
+  const after = litres > 0 && used.length ? averageRecipe(pid, [...batches, fakeBatch], settings.sizes) : null;
 
   return (
     <Sheet
@@ -85,9 +91,9 @@ export function BatchForm({ productId, onClose }: { productId?: string; onClose:
             busy={busy}
             onClick={() =>
               run(
-                () => actions.saveBatch({ date, productId: pid, litres, used, filled: bottleLater ? {} : filled, madeBy, checks }),
+                () => actions.saveBatch({ date, productId: pid, litres, used, filled: bottleLater ? {} : filled, madeBy, checks, water: waterUsed }),
                 () => {
-                  notify(bottleLater ? 'Batch saved. Fill the bottles when ready.' : 'Batch saved: the bottles are in the fridge');
+                  notify(after ? `Batch saved. ${product?.name} recipe: the average of ${after.batches} batch${after.batches === 1 ? '' : 'es'}` : bottleLater ? 'Batch saved. Fill the bottles when ready.' : 'Batch saved: the bottles are in the fridge');
                   onClose();
                 },
               )
@@ -104,7 +110,7 @@ export function BatchForm({ productId, onClose }: { productId?: string; onClose:
       ) : (
         <div className="space-y-4">
           <div>
-            <span className="label">Juice</span>
+            <span className="label">1. Which juice?</span>
             <div className="flex flex-wrap gap-2">
               {live.map((p) => (
                 <button key={p.id} type="button" className={cx('chip', p.id === pid && 'chip-on')} onClick={() => changeProduct(p.id)}>
@@ -113,60 +119,103 @@ export function BatchForm({ productId, onClose }: { productId?: string; onClose:
               ))}
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            <Field label="Litres made">
-              <QtyInput value={litres} onChange={changeLitres} />
-            </Field>
-            <Field label="Made by">
-              <Select options={makers.length ? makers : ['']} value={madeBy} onChange={(e) => setMadeBy(e.target.value)} />
-            </Field>
-            <Field label="Date">
-              <DateInput value={date} onChange={setDate} />
-            </Field>
+
+          <div>
+            <span className="label">2. Bottles filled</span>
+            <Tick on={bottleLater} set={setBottleLater} text="Still being made: fill the bottles later" />
+            {!bottleLater && <BottleBoxes filled={filled} setFilled={setFilled} />}
+            <div className="mt-2 grid grid-cols-3 gap-3">
+              <Field label="Litres made" hint={litresTyped === null ? (bottleLater ? 'Type the litres' : 'From the bottles') : 'Typed'}>
+                <QtyInput value={litres} onChange={(n) => setLitresTyped(n || null)} />
+              </Field>
+              <Field label="Made by">
+                <Select options={makers.length ? makers : ['']} value={madeBy} onChange={(e) => setMadeBy(e.target.value)} />
+              </Field>
+              <Field label="Date">
+                <DateInput value={date} onChange={setDate} />
+              </Field>
+            </div>
+            {!bottleLater && bottled > litres + 0.05 && <p className="mt-1 text-sm text-cherry">The bottles hold {showQty(bottled)} litres, more than the {showQty(litres)} litres made.</p>}
           </div>
 
           <div>
-            <span className="label">What went in (change if you used more or less)</span>
+            <span className="label">3. What really went in{product ? ` (${product.name})` : ''}</span>
             <div className="card divide-y divide-line px-3">
-              {used.map((u, i) => {
-                const it = itemsById.get(u.itemId);
-                const have = levels.get(u.itemId)?.onHand ?? 0;
+              {rows.map((r) => {
+                const it = itemsById.get(r.itemId);
+                const q = r.typed ? r.qty : expected(r.itemId);
+                const have = levels.get(r.itemId)?.onHand ?? 0;
                 return (
-                  <div key={u.itemId} className="flex items-center gap-3 py-2">
+                  <div key={r.itemId} className="flex items-center gap-2 py-2">
                     <span className="min-w-0 flex-1">
                       <span className="block font-medium">{it?.name ?? 'Item no longer in the list'}</span>
-                      <span className={cx('text-xs', have >= u.qty ? 'text-leaf' : 'text-cherry')}>
-                        {have >= u.qty ? `have ${showQty(have)} ${it?.unit ?? ''}` : `only ${showQty(have)} ${it?.unit ?? ''} in stock`}
+                      <span className={cx('text-xs', have >= q ? 'text-muted' : 'text-cherry')}>
+                        {r.typed ? `recipe says ${showQty(expected(r.itemId))}` : 'from the recipe: type what you used'} · {have >= q ? `have ${showQty(have)}` : have > 0 ? `only ${showQty(have)} in stock` : 'none in stock'}
                       </span>
                     </span>
-                    <QtyInput className="w-24" value={u.qty} onChange={(n) => setUsed((us) => us.map((x, n2) => (n2 === i ? { ...x, qty: n } : x)))} />
-                    <span className="w-14 text-sm text-muted">{it?.unit}</span>
+                    <QtyInput className={cx('w-24', !r.typed && 'text-muted')} value={q} onChange={(n) => setRows((rs) => rs.map((x) => (x.itemId === r.itemId ? { ...x, qty: n, typed: true } : x)))} />
+                    <span className="w-12 text-sm text-muted">{it?.unit}</span>
+                    <IconButton icon={X} label={`Remove ${it?.name ?? 'item'}`} onClick={() => setRows((rs) => rs.filter((x) => x.itemId !== r.itemId))} />
                   </div>
                 );
               })}
-              {product?.water ? (
-                <div className="flex items-center justify-between py-2 text-sm text-muted">
-                  <span>Clean water</span>
-                  <span>{showQty((product.water * litres) / 10)} L</span>
+              <div className="flex items-center gap-2 py-2">
+                <span className="min-w-0 flex-1 font-medium">Clean water</span>
+                <QtyInput className={cx('w-24', water === null && 'text-muted')} value={waterUsed} onChange={(n) => setWater(n)} />
+                <span className="w-12 text-sm text-muted">L</span>
+                <span className="w-11" />
+              </div>
+              {canAdd.length > 0 && (
+                <div className="flex items-center gap-2 py-2">
+                  <Select
+                    aria-label="Add another ingredient"
+                    className="flex-1"
+                    options={[{ value: '', label: rows.length ? '+ Something else that went in' : '+ Add what went in' }, ...canAdd.map((i) => ({ value: i.id, label: `${i.name} (${i.unit})` }))]}
+                    value={adding}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      if (id) setRows((rs) => [...rs, { itemId: id, qty: 0, typed: true }]);
+                      setAdding('');
+                    }}
+                  />
                 </div>
-              ) : null}
-              {!used.length && <p className="py-2 text-sm text-muted">This juice has no recipe yet. Add one on Recipes and prices to work out its cost.</p>}
+              )}
             </div>
+            {!rows.length && <p className="mt-1 text-xs text-muted">This juice has no recipe yet: add each fruit and how much you used, and this batch becomes its recipe.</p>}
             {items.length === 0 && <p className="mt-1 text-xs text-muted">No fruit in Stock yet.</p>}
           </div>
 
-          <div>
-            <span className="label">Bottles filled</span>
-            <Tick on={bottleLater} set={setBottleLater} text="Still being made: fill the bottles later" />
-            {!bottleLater && (
-              <>
-                <BottleBoxes filled={filled} setFilled={setFilled} />
-                <p className={cx('mt-1 text-sm', bottled > litres + 0.05 ? 'text-cherry' : 'text-muted')}>
-                  Bottled {showQty(bottled)} of {showQty(litres)} litres
-                </p>
-              </>
-            )}
-          </div>
+          {after && product && (
+            <div className="card p-3">
+              <p className="font-semibold">
+                {product.name} recipe for 10 litres after this batch
+                <span className="block text-xs font-normal text-muted">
+                  The average of its last {after.batches} batch{after.batches === 1 ? '' : 'es'} ({showQty(after.litres)} litres), because fruit is not the same size every time. Each batch you record updates it.
+                </span>
+              </p>
+              <div className="mt-2 divide-y divide-line text-sm">
+                {after.recipe.map((r) => {
+                  const before = product.recipe.find((x) => x.itemId === r.itemId)?.qty ?? 0;
+                  return (
+                    <div key={r.itemId} className="num flex justify-between py-1">
+                      <span>{itemsById.get(r.itemId)?.name ?? 'Item'}</span>
+                      <span>
+                        {before && before !== r.qty ? <span className="text-muted line-through">{showQty(before)}</span> : null} <b>{showQty(r.qty)}</b> {itemsById.get(r.itemId)?.unit}
+                      </span>
+                    </div>
+                  );
+                })}
+                {after.water !== null && (
+                  <div className="num flex justify-between py-1">
+                    <span>Clean water</span>
+                    <span>
+                      <b>{showQty(after.water)}</b> L
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="card p-3">
             <Line label="Fruit, sugar and other ingredients" value={j.money(cost.juice)} />

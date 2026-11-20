@@ -6,9 +6,9 @@
 // - bottles leave the fridge only here, oldest best-before first.
 // A refused action throws an Error whose message is plain words for the screen.
 import { addDays, todayYmd } from '../lib/dates';
-import { applyDiscount, customerAdvances, debtsOf, fridgeByBatch, linesValue, nextNumber, orderTotals, orderValue, paymentsByRef, purchaseTotals, sameName, saleTotals, sizeOf, takeFromFridge } from '../lib/juice';
+import { applyDiscount, averageRecipe, countsForRecipe, customerAdvances, debtsOf, fridgeByBatch, linesValue, nextNumber, orderTotals, orderValue, paymentsByRef, purchaseTotals, sameName, saleTotals, sizeOf, takeFromFridge } from '../lib/juice';
 import { cleanAmount, cleanQty, money, num, sum } from '../lib/money';
-import { FROM_ADVANCE } from '../lib/types';
+import { DAY_LIST_NOTE, FROM_ADVANCE } from '../lib/types';
 import type {
   Batch,
   Customer,
@@ -167,6 +167,19 @@ export function makeActions(store: Store, now: () => Current) {
     return { ops, id: sv.id, itemIds };
   }
 
+  /** The juice's recipe as the average of its last batches, given the batches as they will be. */
+  function averageData(productId: string, batches: Batch[], water: number) {
+    const avg = averageRecipe(productId, batches, now().settings.sizes);
+    if (!avg) return null;
+    return { recipe: avg.recipe, water: avg.water ?? water, recipeAvg: { batches: avg.batches, litres: avg.litres, last: avg.last } };
+  }
+  function averageOp(productId: string, batches: Batch[]): Op | null {
+    const p = cur().products.find((x) => x.id === productId);
+    if (!p) return null;
+    const d = averageData(productId, batches, p.water);
+    return d ? { op: 'patch', col: 'products', id: productId, data: { ...d, ...touched() } } : null;
+  }
+
   const cleanRecipe = (lines: RecipeLine[]) => lines.map((l) => ({ itemId: l.itemId, qty: cleanQty(l.qty) })).filter((l) => l.itemId && l.qty > 0);
 
   return {
@@ -198,6 +211,13 @@ export function makeActions(store: Store, now: () => Current) {
      */
     async saveProductByNames(input: Omit<Input<Product>, 'recipe'>, lines: RecipeByName[], id?: string): Promise<string> {
       const b = productOps(input, lines, id, (n) => `Type how much ${n} goes into 10 litres.`);
+      const before = id ? cur().products.find((p) => p.id === id) : undefined;
+      const op = b.ops.find((o) => o.col === 'products');
+      if (before?.recipeAvg && op && 'data' in op && op.data) {
+        const d = op.data as { recipe: RecipeLine[]; water: number };
+        const same = JSON.stringify(d.recipe) === JSON.stringify(before.recipe) && d.water === before.water;
+        if (!same) (op.data as Record<string, unknown>).recipeAvg = null;
+      }
       await store.commit(b.ops);
       return b.id;
     },
@@ -223,12 +243,13 @@ export function makeActions(store: Store, now: () => Current) {
           const itemId = b.itemIds.get(text(l.name).toLowerCase());
           if (itemId && cleanQty(l.qty) > 0) usedLines.push({ itemId, qty: cleanQty(l.qty) });
         }
-        b.ops.push({
-          op: 'set',
-          col: 'batches',
-          id: newId(),
-          data: { number: nextNumber('B', cur().batches.map((x) => x.number)), date: today, productId: b.id, litres, used: usedLines, filled: bottles, madeBy: text(madeBy), bestBefore: addDays(today, keeps), checks: [], note: 'Recipe worked out from this batch', ...created() },
-        });
+        const batch = { number: nextNumber('B', cur().batches.map((x) => x.number)), date: today, productId: b.id, litres, used: usedLines, filled: bottles, madeBy: text(madeBy), bestBefore: addDays(today, keeps), checks: [], note: 'Recipe worked out from this batch', measured: true, water: cleanQty(waterUsed), ...created() };
+        const batchId = newId();
+        b.ops.push({ op: 'set', col: 'batches', id: batchId, data: batch });
+        // the recipe becomes the average of this juice's last batches, this one included
+        const op = b.ops.find((o) => o.col === 'products');
+        const d = averageData(b.id, [...cur().batches, { id: batchId, ...batch } as Batch], per10(waterUsed));
+        if (d && op && 'data' in op && op.data) Object.assign(op.data, d);
       }
       await store.commit(b.ops);
       return { id: b.id, litres };
@@ -282,7 +303,15 @@ export function makeActions(store: Store, now: () => Current) {
           shares.get(x.id)!.push({ itemId, qty: q });
         });
       }
-      for (const x of ordered) ops.push({ op: 'patch', col: 'batches', id: x.id, data: { used: shares.get(x.id)!, ...touched() } });
+      const water = cleanQty(waterUsed);
+      const waterOf = (x: Batch) => (water > 0 ? Math.round(((water * num(x.litres)) / litres) * 1000) / 1000 : x.water);
+      for (const x of ordered) ops.push({ op: 'patch', col: 'batches', id: x.id, data: { used: shares.get(x.id)!, measured: true, ...(water > 0 ? { water: waterOf(x) } : {}), ...touched() } });
+      if (updateRecipe) {
+        const after = cur().batches.map((x) => (shares.has(x.id) ? { ...x, used: shares.get(x.id)!, measured: true, water: waterOf(x) } : x));
+        const op = ops.find((o) => o.col === 'products');
+        const d = averageData(productId, after, per10(waterUsed));
+        if (d && op && 'data' in op && op.data) Object.assign(op.data, d);
+      }
       await store.commit(ops);
       return { litres, batches: ordered.length };
     },
@@ -393,7 +422,7 @@ export function makeActions(store: Store, now: () => Current) {
     },
 
     // ---------- production ----------
-    async saveBatch(input: { date: string; productId: string; litres: number; used: RecipeLine[]; filled: Record<string, number>; madeBy: string; checks: string[]; note?: string }): Promise<string> {
+    async saveBatch(input: { date: string; productId: string; litres: number; used: RecipeLine[]; filled: Record<string, number>; madeBy: string; checks: string[]; note?: string; water?: number; measured?: boolean }): Promise<string> {
       const product = cur().products.find((p) => p.id === input.productId);
       need(product, 'Choose the juice.');
       const litres = cleanQty(input.litres);
@@ -415,8 +444,13 @@ export function makeActions(store: Store, now: () => Current) {
         bestBefore: addDays(input.date, product!.keepsDays || 3),
         checks: (input.checks ?? []).filter(Boolean),
         note: text(input.note),
+        measured: input.measured ?? true,
+        ...(input.water !== undefined ? { water: cleanQty(input.water) } : {}),
       };
-      await store.commit([{ op: 'set', col: 'batches', id, data: { ...data, ...created() } }]);
+      const ops: Op[] = [{ op: 'set', col: 'batches', id, data: { ...data, ...created() } }];
+      const avg = averageOp(product!.id, [...cur().batches, { id, ...data, createdAt: Date.now(), updatedAt: Date.now() }]);
+      if (avg && countsForRecipe(data as Batch)) ops.push(avg);
+      await store.commit(ops);
       return id;
     },
     /** Bottling a batch that was saved while still being made. */
@@ -430,7 +464,10 @@ export function makeActions(store: Store, now: () => Current) {
       need(bottled <= num(b!.litres) + 0.05, `Those bottles hold ${Math.round(bottled * 10) / 10} litres, more than the ${b!.litres} litres made.`);
       const taken = fridge().get(id);
       for (const [k, n] of Object.entries(b!.filled ?? {})) need((clean[k] ?? 0) >= n - (taken?.left[k] ?? 0), `Some ${sizeLabel(k)} bottles from this batch are already sold.`);
-      await store.commit([{ op: 'patch', col: 'batches', id, data: { filled: clean, ...touched() } }]);
+      const ops: Op[] = [{ op: 'patch', col: 'batches', id, data: { filled: clean, ...touched() } }];
+      const avg = countsForRecipe(b!) ? averageOp(b!.productId, cur().batches.map((x) => (x.id === id ? { ...x, filled: clean } : x))) : null;
+      if (avg) ops.push(avg);
+      await store.commit(ops);
     },
     /**
      * The Day list's quick count: "20 bottles of Fresh juice 500 ml made today". Saved as a batch,
@@ -447,13 +484,21 @@ export function makeActions(store: Store, now: () => Current) {
       need(input.date && input.date <= todayYmd(), 'Choose a day that has come.');
       const litres = Math.round(bottles * num(size!.litres) * 1000) / 1000;
       const used = (product!.recipe ?? []).map((r) => ({ itemId: r.itemId, qty: Math.round(((num(r.qty) * litres) / 10) * 1000) / 1000 }));
-      return this.saveBatch({ date: input.date, productId: product!.id, litres, used, filled: { [size!.key]: bottles }, madeBy: text(input.madeBy), checks: [], note: 'Counted on the Day list' });
+      return this.saveBatch({ date: input.date, productId: product!.id, litres, used, filled: { [size!.key]: bottles }, madeBy: text(input.madeBy), checks: [], note: DAY_LIST_NOTE, measured: false });
     },
     async deleteBatch(id: string) {
       const r = cur();
       const used = r.sales.some((s) => s.lines.some((l) => l.batchId === id)) || r.orders.some((o) => o.packed?.some((l) => l.batchId === id)) || r.writeOffs.some((w) => w.batchId === id);
       need(!used, 'Bottles from this batch are already sold, packed or written off, so it is kept.');
-      await store.commit([{ op: 'delete', col: 'batches', id }]);
+      const b = r.batches.find((x) => x.id === id);
+      const ops: Op[] = [{ op: 'delete', col: 'batches', id }];
+      if (b && countsForRecipe(b)) {
+        const rest = r.batches.filter((x) => x.id !== id);
+        const avg = averageOp(b.productId, rest);
+        if (avg) ops.push(avg);
+        else if (r.products.find((p) => p.id === b.productId)?.recipeAvg) ops.push({ op: 'patch', col: 'products', id: b.productId, data: { recipeAvg: null, ...touched() } });
+      }
+      await store.commit(ops);
     },
     async writeOff(input: { batchId: string; size: string; qty: number; reason: string; date?: string }) {
       const left = fridge().get(input.batchId);

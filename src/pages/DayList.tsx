@@ -127,7 +127,7 @@ function DayView({ day, setDay, firstDay }: { day: string; setDay: (d: string) =
         )}
       </div>
 
-      {!later && <MadeCard day={day} sold={sum.bottles} />}
+      {!later && <MadeCard day={day} />}
 
       {!later && (
         <section className="card p-4">
@@ -207,8 +207,8 @@ function DayView({ day, setDay, firstDay }: { day: string; setDay: (d: string) =
   );
 }
 
-/** Bottles made that day (a quick count saved as a batch), and made / sold / left. */
-function MadeCard({ day, sold }: { day: string; sold: number }) {
+/** Bottles made that day (a quick count saved as a batch), and the day's fridge sum. */
+function MadeCard({ day }: { day: string }) {
   const { products, batches, sales, orders, writeOffs, settings, actions, me, today, fridge } = useData();
   const j = useJuice();
   const sheets = useSheets();
@@ -244,22 +244,34 @@ function MadeCard({ day, sold }: { day: string; sold: number }) {
   };
   return (
     <section className="card p-4">
-      <h2 className="mb-2 font-semibold">Bottles made</h2>
-      <div className="num mb-3 grid grid-cols-3 gap-2 text-center">
-        <div className="rounded-xl bg-page px-2 py-2">
-          <span className="block text-2xl font-bold">{st.made}</span>
+      <h2 className="mb-2 font-semibold">Bottles in the fridge</h2>
+      <div className="num mb-2 grid grid-cols-4 gap-1.5 text-center">
+        <div className="rounded-xl bg-page px-1 py-2">
+          <span className="block text-2xl font-bold">{st.before}</span>
+          <span className="text-xs text-muted">left from before</span>
+        </div>
+        <div className="rounded-xl bg-page px-1 py-2">
+          <span className="block text-2xl font-bold">+{st.made}</span>
           <span className="text-xs text-muted">made</span>
         </div>
-        <div className="rounded-xl bg-page px-2 py-2">
-          <span className="block text-2xl font-bold">{sold}</span>
-          <span className="text-xs text-muted">sold</span>
+        <div className="rounded-xl bg-page px-1 py-2">
+          <span className="block text-2xl font-bold">−{st.sold + st.spoiled}</span>
+          <span className="text-xs text-muted">{st.spoiled ? 'sold or went bad' : 'sold'}</span>
         </div>
-        <div className={cx('rounded-xl px-2 py-2', st.left > 0 ? 'bg-butter-soft' : 'bg-page')}>
-          <span className="block text-2xl font-bold">{st.left}</span>
+        <div className={cx('rounded-xl px-1 py-2', st.left > 0 ? 'bg-butter-soft' : 'bg-page')}>
+          <span className="block text-2xl font-bold">={st.left}</span>
           <span className="text-xs text-muted">{day === today ? 'left now' : 'left that evening'}</span>
           {st.left > 0 && st.left > st.made && oldestLeft && <span className="block text-[11px] text-muted">made {oldestLeft === day ? 'today' : `from ${showDay(oldestLeft)}`}</span>}
         </div>
       </div>
+      <p className="num mb-3 text-center text-sm text-muted">
+        {st.before} left from {day === today ? 'yesterday' : 'the day before'} + {st.made} made − {st.sold} sold{st.spoiled ? ` − ${st.spoiled} went bad` : ''} = <b className="text-ink">{st.left} left</b>
+      </p>
+      {st.unrecorded > 0 && (
+        <p className="mb-3 rounded-lg bg-butter-soft px-3 py-2 text-sm">
+          <b>{st.unrecorded} more sold with no bottles made recorded.</b> Add the bottles made {day === today ? 'today' : 'that day'} below: those sold come off them by themselves, so the fridge stays right.
+        </p>
+      )}
       {made.length > 0 && (
         <div className="mb-3 flex flex-wrap gap-2">
           {made.map((b) => (
@@ -355,7 +367,7 @@ function WeekView({ day, setDay, firstDay, openDay }: { day: string; setDay: (d:
             <div key={`${d.day}-t`} className="num border-t border-line pt-1 text-center text-[11px] text-muted">
               {anyMade && d.day <= today && (
                 <span className="block text-ink">
-                  made {d.stock.made} · left {d.stock.left}
+                  {d.stock.before}+{d.stock.made}−{d.stock.sold + d.stock.spoiled} = {d.stock.left} left
                 </span>
               )}
               {d.sales.length ? (

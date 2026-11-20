@@ -43,6 +43,8 @@ export interface Product extends Base {
   /** Short list of what is in it, shown under a cocktail's name */
   tag?: string;
   archived?: boolean;
+  /** Set when the recipe is the average of real batches (see averageRecipe); cleared when typed by hand */
+  recipeAvg?: { batches: number; litres: number; last: string } | null;
 }
 
 export type ItemKind = 'fruit' | 'packaging';
@@ -97,7 +99,18 @@ export interface Batch extends Base {
   bestBefore: string;
   checks: string[];
   note?: string;
+  /**
+   * What went in was really weighed or counted (the Production form, a recipe worked out from a batch,
+   * reconciling). A Day list count only copies the recipe, so it is false there and does not change the
+   * average. Older batches without it count unless they are Day list counts.
+   */
+  measured?: boolean;
+  /** Clean water that went in, in litres */
+  water?: number;
 }
+
+/** Note on a batch saved by the Day list's quick count. */
+export const DAY_LIST_NOTE = 'Counted on the Day list';
 
 /** Bottles taken out of the fridge for a sale or an order, and which batch they came from. */
 export interface BottleLine {

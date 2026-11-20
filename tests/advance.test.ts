@@ -166,15 +166,15 @@ describe('bottles made on the day list', () => {
       const r = app.records();
       return dayStock(day, r.batches, r.sales, r.orders, r.writeOffs);
     };
-    expect(st('2026-11-09')).toEqual({ made: 20, left: 6, spoiled: 0 });
+    expect(st('2026-11-09')).toEqual({ before: 0, made: 20, sold: 14, spoiled: 0, left: 6, unrecorded: 0 });
     // next day: 10 more made; the 6 left are sold first, then 4 of the new ones; 2 go bad
     await app.actions.quickBatch({ date: '2026-11-10', productId: app.productId, size: '500', bottles: 10 });
     await app.actions.saveSale({ date: '2026-11-10', lines: app.bottle(10), customerName: 'Kato', method: 'Cash' });
     const sold = app.records().sales.find((s) => s.date === '2026-11-10')!;
     expect(sold.lines.map((l) => l.qty)).toEqual([6, 4]);
     await app.actions.writeOff({ batchId: app.records().batches.find((x) => x.date === '2026-11-10')!.id, size: '500', qty: 2, reason: 'Went sour', date: '2026-11-10' });
-    expect(st('2026-11-10')).toEqual({ made: 10, left: 4, spoiled: 2 });
-    expect(st('2026-11-09')).toEqual({ made: 20, left: 6, spoiled: 0 }); // that evening stays as it was
+    expect(st('2026-11-10')).toEqual({ before: 6, made: 10, sold: 10, spoiled: 2, left: 4, unrecorded: 0 });
+    expect(st('2026-11-09')).toEqual({ before: 0, made: 20, sold: 14, spoiled: 0, left: 6, unrecorded: 0 }); // that evening stays as it was
   });
   it('takes the fruit of the recipe for those litres, and refuses nothing made', async () => {
     const app = await juiceApp();

@@ -1,7 +1,7 @@
 // The figures of the juice business, worked out from the records. Nothing here is stored.
 // Pages and actions both use these functions, so a figure is worked out one way only.
 import { num, sum } from './money';
-import { FROM_ADVANCE, OPENING_NOTE, type Batch, type BottleLine, type Customer, type Order, type OrderLine, type Payment, type Product, type Purchase, type Records, type Sale, type Size, type StockCount, type StockItem, type WriteOff } from './types';
+import { DAY_LIST_NOTE, FROM_ADVANCE, OPENING_NOTE, type Batch, type BottleLine, type Customer, type Order, type OrderLine, type Payment, type Product, type Purchase, type RecipeLine, type Records, type Sale, type Size, type StockCount, type StockItem, type WriteOff } from './types';
 
 export const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
@@ -13,6 +13,56 @@ export function nextNumber(prefix: string, used: string[]): string {
     if (m) max = Math.max(max, Number(m[1]));
   }
   return `${prefix}-${String(max + 1).padStart(4, '0')}`;
+}
+
+// ---------------- recipes from real batches ----------------
+
+/** How many of a juice's latest batches its recipe is the average of. */
+export const AVERAGE_OF = 10;
+
+/** A batch whose amounts were really measured (not a Day list count that only copied the recipe). */
+export const countsForRecipe = (b: Batch) => (b.measured ?? b.note !== DAY_LIST_NOTE) && (b.used ?? []).length > 0;
+
+/** The litres a batch gave: its bottles, or the litres made while not bottled yet. */
+export function batchLitres(b: Batch, sizes: Size[]): number {
+  const bottled = sum(Object.entries(b.filled ?? {}), ([k, n]) => num(n) * num(sizeOf(sizes, k)?.litres));
+  return bottled > 0 ? bottled : num(b.litres);
+}
+
+export interface AverageRecipe {
+  /** per 10 litres */
+  recipe: RecipeLine[];
+  /** water per 10 litres, or null when no batch recorded its water */
+  water: number | null;
+  batches: number;
+  litres: number;
+  last: string;
+}
+
+/**
+ * Fruit is not the same size every week (Vanessa, 20 Nov 2026): a juice's recipe for 10 litres is the
+ * average of its last AVERAGE_OF measured batches, weighted by the litres each gave:
+ * amount = everything that went in x 10 / all their litres. An ingredient left out of a batch counts as 0 there.
+ */
+export function averageRecipe(productId: string, batches: Batch[], sizes: Size[], n = AVERAGE_OF): AverageRecipe | null {
+  const list = batches
+    .filter((b) => b.productId === productId && countsForRecipe(b) && batchLitres(b, sizes) > 0)
+    .sort((a, b) => b.date.localeCompare(a.date) || num(b.createdAt) - num(a.createdAt))
+    .slice(0, n);
+  if (!list.length) return null;
+  const litres = sum(list, (b) => batchLitres(b, sizes));
+  const totals = new Map<string, number>();
+  for (const b of [...list].reverse()) for (const u of b.used ?? []) totals.set(u.itemId, (totals.get(u.itemId) ?? 0) + num(u.qty));
+  const watered = list.filter((b) => typeof b.water === 'number');
+  const waterLitres = sum(watered, (b) => batchLitres(b, sizes));
+  const r3 = (v: number) => Math.round(v * 1000) / 1000;
+  return {
+    recipe: [...totals].map(([itemId, q]) => ({ itemId, qty: r3((q * 10) / litres) })).filter((r) => r.qty > 0),
+    water: watered.length && waterLitres > 0 ? r3((sum(watered, (b) => num(b.water)) * 10) / waterLitres) : null,
+    batches: list.length,
+    litres: r3(litres),
+    last: list[0].date,
+  };
 }
 
 // ---------------- prices and costs ----------------
@@ -117,42 +167,90 @@ export function itemLevels(items: StockItem[], purchases: Purchase[], batches: B
 
 // ---------------- the fridge ----------------
 
-/** Every bottle that has left the fridge, by batch and size: sold, packed for an order, or written off. */
-function takenByBatch(sales: Sale[], orders: Order[], writeOffs: WriteOff[]): Map<string, Map<string, number>> {
-  const out = new Map<string, Map<string, number>>();
-  const add = (batchId: string | undefined, size: string, qty: number) => {
-    if (!batchId) return;
-    let m = out.get(batchId);
-    if (!m) out.set(batchId, (m = new Map()));
-    m.set(size, (m.get(size) ?? 0) + num(qty));
-  };
-  for (const s of sales) for (const l of s.lines ?? []) add(l.batchId, l.size, l.qty);
-  for (const o of orders) if (o.stage !== 'Cancelled') for (const l of o.packed ?? []) add(l.batchId, l.size, l.qty);
-  for (const w of writeOffs) add(w.batchId, w.size, w.qty);
-  return out;
-}
-
 export interface BatchLeft {
   batch: Batch;
   left: Record<string, number>;
   total: number;
 }
 
+export interface FridgeFlow {
+  byBatch: Map<string, BatchLeft>;
+  /** Bottles sold without a batch that came off a batch recorded for that day or before (often added later) */
+  matched: { date: string; qty: number }[];
+  /** Bottles sold with no bottles made recorded for them at all */
+  unmatched: { date: string; qty: number }[];
+  /** Every bottle that came off a batch, by day: sold (counter or order) or written off */
+  taken: { date: string; qty: number; spoiled: boolean }[];
+}
+
+/**
+ * The fridge, day by day: every bottle that left it (sold, packed for an order, written off), in date
+ * order. A bottle that names its batch comes off that batch. A bottle sold without a batch (sold before
+ * the bottles made were recorded, e.g. production written in later in the day) comes off the batches of
+ * the same juice and size made on that day or before, nearest best-before first, so recording the
+ * bottles later does not add them to the fridge a second time (Vanessa, 20 Nov 2026).
+ */
+export function fridgeFlow(batches: Batch[], sales: Sale[], orders: Order[], writeOffs: WriteOff[]): FridgeFlow {
+  const byId = new Map(batches.map((b) => [b.id, b]));
+  const left = new Map<string, Record<string, number>>();
+  for (const b of batches) {
+    const l: Record<string, number> = {};
+    for (const [k, n] of Object.entries(b.filled ?? {})) l[k] = Math.max(0, num(n));
+    left.set(b.id, l);
+  }
+  const outs: { date: string; at: number; batchId?: string; productId: string; size: string; qty: number; spoiled?: boolean }[] = [];
+  for (const s of sales) {
+    if (s.opening) continue;
+    for (const l of s.lines ?? []) if (l.productId) outs.push({ date: s.date, at: num(s.createdAt), batchId: l.batchId, productId: l.productId, size: l.size, qty: num(l.qty) });
+  }
+  for (const o of orders) {
+    if (o.stage === 'Cancelled') continue;
+    for (const l of o.packed ?? []) outs.push({ date: o.deliveredOn || o.dueDate, at: num(o.createdAt), batchId: l.batchId, productId: l.productId, size: l.size, qty: num(l.qty) });
+  }
+  for (const w of writeOffs) outs.push({ date: w.date, at: num(w.createdAt), batchId: w.batchId, productId: byId.get(w.batchId)?.productId ?? '', size: w.size, qty: num(w.qty), spoiled: true });
+  outs.sort((a, b) => (a.date || '').localeCompare(b.date || '') || a.at - b.at);
+  const oldestFirst = [...batches].sort((a, b) => (a.bestBefore || '').localeCompare(b.bestBefore || '') || (a.date || '').localeCompare(b.date || '') || (a.number || '').localeCompare(b.number || ''));
+  const matched: FridgeFlow['matched'] = [];
+  const unmatched: FridgeFlow['unmatched'] = [];
+  const taken: FridgeFlow['taken'] = [];
+  for (const o of outs) {
+    if (o.batchId) {
+      const l = left.get(o.batchId);
+      const t = l && l[o.size] !== undefined ? Math.min(o.qty, l[o.size]) : 0;
+      if (t > 0) {
+        l![o.size] -= t;
+        taken.push({ date: o.date, qty: t, spoiled: !!o.spoiled });
+      }
+      continue;
+    }
+    let need = o.qty;
+    for (const b of oldestFirst) {
+      if (need <= 0) break;
+      if (b.productId !== o.productId || b.date > o.date) continue;
+      const l = left.get(b.id)!;
+      const take = Math.min(need, l[o.size] ?? 0);
+      if (take > 0) {
+        l[o.size] -= take;
+        need -= take;
+      }
+    }
+    if (o.qty - need > 0) {
+      matched.push({ date: o.date, qty: o.qty - need });
+      taken.push({ date: o.date, qty: o.qty - need, spoiled: false });
+    }
+    if (need > 0) unmatched.push({ date: o.date, qty: need });
+  }
+  const byBatch = new Map<string, BatchLeft>();
+  for (const b of batches) {
+    const l = left.get(b.id)!;
+    byBatch.set(b.id, { batch: b, left: l, total: sum(Object.values(l), (v) => v) });
+  }
+  return { byBatch, matched, unmatched, taken };
+}
+
 /** Bottles still in the fridge for each batch. */
 export function fridgeByBatch(batches: Batch[], sales: Sale[], orders: Order[], writeOffs: WriteOff[]): Map<string, BatchLeft> {
-  const taken = takenByBatch(sales, orders, writeOffs);
-  const out = new Map<string, BatchLeft>();
-  for (const b of batches) {
-    const left: Record<string, number> = {};
-    let total = 0;
-    for (const [k, n] of Object.entries(b.filled ?? {})) {
-      const v = Math.max(0, num(n) - (taken.get(b.id)?.get(k) ?? 0));
-      left[k] = v;
-      total += v;
-    }
-    out.set(b.id, { batch: b, left, total });
-  }
-  return out;
+  return fridgeFlow(batches, sales, orders, writeOffs).byBatch;
 }
 
 export type BatchStatus = 'Making' | 'In the fridge' | 'Finished';

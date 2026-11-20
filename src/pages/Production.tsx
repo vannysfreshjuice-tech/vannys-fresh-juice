@@ -122,7 +122,7 @@ export function Recipes() {
         }
       />
       <p className="mb-4 rounded-2xl bg-purple-soft px-4 py-3 text-sm text-purple">
-        Each recipe makes 10 litres. The cost of a bottle is worked out from the last price you paid for each fruit, plus the bottle, cap and label. When mangoes get dearer, every juice with mango shows it straight away.
+        Each recipe makes 10 litres, and becomes the average of the juice's last 10 batches as you record them on Production (fruit is not the same size every time). The cost of a bottle is worked out from the last price you paid for each fruit, plus the bottle, cap and label. When mangoes get dearer, every juice with mango shows it straight away.
       </p>
       <Choice
         scroll
@@ -169,6 +169,11 @@ export function Recipes() {
               <p className="mb-2 text-sm text-muted">
                 {p.recipe.map((r) => `${showQty(r.qty)} ${itemsById.get(r.itemId)?.unit ?? ''} ${(itemsById.get(r.itemId)?.name ?? '?').toLowerCase()}`).join(' · ') || 'No recipe yet'}
                 {p.water ? ` · ${showQty(p.water)} L water` : ''} · keeps {p.keepsDays} days
+                {p.recipeAvg ? (
+                  <span className="block text-xs text-leaf">
+                    Average of the last {p.recipeAvg.batches} batch{p.recipeAvg.batches === 1 ? '' : 'es'} ({showQty(p.recipeAvg.litres)} L, latest {showDate(p.recipeAvg.last)}): every batch recorded updates it.
+                  </span>
+                ) : null}
               </p>
               {role === 'owner' && (
                 <table className="tbl">

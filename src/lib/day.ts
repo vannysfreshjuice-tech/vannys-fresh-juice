@@ -2,7 +2,7 @@
 // Excel colours kept: a day with juice = yellow, a weekday without = red, a paid name = blue,
 // a name paid from money paid ahead = green, a name not paid yet = no colour.
 import { addDays, fromYmd } from './dates';
-import { linesValue, saleTotals } from './juice';
+import { fridgeFlow, linesValue, saleTotals } from './juice';
 import { num, sum } from './money';
 import { FROM_ADVANCE, type Batch, type Order, type Payment, type Sale, type WriteOff } from './types';
 
@@ -66,20 +66,51 @@ export function daySummary(day: string, today: string, firstDay: string, sales: 
 }
 
 export interface DayStock {
+  /** Bottles left in the fridge from the days before (the evening before) */
+  before: number;
   /** Bottles filled in batches dated that day */
   made: number;
+  /** Bottles that came out of the fridge that day for sales and delivered or packed orders */
+  sold: number;
   /** Bottles from recorded batches still in the fridge at the end of that day */
   left: number;
   /** Bottles written off (spoiled, given away) that day */
   spoiled: number;
+  /** Bottles sold that day with no bottles made recorded for them */
+  unrecorded: number;
 }
 
 /**
- * Made and left for one day, from the batches: left at the end of the day = everything filled up to
- * that day, less what was sold, delivered or written off from those batches up to that day.
- * (Bottles sold without a recorded batch do not come off; for today this is the fridge count.)
+ * The fridge sum for one day: left from before + made - sold - went bad = left. Worked out from the same
+ * per-batch count as the fridge (`fridgeFlow`), so the Day list and Stock always agree; for today, left
+ * is the fridge count. A bottle sold without a batch comes off a batch of that juice and size made that
+ * day or before, even one recorded later; bottles sold with nothing recorded for them are `unrecorded`.
  */
 export function dayStock(day: string, batches: Batch[], sales: Sale[], orders: Order[], writeOffs: WriteOff[]): DayStock {
+  const flow = fridgeFlow(batches, sales, orders, writeOffs);
+  let filledBefore = 0;
+  let made = 0;
+  for (const b of batches) {
+    const n = sum(Object.values(b.filled ?? {}), (v) => num(v));
+    if (b.date < day) filledBefore += n;
+    else if (b.date === day) made += n;
+  }
+  let takenBefore = 0;
+  let sold = 0;
+  let spoiled = 0;
+  for (const t of flow.taken) {
+    if (t.date < day) takenBefore += t.qty;
+    else if (t.date === day) {
+      if (t.spoiled) spoiled += t.qty;
+      else sold += t.qty;
+    }
+  }
+  const before = Math.max(0, filledBefore - takenBefore);
+  return { before, made, sold, spoiled, left: Math.max(0, before + made - sold - spoiled), unrecorded: sum(flow.unmatched.filter((u) => u.date === day), (u) => u.qty) };
+}
+
+/** Old version kept only to compare in the audit script; not used by the app. */
+export function dayStockOld(day: string, batches: Batch[], sales: Sale[], orders: Order[], writeOffs: WriteOff[]) {
   let made = 0;
   let filled = 0;
   for (const b of batches) {
