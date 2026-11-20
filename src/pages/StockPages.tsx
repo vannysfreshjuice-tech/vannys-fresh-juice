@@ -9,6 +9,7 @@ import { relativeDay, showDate, showDay } from '../lib/dates';
 import { fridgeCount, fridgeTotal, purchaseTotals } from '../lib/juice';
 import { qty as showQty, sum } from '../lib/money';
 import type { ItemKind, ProductKind } from '../lib/types';
+import { BalanceChecks } from '../components/BalanceChecks';
 
 type Tab = 'fridge' | ItemKind;
 
@@ -24,6 +25,7 @@ export function Stock() {
   return (
     <div>
       <PageHead title="Stock" />
+      <BalanceChecks max={4} />
       <Choice
         scroll
         options={[

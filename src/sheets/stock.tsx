@@ -67,7 +67,8 @@ export function ItemForm({ id, kind, onClose }: { id?: string; kind?: ItemKind; 
 }
 
 export function CountForm({ itemId, onClose }: { itemId: string; onClose: () => void }) {
-  const { itemsById, levels, actions } = useData();
+  const { itemsById, levels, actions, today } = useData();
+  const [date, setDate] = useState(today);
   const notify = useNotice();
   const it = itemsById.get(itemId);
   const onRecord = levels.get(itemId)?.onHand ?? 0;
@@ -81,7 +82,7 @@ export function CountForm({ itemId, onClose }: { itemId: string; onClose: () => 
       onClose={onClose}
       footer={
         <SheetButtons>
-          <Button busy={busy} onClick={() => run(() => actions.saveCount(itemId, counted, onRecord, reason), () => { notify('Stock corrected'); onClose(); })}>
+          <Button busy={busy} onClick={() => run(() => actions.saveCount(itemId, counted, onRecord, reason, date), () => { notify('Stock corrected'); onClose(); })}>
             Save the count
           </Button>
         </SheetButtons>
@@ -96,36 +97,41 @@ export function CountForm({ itemId, onClose }: { itemId: string; onClose: () => 
           <QtyInput value={counted} onChange={setCounted} />
         </Field>
         <Field label="Why it is different">
-          <Select options={['Count', 'Rotten, thrown away', 'Lost', 'Used for samples', 'Found']} value={reason} onChange={(e) => setReason(e.target.value)} />
+          <Select options={['Count', 'Rotten, thrown away', 'Lost', 'Used for samples', 'Found', 'Bought but not recorded']} value={reason} onChange={(e) => setReason(e.target.value)} />
+        </Field>
+        <Field label="Day of the count" className="max-w-56">
+          <DateInput value={date} max={today} onChange={(v) => v && setDate(v)} />
         </Field>
       </div>
     </Sheet>
   );
 }
 
-export function PurchaseForm({ itemId, onClose }: { itemId?: string; onClose: () => void }) {
-  const { items, suppliers, actions, today, settings, lastCosts } = useData();
+export function PurchaseForm({ itemId, id, date: day, onClose }: { itemId?: string; id?: string; date?: string; onClose: () => void }) {
+  const { items, suppliers, actions, today, settings, lastCosts, purchases } = useData();
   const notify = useNotice();
-  const live = items.filter((i) => !i.archived).sort((a, b) => (a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === 'fruit' ? -1 : 1));
-  const [iid, setIid] = useState(itemId ?? live[0]?.id ?? NEW_ITEM);
+  // Changing a purchase already recorded: the form starts from it (its payments stay as they are)
+  const editing = id ? purchases.find((p) => p.id === id) : undefined;
+  const live = items.filter((i) => !i.archived || i.id === editing?.itemId).sort((a, b) => (a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === 'fruit' ? -1 : 1));
+  const [iid, setIid] = useState(editing?.itemId ?? itemId ?? live[0]?.id ?? NEW_ITEM);
   const isNew = iid === NEW_ITEM;
   const [newName, setNewName] = useState('');
   const [newKind, setNewKind] = useState<ItemKind>('fruit');
   const [newUnit, setNewUnit] = useState('pcs');
   const it = isNew ? { name: newName, unit: newUnit, kind: newKind } : live.find((i) => i.id === iid);
   const lookalike = isNew && newName.trim() ? items.find((i) => i.name.trim().toLowerCase().replace(/(es|s)$/, '') === newName.trim().toLowerCase().replace(/(es|s)$/, '')) : undefined;
-  const [supplier, setSupplier] = useState('');
-  const [q, setQ] = useState(0);
-  const [price, setPrice] = useState(lastCosts.get(iid) ?? 0);
+  const [supplier, setSupplier] = useState(editing?.supplierName ?? '');
+  const [q, setQ] = useState(editing?.qty ?? 0);
+  const [price, setPrice] = useState(editing?.price ?? lastCosts.get(iid) ?? 0);
   const [paid, setPaid] = useState(0);
   const [method, setMethod] = useState(settings.methods[0]);
-  const [quality, setQuality] = useState<string>('Good');
-  const [date, setDate] = useState(today);
+  const [quality, setQuality] = useState<string>(editing?.quality || 'Good');
+  const [date, setDate] = useState(editing?.date ?? day ?? today);
   const { busy, error, run } = useSaver();
   const total = Math.round(q * price);
   return (
     <Sheet
-      title="Buy fruit or supplies"
+      title={editing ? 'Change this purchase' : 'Buy fruit or supplies'}
       onClose={onClose}
       footer={
         <SheetButtons>
@@ -140,16 +146,17 @@ export function PurchaseForm({ itemId, onClose }: { itemId?: string; onClose: ()
                     if (!(q > 0)) throw new Error('Type how much was bought.');
                     id = await actions.saveItem({ name: newName, kind: newKind, unit: newUnit, reorderLevel: 0 });
                   }
-                  await actions.savePurchase({ date, supplierName: supplier, itemId: id, qty: q, price, quality }, { amount: paid, method });
+                  if (editing) await actions.updatePurchase(editing.id, { date, supplierName: supplier, itemId: id, qty: q, price, quality, note: editing.note });
+                  else await actions.savePurchase({ date, supplierName: supplier, itemId: id, qty: q, price, quality }, { amount: paid, method });
                 },
                 () => {
-                  notify(isNew ? `${newName.trim()} added to Stock, and the purchase saved` : 'Purchase saved: stock is up');
+                  notify(editing ? 'Purchase changed' : isNew ? `${newName.trim()} added to Stock, and the purchase saved` : 'Purchase saved: stock is up');
                   onClose();
                 },
               )
             }
           >
-            Save purchase
+            {editing ? 'Save changes' : 'Save purchase'}
           </Button>
         </SheetButtons>
       }
@@ -219,6 +226,7 @@ export function PurchaseForm({ itemId, onClose }: { itemId?: string; onClose: ()
           <p className="text-[15px]">
             Total: <b className="num">{money(total, settings.currency)}</b>
           </p>
+          {!editing && (
           <div className="grid grid-cols-2 gap-3">
             <Field label="Paid now" hint="Leave at 0 if on credit">
               <MoneyInput value={paid} onChange={setPaid} />
@@ -227,6 +235,7 @@ export function PurchaseForm({ itemId, onClose }: { itemId?: string; onClose: ()
               <Select options={settings.methods} value={method} onChange={(e) => setMethod(e.target.value)} />
             </Field>
           </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             {it?.kind === 'fruit' && (
               <Field label="Quality">
@@ -237,7 +246,7 @@ export function PurchaseForm({ itemId, onClose }: { itemId?: string; onClose: ()
               <DateInput value={date} onChange={setDate} />
             </Field>
           </div>
-          {total > 0 && paid === 0 && (
+          {!editing && total > 0 && paid === 0 && (
             <Button small variant="soft" onClick={() => setPaid(total)}>
               Paid in full
             </Button>
@@ -275,6 +284,9 @@ export function PurchaseView({ id, onClose }: { id: string; onClose: () => void 
             }}
           >
             Delete
+          </Button>
+          <Button variant="soft" onClick={() => sheets.open({ t: 'purchase', id: p.id })}>
+            Change
           </Button>
           {t.balance > 0 && <Button onClick={() => sheets.open({ t: 'payment', kind: 'purchase', refId: p.id })}>Pay the supplier</Button>}
         </SheetButtons>

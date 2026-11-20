@@ -10,6 +10,7 @@ import { useData } from '../data/DataContext';
 import { addDays, longToday, relativeDay, showDay } from '../lib/dates';
 import { weeklySeries } from '../lib/performance';
 import { WeeklyChart } from '../components/WeeklyChart';
+import { BalanceChecks } from '../components/BalanceChecks';
 import { fridgeCount, fridgeTotal } from '../lib/juice';
 import { qty as showQty, sum } from '../lib/money';
 import { mayOpen } from '../lib/nav';
@@ -153,6 +154,8 @@ export function Home() {
           <WeeklyChart points={weeklySeries(d.sales, d.orders, d.payments, today, 8)} currency={d.settings.currency} onOpen={() => navigate('/reports')} />
         </Card>
       )}
+
+      {role !== 'rider' && <BalanceChecks />}
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card title="Needs attention" icon={<AlertTriangle size={18} className="text-cherry" aria-hidden />}>

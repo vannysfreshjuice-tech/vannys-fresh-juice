@@ -178,7 +178,7 @@ export interface FridgeFlow {
   /** Bottles sold without a batch that came off a batch recorded for that day or before (often added later) */
   matched: { date: string; qty: number }[];
   /** Bottles sold with no bottles made recorded for them at all */
-  unmatched: { date: string; qty: number }[];
+  unmatched: { date: string; qty: number; productId: string; size: string }[];
   /** Every bottle that came off a batch, by day: sold (counter or order) or written off */
   taken: { date: string; qty: number; spoiled: boolean }[];
 }
@@ -238,7 +238,7 @@ export function fridgeFlow(batches: Batch[], sales: Sale[], orders: Order[], wri
       matched.push({ date: o.date, qty: o.qty - need });
       taken.push({ date: o.date, qty: o.qty - need, spoiled: false });
     }
-    if (need > 0) unmatched.push({ date: o.date, qty: need });
+    if (need > 0 && !o.spoiled) unmatched.push({ date: o.date, qty: need, productId: o.productId, size: o.size });
   }
   const byBatch = new Map<string, BatchLeft>();
   for (const b of batches) {

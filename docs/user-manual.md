@@ -81,6 +81,21 @@ Home is the day at a glance:
 
 Staff who should not see money see counts instead of shillings.
 
+**Not balanced yet** (also on Production and Stock): things recorded late or forgotten, each with the button that puts it right. It leaves the list once fixed.
+
+| What it says | What it means | What to do |
+|---|---|---|
+| Mangoes: 11 used, only 8 bought | Batches used more than Buying (and counts) recorded: 3 mangoes are not accounted for | **Record purchase** (it opens on the day they were last used; change the day to when they were bought), or **Count** what is there |
+| 3 × Mango 500 ml sold Fri 20 Nov | Bottles sold with no bottles made recorded for them | **Add bottles made** for that day: those sold come off them by themselves |
+| B-0003 Mango (Thu 19 Nov) not bottled yet | A batch from an earlier day still marked as being made | **Open batch**: fill the bottles, change it or delete it |
+| 6 × Soursop made Thu 19 Nov | Bottles made with nothing recorded about what went in | **Change batch** and add the fruit used |
+
+**Recorded something wrong or late?** Everything can be put right afterwards:
+- **Production:** open the batch, **Change** (juice, day, bottles, litres, what went in, water, made by). Bottles already sold from it cannot be taken away, and its juice stays once any are sold. The recipe average is worked out again.
+- **Buying:** open the purchase, **Change** (what, day, supplier, quantity, price). Its payments stay. A forgotten purchase is recorded with **Buy** and the day it was bought.
+- **Sales:** open the sale (tap it on the Day list or in Today's sales), **Change** (day, customer, price of each bottle). For another juice or number of bottles: **Undo sale**, then record it again on the right day (Day list: go to that day).
+- **Stock:** **Count** takes the day of the count, and a reason such as **Bought but not recorded**.
+
 ## Day list
 
 The day list is the Excel sheet in the app: each day, who took juice and who has paid.
@@ -206,7 +221,7 @@ Where each batch of juice is recorded.
 5. The app shows the **batch cost**, the **cost per litre**, what the bottles bring in if all are sold, and the **best-before** date.
 6. Tick the **hygiene checks**, then **Save batch**. The fruit and bottles come off stock, the bottles go into the fridge, and the recipe is updated.
 
-Open a batch to see what went in, what was filled and what is left, its cost, and to **Fill the bottles** (for a batch still being made) or **Write off spoiled**.
+Open a batch to see what went in, what was filled and what is left, its cost, and to **Change** it, **Fill the bottles** (for a batch still being made) or **Write off spoiled**. **Change** opens the same form, filled in: correct the juice, the day, the bottles, the litres, what went in or the water. Bottles already sold from the batch cannot be taken away, and its juice stays once any are sold. A Day list count joins the recipe average once you type what went into it.
 
 ## Recipes and prices
 
@@ -240,7 +255,7 @@ Every purchase of fruit, sugar and packaging.
 
 **Buying:** tap **Buy**. Choose what was bought (or **+ New item** for something not in Stock yet: its name, fruit or packaging, and what it is counted in; it is added to Stock with the purchase), type the supplier (a new name is added to Suppliers), the quantity (fruit in pieces) and the price per unit (per piece for fruit) (the total is worked out), what you paid now (leave 0 if on credit; **Paid in full** fills it) and, for fruit, the quality. Saving adds it to stock and updates the recipe costs.
 
-Purchases are grouped by the **day they were bought**, newest first: each day shows how many things were bought, the day's total and anything still owed. Open a purchase to **Pay the supplier** or delete it. The page also shows what was bought this month, what you **owe suppliers**, and the price of your most-bought fruit over the last purchases, to follow the season.
+Purchases are grouped by the **day they were bought**, newest first: each day shows how many things were bought, the day's total and anything still owed. Open a purchase to **Pay the supplier**, **Change** it (what was bought, the day, supplier, quantity, price; its payments stay) or delete it. The page also shows what was bought this month, what you **owe suppliers**, and the price of your most-bought fruit over the last purchases, to follow the season.
 
 ## Customers
 
@@ -324,6 +339,7 @@ Each person's own PIN decides what they can open. The cloud checks it too: a sta
 
 ## What's new
 
+- **20 November 2026 (later):** **Change** for batches, purchases and sales already recorded; stock counts on an earlier day; **Not balanced yet** on Home, Production and Stock lists what does not add up (fruit used but not bought, bottles sold with nothing made, batches not bottled, bottles made with no fruit recorded), each with a fix button.
 - **20 November 2026:** the Day list's fridge card shows the day's sum (left from before + made − sold = left), always the same as Stock; bottles sold before the bottles made were written in now come off them when they are added (they used to be counted again); a note shows bottles sold with nothing made recorded. **New batch** shows only the chosen juice's ingredients, takes what really went in, and each juice's recipe becomes the average of its last 10 batches.
 - **18 November 2026:** Buying grouped by the day bought; Stock as a table of what is left; a **Money received** button on the Day list; **The last 8 weeks** chart on Home; **Event quote** for weddings and other events; the statement card shows Airtel Money and Cash, the WhatsApp and calls number and the Airtel Money number; **Start again from a date** in Settings > Backup.
 - **16 November 2026:** one price per bottle size (no premium price); a **Discount** switch on Day list taps, Someone else and Sell (2,000 at first, remembered), and a **standing discount** per customer that applies by itself; the Day list's taps show and switch the size and price, starting on the size sold most.

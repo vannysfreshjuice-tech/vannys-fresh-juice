@@ -10,6 +10,7 @@ import { batchCost, bottleCost, bottledLitres, fridgeCount, priceOf, recipeCostP
 import { qty as showQty, sum } from '../lib/money';
 import type { ProductKind } from '../lib/types';
 import { makePlan } from './Home';
+import { BalanceChecks } from '../components/BalanceChecks';
 
 export function Production() {
   const { batches, productsById, settings, avgCosts, orders, fridge, today, role } = useData();
@@ -25,6 +26,7 @@ export function Production() {
   return (
     <div>
       <PageHead title="Production" action={<Button icon={Plus} onClick={() => sheets.open({ t: 'batch' })}>New batch</Button>} />
+      <BalanceChecks max={4} />
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Made in the last 7 days" value={`${showQty(L)} L`} sub={`${week.length} ${week.length === 1 ? 'batch' : 'batches'} since ${weekdayShort(from)} ${showDate(from).slice(0, 5)}`} />
         {role === 'owner' && <StatCard label="Juice cost per litre" value={j.money(L ? juiceCost / L : 0)} sub="last 7 days, average" />}

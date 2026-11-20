@@ -6,7 +6,7 @@ import { useSheets } from '../components/SheetHost';
 import { Badge, Button, Choice, DateInput, Field, FormError, IconButton, Line, QtyInput, Select, Sheet, SheetButtons, TextInput, cx, useConfirm, useNotice, useSaver } from '../components/ui';
 import { useData } from '../data/DataContext';
 import { addDays, showDate, showDay } from '../lib/dates';
-import { averageRecipe, batchCost, bottleCost, priceOf, recipeCostPerLitre, sizeOf } from '../lib/juice';
+import { averageRecipe, batchCost, bottleCost, countsForRecipe, priceOf, recipeCostPerLitre, sizeOf } from '../lib/juice';
 import { qty as showQty } from '../lib/money';
 import { WRITE_OFF_REASONS, type Batch, type ProductKind, type RecipeLine } from '../lib/types';
 
@@ -33,28 +33,33 @@ function BottleBoxes({ filled, setFilled }: { filled: Record<string, number>; se
   );
 }
 
-export function BatchForm({ productId, onClose }: { productId?: string; onClose: () => void }) {
-  const { actions, products, items, itemsById, levels, settings, today, staff, avgCosts, me, batches } = useData();
+export function BatchForm({ productId, id, date: day, onClose }: { productId?: string; id?: string; date?: string; onClose: () => void }) {
+  const { actions, products, items, itemsById, levels, settings, today, staff, avgCosts, me, batches, sales, orders, writeOffs } = useData();
   const j = useJuice();
   const notify = useNotice();
-  const live = products.filter((p) => !p.archived);
-  const [pid, setPid] = useState(productId ?? live[0]?.id ?? '');
+  // Changing a batch already recorded: the form starts from what was saved
+  const editing = id ? batches.find((b) => b.id === id) : undefined;
+  const bottlesGone = !!editing && (sales.some((s) => s.lines.some((l) => l.batchId === id)) || orders.some((o) => o.stage !== 'Cancelled' && (o.packed ?? []).some((l) => l.batchId === id)) || writeOffs.some((w) => w.batchId === id));
+  const live = products.filter((p) => !p.archived || p.id === editing?.productId);
+  const [pid, setPid] = useState(editing?.productId ?? productId ?? live[0]?.id ?? '');
   const product = live.find((p) => p.id === pid);
+  const bottledIn = (f: Record<string, number>) => Object.entries(f).reduce((t, [k, n]) => t + n * (sizeOf(settings.sizes, k)?.litres ?? 0), 0);
+  const [touchedIn, setTouchedIn] = useState(false);
   // Bottles first: the litres follow the bottles unless typed (e.g. still being made, or some left over)
   const lastFilled = (id: string): Record<string, number> => {
     const last = batches.filter((b) => b.productId === id && Object.keys(b.filled ?? {}).length).sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt)[0];
     return last ? Object.fromEntries(Object.keys(last.filled).map((k) => [k, 0])) : {};
   };
-  const [filled, setFilled] = useState<Record<string, number>>({});
-  const [bottleLater, setBottleLater] = useState(false);
-  const [litresTyped, setLitresTyped] = useState<number | null>(null);
+  const [filled, setFilled] = useState<Record<string, number>>(editing?.filled ?? {});
+  const [bottleLater, setBottleLater] = useState(!!editing && !Object.values(editing.filled ?? {}).some((n) => n > 0));
+  const [litresTyped, setLitresTyped] = useState<number | null>(editing && Math.abs(bottledIn(editing.filled ?? {}) - editing.litres) > 0.001 ? editing.litres : null);
   const bottled = Object.entries(bottleLater ? {} : filled).reduce((t, [k, n]) => t + n * (sizeOf(settings.sizes, k)?.litres ?? 0), 0);
   const litres = litresTyped ?? Math.round(bottled * 1000) / 1000;
   // What went in: the juice's own ingredients, filled in for these litres until changed by hand
   type Row = { itemId: string; qty: number; typed: boolean };
   const rowsFor = (p = product): Row[] => (p?.recipe ?? []).map((r) => ({ itemId: r.itemId, qty: 0, typed: false }));
-  const [rows, setRows] = useState<Row[]>(rowsFor());
-  const [water, setWater] = useState<number | null>(null);
+  const [rows, setRows] = useState<Row[]>(editing ? editing.used.map((u) => ({ itemId: u.itemId, qty: u.qty, typed: true })) : rowsFor());
+  const [water, setWater] = useState<number | null>(editing?.water ?? null);
   const expected = (itemId: string) => {
     const r = product?.recipe.find((x) => x.itemId === itemId);
     return r ? Math.round(((r.qty * litres) / 10) * 10) / 10 : 0;
@@ -64,26 +69,32 @@ export function BatchForm({ productId, onClose }: { productId?: string; onClose:
   const [adding, setAdding] = useState('');
   const canAdd = items.filter((i) => !i.archived && i.kind === 'fruit' && !rows.some((r) => r.itemId === i.id));
   const makers = staff.filter((s) => !s.archived && (s.role === 'production' || s.role === 'owner')).map((s) => s.name);
-  const [madeBy, setMadeBy] = useState(me?.name ?? makers[0] ?? '');
-  const [date, setDate] = useState(today);
-  const [checks, setChecks] = useState<string[]>([]);
+  const [madeBy, setMadeBy] = useState(editing?.madeBy ?? me?.name ?? makers[0] ?? '');
+  const [date, setDate] = useState(editing?.date ?? day ?? today);
+  const [checks, setChecks] = useState<string[]>(editing?.checks ?? []);
   const { busy, error, run } = useSaver();
 
-  const changeProduct = (id: string) => {
-    const p = live.find((x) => x.id === id);
-    setPid(id);
+  const changeProduct = (pick: string) => {
+    if (bottlesGone) return;
+    const p = live.find((x) => x.id === pick);
+    setPid(pick);
     setRows(rowsFor(p));
     setWater(null);
-    if (!Object.values(filled).some((n) => n > 0)) setFilled(lastFilled(id));
+    setTouchedIn(true);
+    if (!editing && !Object.values(filled).some((n) => n > 0)) setFilled(lastFilled(pick));
   };
-  const fakeBatch: Batch = { id: 'new', number: '', date, productId: pid, litres, used, filled: bottleLater ? {} : filled, madeBy, bestBefore: '', checks, water: waterUsed, measured: true, createdAt: Date.now(), updatedAt: Date.now() };
+  // A Day list count only copied the recipe: it joins the recipe average once what went in is typed
+  // A new batch counts for the recipe once what went in is typed (untouched, it only copies the recipe)
+  const measured = editing ? countsForRecipe(editing) || touchedIn : touchedIn;
+  const fakeBatch: Batch = { id: id ?? 'new', number: editing?.number ?? '', date, productId: pid, litres, used, filled: bottleLater ? {} : filled, madeBy, bestBefore: '', checks, water: waterUsed, measured, createdAt: editing?.createdAt ?? Date.now(), updatedAt: Date.now() };
   const cost = batchCost(fakeBatch, product, settings.sizes, avgCosts);
-  const after = litres > 0 && used.length ? averageRecipe(pid, [...batches, fakeBatch], settings.sizes) : null;
+  const after = measured && litres > 0 && used.length ? averageRecipe(pid, [...batches.filter((b) => b.id !== id), fakeBatch], settings.sizes) : null;
+  const input = { date, productId: pid, litres, used, filled: bottleLater ? {} : filled, madeBy, checks, water: waterUsed };
 
   return (
     <Sheet
       wide
-      title="New batch"
+      title={editing ? `Change ${editing.number}` : 'New batch'}
       onClose={onClose}
       footer={
         <SheetButtons>
@@ -91,15 +102,16 @@ export function BatchForm({ productId, onClose }: { productId?: string; onClose:
             busy={busy}
             onClick={() =>
               run(
-                () => actions.saveBatch({ date, productId: pid, litres, used, filled: bottleLater ? {} : filled, madeBy, checks, water: waterUsed }),
+                () => (editing ? actions.updateBatch(editing.id, { ...input, measured }) : actions.saveBatch({ ...input, measured }).then(() => undefined)),
                 () => {
-                  notify(after ? `Batch saved. ${product?.name} recipe: the average of ${after.batches} batch${after.batches === 1 ? '' : 'es'}` : bottleLater ? 'Batch saved. Fill the bottles when ready.' : 'Batch saved: the bottles are in the fridge');
+                  const avgText = after ? ` ${product?.name} recipe: the average of ${after.batches} batch${after.batches === 1 ? '' : 'es'}` : '';
+                  notify(editing ? `${editing.number} changed.${avgText}` : after ? `Batch saved.${avgText}` : bottleLater ? 'Batch saved. Fill the bottles when ready.' : 'Batch saved: the bottles are in the fridge');
                   onClose();
                 },
               )
             }
           >
-            Save batch
+            {editing ? 'Save changes' : 'Save batch'}
           </Button>
         </SheetButtons>
       }
@@ -113,11 +125,12 @@ export function BatchForm({ productId, onClose }: { productId?: string; onClose:
             <span className="label">1. Which juice?</span>
             <div className="flex flex-wrap gap-2">
               {live.map((p) => (
-                <button key={p.id} type="button" className={cx('chip', p.id === pid && 'chip-on')} onClick={() => changeProduct(p.id)}>
+                <button key={p.id} type="button" disabled={bottlesGone && p.id !== pid} className={cx('chip', p.id === pid && 'chip-on', bottlesGone && p.id !== pid && 'opacity-40')} onClick={() => changeProduct(p.id)}>
                   {p.icon} {p.name}
                 </button>
               ))}
             </div>
+            {bottlesGone && <p className="mt-1 text-xs text-muted">Bottles from this batch are already sold or written off, so its juice stays the same. You can still change the bottles (not below those gone), the day and what went in.</p>}
           </div>
 
           <div>
@@ -153,15 +166,36 @@ export function BatchForm({ productId, onClose }: { productId?: string; onClose:
                         {r.typed ? `recipe says ${showQty(expected(r.itemId))}` : 'from the recipe: type what you used'} · {have >= q ? `have ${showQty(have)}` : have > 0 ? `only ${showQty(have)} in stock` : 'none in stock'}
                       </span>
                     </span>
-                    <QtyInput className={cx('w-24', !r.typed && 'text-muted')} value={q} onChange={(n) => setRows((rs) => rs.map((x) => (x.itemId === r.itemId ? { ...x, qty: n, typed: true } : x)))} />
+                    <QtyInput
+                      className={cx('w-24', !r.typed && 'text-muted')}
+                      value={q}
+                      onChange={(n) => {
+                        setTouchedIn(true);
+                        setRows((rs) => rs.map((x) => (x.itemId === r.itemId ? { ...x, qty: n, typed: true } : x)));
+                      }}
+                    />
                     <span className="w-12 text-sm text-muted">{it?.unit}</span>
-                    <IconButton icon={X} label={`Remove ${it?.name ?? 'item'}`} onClick={() => setRows((rs) => rs.filter((x) => x.itemId !== r.itemId))} />
+                    <IconButton
+                      icon={X}
+                      label={`Remove ${it?.name ?? 'item'}`}
+                      onClick={() => {
+                        setTouchedIn(true);
+                        setRows((rs) => rs.filter((x) => x.itemId !== r.itemId));
+                      }}
+                    />
                   </div>
                 );
               })}
               <div className="flex items-center gap-2 py-2">
                 <span className="min-w-0 flex-1 font-medium">Clean water</span>
-                <QtyInput className={cx('w-24', water === null && 'text-muted')} value={waterUsed} onChange={(n) => setWater(n)} />
+                <QtyInput
+                  className={cx('w-24', water === null && 'text-muted')}
+                  value={waterUsed}
+                  onChange={(n) => {
+                    setTouchedIn(true);
+                    setWater(n);
+                  }}
+                />
                 <span className="w-12 text-sm text-muted">L</span>
                 <span className="w-11" />
               </div>
@@ -174,7 +208,10 @@ export function BatchForm({ productId, onClose }: { productId?: string; onClose:
                     value={adding}
                     onChange={(e) => {
                       const id = e.target.value;
-                      if (id) setRows((rs) => [...rs, { itemId: id, qty: 0, typed: true }]);
+                      if (id) {
+                        setTouchedIn(true);
+                        setRows((rs) => [...rs, { itemId: id, qty: 0, typed: true }]);
+                      }
                       setAdding('');
                     }}
                   />
@@ -258,6 +295,9 @@ export function BatchView({ id, onClose }: { id: string; onClose: () => void }) 
       onClose={onClose}
       footer={
         <SheetButtons>
+          <Button variant="soft" onClick={() => sheets.open({ t: 'batch', id: b.id })}>
+            Change
+          </Button>
           {making ? (
             <Button onClick={() => sheets.open({ t: 'bottle', id: b.id })}>Fill the bottles</Button>
           ) : (

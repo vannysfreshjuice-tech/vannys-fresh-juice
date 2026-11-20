@@ -364,11 +364,13 @@ export function makeActions(store: Store, now: () => Current) {
       await store.commit([{ op: 'delete', col: 'items', id }]);
     },
     /** After counting: records the difference between the count and the records. */
-    async saveCount(itemId: string, counted: number, onRecord: number, reason: string) {
+    async saveCount(itemId: string, counted: number, onRecord: number, reason: string, date?: string) {
       need(itemId, 'Choose the item.');
       const diff = Math.round((num(counted) - num(onRecord)) * 1000) / 1000;
       need(diff !== 0, 'The count is the same as the records, so there is nothing to correct.');
-      await store.commit([{ op: 'set', col: 'counts', id: newId(), data: { date: todayYmd(), itemId, qty: diff, reason: text(reason) || 'Count', ...created() } }]);
+      const day = date || todayYmd();
+      need(day <= todayYmd(), 'The day of the count cannot be in the future.');
+      await store.commit([{ op: 'set', col: 'counts', id: newId(), data: { date: day, itemId, qty: diff, reason: text(reason) || 'Count', ...created() } }]);
     },
 
     // ---------- suppliers and buying ----------
@@ -415,6 +417,35 @@ export function makeActions(store: Store, now: () => Current) {
       await store.commit(ops);
       return id;
     },
+    /** Changing a purchase already recorded (what, when, from whom, how much, the price). Its payments stay. */
+    async updatePurchase(id: string, input: { date: string; supplierName: string; itemId: string; qty: number; price: number; quality?: string; note?: string }) {
+      const old = cur().purchases.find((p) => p.id === id);
+      need(old, 'That purchase no longer exists.');
+      need(input.itemId, 'Choose what was bought.');
+      const qty = cleanQty(input.qty);
+      need(qty > 0, 'Type how much was bought.');
+      const price = cleanAmount(input.price);
+      need(price > 0, 'Type the price of one unit.');
+      need(input.date, 'Choose the date.');
+      need(input.date <= todayYmd(), 'The day it was bought cannot be in the future.');
+      const paid = sum(paymentsOf(id), (p) => p.amount);
+      need(qty * price >= paid, `${money(paid)} is already paid for this purchase, more than the new total of ${money(qty * price)}.`);
+      const ops: Op[] = [];
+      const sname = text(input.supplierName);
+      let supplierId = '';
+      if (sname) {
+        const found = cur().suppliers.find((s) => sameName(s.name, sname));
+        if (found) supplierId = found.id;
+        else {
+          supplierId = newId();
+          ops.push({ op: 'set', col: 'suppliers', id: supplierId, data: { name: sname, phone: '', supplies: '', archived: false, ...created() } });
+        }
+      }
+      ops.push({ op: 'patch', col: 'purchases', id, data: { date: input.date, supplierId, supplierName: sname || 'Market', itemId: input.itemId, qty, price, quality: text(input.quality), note: text(input.note), ...touched() } });
+      const sizes = bottleSizesAfterPurchase(input.itemId, { date: input.date, price, createdAt: old!.createdAt });
+      if (sizes) ops.push({ op: 'patch', col: 'settings', id: 'main', data: { sizes, ...touched() } });
+      await store.commit(ops);
+    },
     async deletePurchase(id: string) {
       const ops: Op[] = [{ op: 'delete', col: 'purchases', id }];
       for (const p of paymentsOf(id)) ops.push({ op: 'delete', col: 'payments', id: p.id });
@@ -452,6 +483,56 @@ export function makeActions(store: Store, now: () => Current) {
       if (avg && countsForRecipe(data as Batch)) ops.push(avg);
       await store.commit(ops);
       return id;
+    },
+    /**
+     * Changing a batch already recorded: juice, day, bottles, litres, what went in, water, who made it.
+     * Bottles already sold, packed or written off from it stay: a size cannot go below them, and the
+     * juice cannot change once any have gone. The recipes of the juices involved are worked out again.
+     */
+    async updateBatch(id: string, input: { date: string; productId: string; litres: number; used: RecipeLine[]; filled: Record<string, number>; madeBy: string; checks: string[]; water?: number; measured?: boolean }) {
+      const r = cur();
+      const old = r.batches.find((b) => b.id === id);
+      need(old, 'That batch no longer exists.');
+      const product = r.products.find((p) => p.id === input.productId);
+      need(product, 'Choose the juice.');
+      need(input.date, 'Choose the date.');
+      need(input.date <= todayYmd(), 'The day it was made cannot be in the future.');
+      const litres = cleanQty(input.litres);
+      need(litres > 0, 'Type how many litres were made.');
+      const filled: Record<string, number> = {};
+      for (const [k, n] of Object.entries(input.filled ?? {})) if (Math.round(num(n)) > 0) filled[k] = Math.round(num(n));
+      const bottled = Object.entries(filled).reduce((t, [k, n]) => t + n * num(sizeOf(now().settings.sizes, k)?.litres), 0);
+      need(bottled <= litres + 0.05, `Those bottles hold ${Math.round(bottled * 10) / 10} litres, more than the ${litres} litres made.`);
+      // bottles that name this batch: sold, packed for an order, written off
+      const gone = new Map<string, number>();
+      const add = (k: string, n: number) => gone.set(k, (gone.get(k) ?? 0) + num(n));
+      for (const s of r.sales) for (const l of s.lines ?? []) if (l.batchId === id) add(l.size, l.qty);
+      for (const o of r.orders) if (o.stage !== 'Cancelled') for (const l of o.packed ?? []) if (l.batchId === id) add(l.size, l.qty);
+      for (const w of r.writeOffs) if (w.batchId === id) add(w.size, w.qty);
+      if (product!.id !== old!.productId) need(!gone.size, `Bottles from ${old!.number} are already sold or written off, so its juice stays the same.`);
+      for (const [k, n] of gone) need((filled[k] ?? 0) >= n, `${n} × ${sizeLabel(k)} from ${old!.number} are already sold or written off, so it cannot have fewer.`);
+      const data = {
+        date: input.date,
+        productId: product!.id,
+        litres,
+        used: cleanRecipe(input.used ?? []),
+        filled,
+        madeBy: text(input.madeBy),
+        bestBefore: addDays(input.date, product!.keepsDays || 3),
+        checks: (input.checks ?? []).filter(Boolean),
+        measured: input.measured ?? old!.measured ?? true,
+        ...(input.water !== undefined ? { water: cleanQty(input.water) } : {}),
+      };
+      const ops: Op[] = [{ op: 'patch', col: 'batches', id, data: { ...data, ...touched() } }];
+      const fresh = { ...old!, ...data };
+      const after = r.batches.map((b) => (b.id === id ? fresh : b));
+      for (const pid of new Set([old!.productId, product!.id])) {
+        if (!countsForRecipe(old!) && !countsForRecipe(fresh)) continue;
+        const avg = averageOp(pid, after);
+        if (avg) ops.push(avg);
+        else if (r.products.find((p) => p.id === pid)?.recipeAvg) ops.push({ op: 'patch', col: 'products', id: pid, data: { recipeAvg: null, ...touched() } });
+      }
+      await store.commit(ops);
     },
     /** Bottling a batch that was saved while still being made. */
     async bottleBatch(id: string, filled: Record<string, number>) {
@@ -513,6 +594,36 @@ export function makeActions(store: Store, now: () => Current) {
     },
 
     // ---------- counter sales ----------
+    /**
+     * Changing a sale already recorded: its day, the customer, and the price of each bottle. The bottles
+     * themselves stay (Undo sale, then record again, for a different juice or number). Not below what is
+     * paid; the customer stays when it was paid from their money paid ahead.
+     */
+    async updateSale(id: string, input: { date: string; customerName: string; prices: number[] }) {
+      const s = cur().sales.find((x) => x.id === id);
+      need(s, 'That sale no longer exists.');
+      need(!s!.opening, 'This is a balance brought forward; it cannot be changed here.');
+      need(input.date && input.date <= todayYmd(), 'A sale cannot be on a day that has not come yet.');
+      const ops: Op[] = [];
+      const customerId = resolveCustomer(ops, input.customerName);
+      const pays = paymentsOf(id);
+      need(!(s!.method === 'On credit' && !customerId && sum(pays, (p) => p.amount) < linesValue(s!.lines)), "A sale on credit needs the customer's name.");
+      if (customerId !== (s!.customerId || '')) need(!pays.some((p) => p.method === FROM_ADVANCE), "This sale was paid from the customer's money paid ahead, so the customer stays the same.");
+      const lines = s!.lines.map((l, i) => {
+        const price = input.prices[i] === undefined ? l.price : cleanAmount(input.prices[i]);
+        const { fullPrice: _drop, ...rest } = l;
+        return price === l.price ? l : { ...rest, price };
+      });
+      const paid = sum(pays, (p) => p.amount);
+      need(linesValue(lines) >= paid, `${money(paid)} is already paid for this sale, more than the new total of ${money(linesValue(lines))}.`);
+      ops.push({
+        op: 'patch',
+        col: 'sales',
+        id,
+        data: { date: input.date, ...(input.date !== s!.date ? { time: '' } : {}), customerId, customerName: customerId ? (cur().customers.find((c) => c.id === customerId)?.name ?? text(input.customerName)) : 'Walk-in', lines, ...touched() },
+      });
+      await store.commit(ops);
+    },
     /**
      * A counter sale, or a line on the day list (date = that day). method 'On credit' leaves it owed;
      * FROM_ADVANCE takes it from the customer's money paid ahead (what is not covered stays owed).

@@ -195,6 +195,11 @@ export function SaleView({ id, onClose }: { id: string; onClose: () => void }) {
           >
             Undo sale
           </Button>
+          {!s.opening && (
+            <Button variant="soft" onClick={() => sheets.open({ t: 'saleChange', id: s.id })}>
+              Change
+            </Button>
+          )}
           {t.balance > 0 && <Button onClick={() => sheets.open({ t: 'payment', kind: 'sale', refId: s.id })}>Record payment</Button>}
         </SheetButtons>
       }
@@ -220,6 +225,61 @@ export function SaleView({ id, onClose }: { id: string; onClose: () => void }) {
       </div>
       <div className="mt-2">
         <PayBadge status={t.status} />
+      </div>
+    </Sheet>
+  );
+}
+
+/** Changing a sale already recorded: its day, the customer and the price of each bottle. */
+export function SaleChangeForm({ id, onClose }: { id: string; onClose: () => void }) {
+  const { sales, customers, actions, today } = useData();
+  const j = useJuice();
+  const notify = useNotice();
+  const s = sales.find((x) => x.id === id);
+  const [date, setDate] = useState(s?.date ?? today);
+  const [who, setWho] = useState(s?.customerId ? s.customerName : '');
+  const [prices, setPrices] = useState<number[]>(s?.lines.map((l) => l.price) ?? []);
+  const { busy, error, run } = useSaver();
+  if (!s) return null;
+  return (
+    <Sheet
+      title={`Change sale ${s.number}`}
+      onClose={onClose}
+      footer={
+        <SheetButtons>
+          <Button busy={busy} onClick={() => run(() => actions.updateSale(s.id, { date, customerName: who, prices }), () => (notify('Sale changed'), onClose()))}>
+            Save changes
+          </Button>
+        </SheetButtons>
+      }
+    >
+      <FormError message={error} />
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Day of the sale">
+            <DateInput value={date} max={today} onChange={(v) => v && setDate(v)} />
+          </Field>
+          <Field label="Customer" hint="Empty for a walk-in; a new name is added">
+            <TextInput list="sale-change-customers" value={who} onChange={(e) => setWho(e.target.value)} />
+            <datalist id="sale-change-customers">
+              {customers.filter((c) => !c.archived).map((c) => (
+                <option key={c.id} value={c.name} />
+              ))}
+            </datalist>
+          </Field>
+        </div>
+        <div>
+          <span className="label">Price of each bottle</span>
+          <div className="card divide-y divide-line px-3">
+            {s.lines.map((l, i) => (
+              <div key={i} className="flex items-center gap-3 py-2">
+                <span className="min-w-0 flex-1">{j.lineText(l)}</span>
+                <MoneyInput className="w-28" value={prices[i] ?? 0} onChange={(n) => setPrices((ps) => ps.map((p, k) => (k === i ? n : p)))} />
+              </div>
+            ))}
+          </div>
+          <p className="mt-1 text-xs text-muted">For another juice or a different number of bottles: Undo sale, then record it again on the right day.</p>
+        </div>
       </div>
     </Sheet>
   );

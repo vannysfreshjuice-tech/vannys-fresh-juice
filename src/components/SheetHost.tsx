@@ -12,7 +12,7 @@ import { DayEntryForm } from '../sheets/day';
 import { MessagePreview } from '../sheets/message';
 import { EventQuoteSheet } from '../sheets/quote';
 import { StatementCardSheet } from '../sheets/statement';
-import { Checkout, PaymentForm, Receipt, ReceiveForm, SaleView } from '../sheets/sales';
+import { Checkout, PaymentForm, Receipt, ReceiveForm, SaleView, SaleChangeForm } from '../sheets/sales';
 import { CountForm, ItemForm, PurchaseForm, PurchaseView, ReadingForm, SupplierForm } from '../sheets/stock';
 
 export type SheetSpec =
@@ -30,8 +30,9 @@ export type SheetSpec =
   | { t: 'dayEntry'; date: string; customerName?: string }
   | { t: 'order'; id?: string; customerName?: string }
   | { t: 'orderView'; id: string }
-  | { t: 'batch'; productId?: string }
+  | { t: 'batch'; productId?: string; id?: string; date?: string }
   | { t: 'batchView'; id: string }
+  | { t: 'saleChange'; id: string }
   | { t: 'bottle'; id: string }
   | { t: 'writeOff'; batchId?: string }
   | { t: 'product'; id?: string; kind?: ProductKind }
@@ -39,7 +40,7 @@ export type SheetSpec =
   | { t: 'deleteJuice'; id: string }
   | { t: 'item'; id?: string; kind?: ItemKind }
   | { t: 'count'; itemId: string }
-  | { t: 'purchase'; itemId?: string }
+  | { t: 'purchase'; itemId?: string; id?: string; date?: string }
   | { t: 'purchaseView'; id: string }
   | { t: 'supplier'; id?: string }
   | { t: 'customer'; id?: string }
@@ -91,7 +92,9 @@ function render(spec: SheetSpec, close: () => void) {
     case 'orderView':
       return <OrderView id={spec.id} onClose={close} />;
     case 'batch':
-      return <BatchForm productId={spec.productId} onClose={close} />;
+      return <BatchForm productId={spec.productId} id={spec.id} date={spec.date} onClose={close} />;
+    case 'saleChange':
+      return <SaleChangeForm id={spec.id} onClose={close} />;
     case 'batchView':
       return <BatchView id={spec.id} onClose={close} />;
     case 'bottle':
@@ -109,7 +112,7 @@ function render(spec: SheetSpec, close: () => void) {
     case 'count':
       return <CountForm itemId={spec.itemId} onClose={close} />;
     case 'purchase':
-      return <PurchaseForm itemId={spec.itemId} onClose={close} />;
+      return <PurchaseForm itemId={spec.itemId} id={spec.id} date={spec.date} onClose={close} />;
     case 'purchaseView':
       return <PurchaseView id={spec.id} onClose={close} />;
     case 'supplier':
