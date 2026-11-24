@@ -1,5 +1,5 @@
 // The app's pages, defined once: the sidebar, the phone tabs, the More menu and who may open what.
-import { BarChart3, Bell, BookOpen, Boxes, CalendarDays, CupSoda, House, ReceiptText, Settings as SettingsIcon, ShoppingBasket, ShoppingCart, Truck, UserRound, Users, Blend, type LucideIcon } from 'lucide-react';
+import { BarChart3, Bell, BookOpen, Boxes, CalendarDays, ClipboardList, CupSoda, House, ReceiptText, Settings as SettingsIcon, ShoppingBasket, ShoppingCart, Truck, UserRound, Users, Blend, type LucideIcon } from 'lucide-react';
 import type { Role } from './types';
 
 export interface PageDef {
@@ -29,6 +29,7 @@ export const PAGES: PageDef[] = [
   { to: '/customers', label: 'Customers', icon: Users, group: 'The business', roles: ['owner', 'sales'] },
   { to: '/expenses', label: 'Expenses', icon: ReceiptText, group: 'The business', roles: ['owner'] },
   { to: '/staff', label: 'Staff and wages', short: 'Staff', icon: UserRound, group: 'The business', roles: ['owner'] },
+  { to: '/records', label: 'Sales and production', short: 'Lists', icon: ClipboardList, group: 'The business', roles: ['owner'] },
   { to: '/reports', label: 'Reports', icon: BarChart3, group: 'The business', roles: ['owner'] },
   { to: '/settings', label: 'Settings', icon: SettingsIcon, group: 'The business', roles: ['owner'] },
   { to: '/help', label: 'Help (user manual)', short: 'Help', icon: BookOpen, group: 'The business', roles: 'all' },

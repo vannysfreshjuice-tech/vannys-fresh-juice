@@ -77,13 +77,16 @@ export function priceOf(product: Product | undefined, size: Size | undefined): n
   return num(size.price);
 }
 
+/** What a purchase cost in all: the total paid, or quantity x price each for older purchases. */
+export const purchaseValue = (p: Purchase) => (typeof p.total === 'number' ? num(p.total) : Math.round(num(p.qty) * num(p.price)));
+
 /** Average cost of one unit of each stock item, over everything ever bought. */
 export function averageCosts(purchases: Purchase[]): Map<string, number> {
   const qty = new Map<string, number>();
   const spent = new Map<string, number>();
   for (const p of purchases) {
     qty.set(p.itemId, (qty.get(p.itemId) ?? 0) + num(p.qty));
-    spent.set(p.itemId, (spent.get(p.itemId) ?? 0) + num(p.qty) * num(p.price));
+    spent.set(p.itemId, (spent.get(p.itemId) ?? 0) + purchaseValue(p));
   }
   const out = new Map<string, number>();
   for (const [id, q] of qty) out.set(id, q > 0 ? (spent.get(id) ?? 0) / q : 0);
@@ -264,6 +267,17 @@ export function batchStatus(b: Batch, left: BatchLeft | undefined): BatchStatus 
   return (left?.total ?? 0) > 0 ? 'In the fridge' : 'Finished';
 }
 
+/**
+ * Where the next bottles of a juice and size come from on a day: the batches made that day or before with
+ * bottles left, in the order a sale takes them (nearest best-before first, so left-over bottles go first).
+ */
+export function nextBottles(byBatch: Map<string, BatchLeft>, productId: string, size: string, day: string): { batch: Batch; left: number }[] {
+  return [...byBatch.values()]
+    .filter((bl) => bl.batch.productId === productId && bl.batch.date <= day && (bl.left[size] ?? 0) > 0)
+    .sort((a, b) => (a.batch.bestBefore || '').localeCompare(b.batch.bestBefore || '') || a.batch.number.localeCompare(b.batch.number))
+    .map((bl) => ({ batch: bl.batch, left: bl.left[size] ?? 0 }));
+}
+
 /** Bottles in the fridge for one juice and size (all batches). */
 export function fridgeCount(byBatch: Map<string, BatchLeft>, productId: string, size: string): number {
   let n = 0;
@@ -373,7 +387,7 @@ export function saleTotals(s: Sale, pays: Payment[] | undefined): Totals {
 }
 
 export function purchaseTotals(p: Purchase, pays: Payment[] | undefined): Totals {
-  return totals(num(p.qty) * num(p.price), sum(pays ?? [], (x) => x.amount));
+  return totals(purchaseValue(p), sum(pays ?? [], (x) => x.amount));
 }
 
 /** What each customer owes: the balance of each of their orders and credit sales, added up. */

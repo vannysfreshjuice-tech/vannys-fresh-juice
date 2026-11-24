@@ -73,7 +73,11 @@ export interface Purchase extends Base {
   supplierName: string;
   itemId: string;
   qty: number;
-  price: number; // each unit
+  price: number; // each unit (worked out from the total, so it can have decimals)
+  /** What was paid in all (since 24 Nov 2026); older purchases: qty x price */
+  total?: number;
+  /** Bought in cartons or packs: how many, how many in each, the price of one */
+  pack?: { count: number; per: number; price: number };
   quality?: string;
   note?: string;
 }

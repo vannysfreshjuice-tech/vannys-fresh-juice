@@ -176,3 +176,60 @@ export function regulars(sales: Sale[], day: string, max = 16): string[] {
     .map(([id]) => id);
   return [...ranked, ...onTheDay.filter((id) => !ranked.includes(id))];
 }
+
+export interface BalanceRow {
+  productId: string;
+  size: string;
+  /** left in the fridge the evening before the period */
+  before: number;
+  made: number;
+  sold: number;
+  spoiled: number;
+  /** before + made - sold - spoiled */
+  left: number;
+  /** sold in the period with no bottles made recorded for them */
+  unrecorded: number;
+}
+
+/**
+ * Production against sales for a period, for each juice and size (Vanessa, 24 Nov 2026): what was left
+ * from before + what was made - what was sold - what went bad = what is left, and the bottles sold with
+ * nothing made recorded. From the same per-batch count as the fridge (fridgeFlow), so it always agrees
+ * with the Day list and Stock.
+ */
+export function productionBalance(batches: Batch[], sales: Sale[], orders: Order[], writeOffs: WriteOff[], from: string, to: string): BalanceRow[] {
+  const keys = new Set<string>();
+  for (const b of batches) for (const [k, n] of Object.entries(b.filled ?? {})) if (num(n) > 0 && b.date <= to) keys.add(`${b.productId}|${k}`);
+  for (const s of sales) if (!s.opening && s.date >= from && s.date <= to) for (const l of s.lines ?? []) if (l.productId) keys.add(`${l.productId}|${l.size}`);
+  const rows: BalanceRow[] = [];
+  for (const key of keys) {
+    const [productId, size] = key.split('|');
+    const bs = batches.filter((b) => b.productId === productId && num(b.filled?.[size]) > 0).map((b) => ({ ...b, filled: { [size]: num(b.filled[size]) } }));
+    const ids = new Set(bs.map((b) => b.id));
+    const ss = sales.map((s) => ({ ...s, lines: (s.lines ?? []).filter((l) => l.productId === productId && l.size === size) })).filter((s) => s.lines.length);
+    const os = orders.map((o) => ({ ...o, packed: (o.packed ?? []).filter((l) => l.productId === productId && l.size === size) })).filter((o) => o.packed.length);
+    const ws = writeOffs.filter((w) => ids.has(w.batchId) && w.size === size);
+    const flow = fridgeFlow(bs, ss, os, ws);
+    let filledBefore = 0;
+    let made = 0;
+    for (const b of bs) {
+      if (b.date < from) filledBefore += num(b.filled[size]);
+      else if (b.date <= to) made += num(b.filled[size]);
+    }
+    let takenBefore = 0;
+    let sold = 0;
+    let spoiled = 0;
+    for (const t of flow.taken) {
+      if (t.date < from) takenBefore += t.qty;
+      else if (t.date <= to) {
+        if (t.spoiled) spoiled += t.qty;
+        else sold += t.qty;
+      }
+    }
+    const before = Math.max(0, filledBefore - takenBefore);
+    const unrecorded = sum(flow.unmatched.filter((u) => u.date >= from && u.date <= to), (u) => u.qty);
+    if (!before && !made && !sold && !spoiled && !unrecorded) continue;
+    rows.push({ productId, size, before, made, sold, spoiled, left: Math.max(0, before + made - sold - spoiled), unrecorded });
+  }
+  return rows;
+}

@@ -121,14 +121,25 @@ export function PurchaseForm({ itemId, id, date: day, onClose }: { itemId?: stri
   const it = isNew ? { name: newName, unit: newUnit, kind: newKind } : live.find((i) => i.id === iid);
   const lookalike = isNew && newName.trim() ? items.find((i) => i.name.trim().toLowerCase().replace(/(es|s)$/, '') === newName.trim().toLowerCase().replace(/(es|s)$/, '')) : undefined;
   const [supplier, setSupplier] = useState(editing?.supplierName ?? '');
-  const [q, setQ] = useState(editing?.qty ?? 0);
-  const [price, setPrice] = useState(editing?.price ?? lastCosts.get(iid) ?? 0);
+  // Single pieces (how many, what was paid in all) or cartons / packs (how many, how many in each, the
+  // price of one); the price of one piece is worked out (Vanessa, 24 Nov 2026).
+  const [mode, setMode] = useState<'pieces' | 'packs'>(editing?.pack ? 'packs' : 'pieces');
+  const [q, setQ] = useState(editing && !editing.pack ? editing.qty : 0);
+  const [paidAll, setPaidAll] = useState(editing && !editing.pack ? (editing.total ?? Math.round(editing.qty * editing.price)) : 0);
+  const perKey = (id: string) => `vannys.pack.${id}`;
+  const [packs, setPacks] = useState(editing?.pack?.count ?? 0);
+  const [per, setPer] = useState(editing?.pack?.per ?? (Number(localStorage.getItem(perKey(iid))) || 12));
+  const [packPrice, setPackPrice] = useState(editing?.pack?.price ?? 0);
+  const qtyNow = mode === 'packs' ? Math.round(packs * per * 1000) / 1000 : q;
+  const lastEach = lastCosts.get(iid);
   const [paid, setPaid] = useState(0);
   const [method, setMethod] = useState(settings.methods[0]);
   const [quality, setQuality] = useState<string>(editing?.quality || 'Good');
   const [date, setDate] = useState(editing?.date ?? day ?? today);
   const { busy, error, run } = useSaver();
-  const total = Math.round(q * price);
+  const total = mode === 'packs' ? Math.round(packs * packPrice) : Math.round(paidAll);
+  const each = qtyNow > 0 ? total / qtyNow : 0;
+  const figures = mode === 'packs' ? { pack: { count: packs, per, price: packPrice } } : { qty: q, total: paidAll };
   return (
     <Sheet
       title={editing ? 'Change this purchase' : 'Buy fruit or supplies'}
@@ -143,11 +154,12 @@ export function PurchaseForm({ itemId, id, date: day, onClose }: { itemId?: stri
                   let id = iid;
                   if (isNew) {
                     if (!newName.trim()) throw new Error('Type the name of what was bought.');
-                    if (!(q > 0)) throw new Error('Type how much was bought.');
+                    if (!(qtyNow > 0)) throw new Error('Type how much was bought.');
                     id = await actions.saveItem({ name: newName, kind: newKind, unit: newUnit, reorderLevel: 0 });
                   }
-                  if (editing) await actions.updatePurchase(editing.id, { date, supplierName: supplier, itemId: id, qty: q, price, quality, note: editing.note });
-                  else await actions.savePurchase({ date, supplierName: supplier, itemId: id, qty: q, price, quality }, { amount: paid, method });
+                  if (mode === 'packs') localStorage.setItem(perKey(id), String(per));
+                  if (editing) await actions.updatePurchase(editing.id, { date, supplierName: supplier, itemId: id, ...figures, quality, note: editing.note });
+                  else await actions.savePurchase({ date, supplierName: supplier, itemId: id, ...figures, quality }, { amount: paid, method });
                 },
                 () => {
                   notify(editing ? 'Purchase changed' : isNew ? `${newName.trim()} added to Stock, and the purchase saved` : 'Purchase saved: stock is up');
@@ -173,7 +185,7 @@ export function PurchaseForm({ itemId, id, date: day, onClose }: { itemId?: stri
               value={iid}
               onChange={(e) => {
                 setIid(e.target.value);
-                setPrice(lastCosts.get(e.target.value) ?? 0);
+                setPer(Number(localStorage.getItem(perKey(e.target.value))) || 12);
               }}
             />
           </Field>
@@ -185,7 +197,7 @@ export function PurchaseForm({ itemId, id, date: day, onClose }: { itemId?: stri
               {lookalike && (
                 <p className="text-xs text-amber">
                   Already in Stock as {lookalike.name}.{' '}
-                  <button type="button" className="font-semibold underline" onClick={() => (setIid(lookalike.id), setPrice(lastCosts.get(lookalike.id) ?? 0))}>
+                  <button type="button" className="font-semibold underline" onClick={() => setIid(lookalike.id)}>
                     Use {lookalike.name}
                   </button>
                 </p>
@@ -215,16 +227,50 @@ export function PurchaseForm({ itemId, id, date: day, onClose }: { itemId?: stri
               ))}
             </datalist>
           </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={`Quantity (${it?.unit ?? ''})`}>
-              <QtyInput value={q} onChange={setQ} />
-            </Field>
-            <Field label={`Price per ${it?.unit ?? 'unit'}`}>
-              <MoneyInput value={price} onChange={setPrice} />
-            </Field>
+          <div>
+            <span className="label">How it was bought</span>
+            <Choice
+              options={[
+                { value: 'pieces', label: `Single ${it?.unit === 'pcs' || !it?.unit ? 'pieces' : it.unit}` },
+                { value: 'packs', label: 'Cartons or packs' },
+              ]}
+              value={mode}
+              onChange={(v) => setMode(v as 'pieces' | 'packs')}
+            />
           </div>
-          <p className="text-[15px]">
-            Total: <b className="num">{money(total, settings.currency)}</b>
+          {mode === 'pieces' ? (
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={`How many (${it?.unit ?? ''})`}>
+                <QtyInput value={q} onChange={setQ} />
+              </Field>
+              <Field label="Paid in all">
+                <MoneyInput value={paidAll} onChange={setPaidAll} />
+              </Field>
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-3">
+              <Field label="Cartons">
+                <QtyInput value={packs} onChange={setPacks} />
+              </Field>
+              <Field label={`${it?.unit === 'pcs' || !it?.unit ? 'Pieces' : it.unit} in one`}>
+                <QtyInput value={per} onChange={(n) => setPer(Math.max(1, Math.round(n)))} />
+              </Field>
+              <Field label="Price of one carton">
+                <MoneyInput value={packPrice} onChange={setPackPrice} />
+              </Field>
+            </div>
+          )}
+          <p className="rounded-lg bg-page px-3 py-2 text-[15px]">
+            {qtyNow > 0 && total > 0 ? (
+              <>
+                <b className="num">{showQty(qtyNow)} {it?.unit}</b> go into Stock · total <b className="num">{money(total, settings.currency)}</b> · <b className="num">{money(Math.round(each), settings.currency)}</b> each
+                {lastEach ? <span className="block text-xs text-muted">Last time: {money(Math.round(lastEach), settings.currency)} each</span> : null}
+              </>
+            ) : (
+              <span className="text-muted">
+                {mode === 'packs' ? 'Type the cartons, how many are in one, and the price of one carton.' : 'Type how many and what you paid in all.'} The price of one is worked out{lastEach ? ` (last time ${money(Math.round(lastEach), settings.currency)} each)` : ''}.
+              </span>
+            )}
           </p>
           {!editing && (
           <div className="grid grid-cols-2 gap-3">

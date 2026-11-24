@@ -10,7 +10,7 @@ import { Button, Choice, DateInput, Empty, IconButton, PageHead, QtyInput, Selec
 import { useData } from '../data/DataContext';
 import { addDays, showDay, weekdayShort } from '../lib/dates';
 import { dayStock, daySummary, entryStatus, excelName, regulars, STATUS_WORDS, weekStart, type DayState, type EntryStatus } from '../lib/day';
-import { linesValue, advancesAsOf } from '../lib/juice';
+import { linesValue, advancesAsOf, nextBottles } from '../lib/juice';
 import { money } from '../lib/money';
 import { DiscountControl, lastDiscount, payFor, useUsualJuice } from '../sheets/day';
 import { useBalanceChecks } from '../components/BalanceChecks';
@@ -69,7 +69,7 @@ function Legend() {
 }
 
 function DayView({ day, setDay, firstDay }: { day: string; setDay: (d: string) => void; firstDay: string }) {
-  const { sales, orders, byRef, customersById, customerAdv, actions, settings, today, products, customers, payments } = useData();
+  const { sales, orders, byRef, customersById, customerAdv, actions, settings, today, products, customers, payments, fridge, batches } = useData();
   // what each customer had paid ahead at the end of the day shown (today: what they have now)
   const aheadThen = useMemo(() => (day >= today ? customerAdv : advancesAsOf(customers, orders, sales, payments, day)), [day, today, customerAdv, customers, orders, sales, payments]);
   const j = useJuice();
@@ -88,6 +88,8 @@ function DayView({ day, setDay, firstDay }: { day: string; setDay: (d: string) =
     .filter((c) => c && !c.archived);
   const later = day > today;
   const cur = (n: number) => money(n, settings.currency);
+  // where the next tap's bottle comes from: left-over bottles first, then the day's new batch
+  const next = nextBottles(fridge, usual.productId, usual.size, day);
 
   const tap = async (customerId: string) => {
     const c = customersById.get(customerId);
@@ -97,8 +99,9 @@ function DayView({ day, setDay, firstDay }: { day: string; setDay: (d: string) =
       const method = payFor(customerAdv.get(customerId) ?? 0, tapPay);
       // a customer's standing discount always applies; otherwise the tap discount when it is on
       const discount = Math.min(usualPrice, (c.discount ?? 0) > 0 ? (c.discount ?? 0) : tapDiscOn ? tapDisc : 0);
+      const from = next[0]?.batch;
       await actions.saveSale({ date: day, lines: [{ productId: usual.productId, size: usual.size, qty: 1, price: usualPrice }], customerName: c.name, method, discount });
-      notify(`${c.name}: 1 bottle${discount ? ` at ${cur(usualPrice - discount)} (${cur(discount)} off)` : ''}, ${method === 'On credit' ? 'not paid yet' : method}`);
+      notify(`${c.name}: 1 bottle${from ? ` (${from.date === day ? 'new batch' : `left over from ${showDay(from.date)}`})` : ' (no bottles recorded)'}${discount ? ` at ${cur(usualPrice - discount)} (${cur(discount)} off)` : ''}, ${method === 'On credit' ? 'not paid yet' : method}`);
     } catch (e) {
       notify((e as Error).message, 'info');
     } finally {
@@ -151,6 +154,32 @@ function DayView({ day, setDay, firstDay }: { day: string; setDay: (d: string) =
             {liveJuices.length <= 1 && <span className="text-sm font-medium">{j.name(usual.productId)}</span>}
           </div>
           <Choice options={settings.sizes.map((s) => ({ value: s.key, label: `${s.label} · ${cur(j.price(usual.productId, s.key)).replace(`${settings.currency} `, '')}` }))} value={usual.size} onChange={(k) => usual.remember(usual.productId, k)} />
+          <p className={cx('mt-2 rounded-lg px-3 py-2 text-sm', next.length ? 'bg-page' : 'bg-butter-soft')}>
+            {next.length ? (
+              <>
+                <b>Next tap takes: </b>
+                {next.map((n, i) => (
+                  <span key={n.batch.id}>
+                    {i > 0 ? ', then ' : ''}
+                    {n.batch.date === day ? (
+                      <>
+                        <b className="text-leaf">{n.left} new</b> ({day === today ? "today's" : "that day's"} batch {n.batch.number})
+                      </>
+                    ) : (
+                      <>
+                        <b className="text-amber">{n.left} left over</b> from {showDay(n.batch.date)} ({n.batch.number})
+                      </>
+                    )}
+                  </span>
+                ))}
+                . Left-over bottles go first.
+              </>
+            ) : (
+              <>
+                No {j.name(usual.productId)} {j.sizeLabel(usual.size)} in the fridge {day === today ? 'now' : 'that day'}: a tap is recorded with no bottles. Add the bottles made first.
+              </>
+            )}
+          </p>
           <p className="mt-3 mb-2 text-sm text-muted">Paid:</p>
           <Choice options={['On credit', ...settings.methods.filter((m) => m !== 'Bank')].map((m) => ({ value: m, label: m === 'On credit' ? 'Not yet' : m }))} value={tapPay} onChange={setTapPay} />
           <div className="mt-3">
@@ -198,7 +227,15 @@ function DayView({ day, setDay, firstDay }: { day: string; setDay: (d: string) =
                 <button key={s.id} type="button" onClick={() => sheets.open({ t: 'saleView', id: s.id })} className={cx('flex min-h-11 items-center gap-3 rounded-xl border px-3 py-2 text-left', NAME_TONE[st])}>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium">{excelName(s, (l) => j.price(l.productId, l.size))}</span>
-                    <span className="block truncate text-xs opacity-75">{s.lines.map((l) => `${l.qty > 1 ? `${l.qty} × ` : ''}${j.name(l.productId)} ${j.sizeLabel(l.size)}`).join(', ')}</span>
+                    <span className="block truncate text-xs opacity-75">
+                      {s.lines
+                        .map((l) => {
+                          const b = l.batchId ? batches.find((x) => x.id === l.batchId) : undefined;
+                          const from = !b ? 'no bottles recorded' : b.date === s.date ? 'new batch' : `left over from ${showDay(b.date)}`;
+                          return `${l.qty > 1 ? `${l.qty} × ` : ''}${j.name(l.productId)} ${j.sizeLabel(l.size)} · ${from}`;
+                        })
+                        .join(', ')}
+                    </span>
                   </span>
                   <span className="text-xs">{STATUS_WORDS[st]}</span>
                   <span className="num w-20 text-right">{cur(linesValue(s.lines))}</span>
@@ -231,6 +268,10 @@ function MadeCard({ day }: { day: string }) {
   const made = batches.filter((b) => b.date === day).sort((a, b) => a.createdAt - b.createdAt);
   const st = dayStock(day, batches, sales, orders, writeOffs);
   const unrecorded = useBalanceChecks().filter((c) => c.what === 'sold' && c.date === day);
+  const inFridge = batches
+    .filter((b) => b.date <= day && (fridge.get(b.id)?.total ?? 0) > 0)
+    .sort((a, b) => (a.bestBefore || '').localeCompare(b.bestBefore || '') || a.number.localeCompare(b.number))
+    .map((b) => ({ b, left: fridge.get(b.id)!.left }));
   // The oldest batch with bottles still in the fridge (made on or before this day): where "left" comes from.
   const oldestLeft = batches
     .filter((b) => b.date <= day && (fridge.get(b.id)?.total ?? 0) > 0)
@@ -274,6 +315,24 @@ function MadeCard({ day }: { day: string }) {
       <p className="num mb-3 text-center text-sm text-muted">
         {st.before} left from {day === today ? 'yesterday' : 'the day before'} + {st.made} made − {st.sold} sold{st.spoiled ? ` − ${st.spoiled} went bad` : ''} = <b className="text-ink">{st.left} left</b>
       </p>
+      {day === today && inFridge.length > 0 && (
+        <div className="mb-3 rounded-lg bg-page px-3 py-2 text-sm">
+          <b>In the fridge now</b> (the oldest are sold first):
+          <ul className="mt-1 space-y-0.5">
+            {inFridge.map(({ b, left }) => (
+              <li key={b.id} className="num flex justify-between gap-2">
+                <span>
+                  {Object.entries(left)
+                    .filter(([, n]) => n > 0)
+                    .map(([k, n]) => `${n} × ${j.name(b.productId)} ${j.sizeLabel(k)}`)
+                    .join(', ')}
+                </span>
+                <span className={b.date === day ? 'text-leaf' : 'text-amber'}>{b.date === day ? 'made today' : `left over from ${showDay(b.date)}`}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {st.unrecorded > 0 && (
         <p className="mb-3 rounded-lg bg-butter-soft px-3 py-2 text-sm">
           <b>{st.unrecorded} more sold with no bottles made recorded.</b> Add the bottles made {day === today ? 'today' : 'that day'} below: those sold come off them by themselves, so the fridge stays right. Tapped as the wrong juice? Change them:

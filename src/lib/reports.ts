@@ -2,7 +2,7 @@
 // Sold = counter sales on their date + orders on the day they were delivered.
 // Cost of a bottle = the juice cost per litre of the batch it came from x litres + bottle, cap and label.
 import { inPeriod, type Period } from './dates';
-import { batchCost, bottleCost, isMoneyIn, paymentsByRef, recipeCostPerLitre, sizeOf } from './juice';
+import { batchCost, bottleCost, isMoneyIn, paymentsByRef, purchaseValue, recipeCostPerLitre, sizeOf } from './juice';
 import { num, sum } from './money';
 import type { Batch, BottleLine, Product, ProductKind, Records, Settings } from './types';
 
@@ -115,7 +115,7 @@ export function buildReport(r: Records, settings: Settings, period: Period, cost
   let packaging = 0;
   for (const p of r.purchases) {
     if (!inPeriod(p.date, period)) continue;
-    const amount = num(p.qty) * num(p.price);
+    const amount = purchaseValue(p);
     const item = items.get(p.itemId);
     if (item?.kind === 'packaging') packaging += amount;
     else fruit += amount;

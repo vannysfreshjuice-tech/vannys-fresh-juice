@@ -4,6 +4,7 @@ import { useJuice } from '../components/bits';
 import { Button, Choice, Field, FormError, MoneyInput, QtyInput, Select, Sheet, SheetButtons, TextInput, useNotice, useSaver } from '../components/ui';
 import { useData } from '../data/DataContext';
 import { showDay } from '../lib/dates';
+import { nextBottles } from '../lib/juice';
 import { mostSold } from '../lib/day';
 import { money } from '../lib/money';
 import { FROM_ADVANCE, type Customer } from '../lib/types';
@@ -130,7 +131,7 @@ export function payFor(ahead: number, chosen: string) {
 }
 
 export function DayEntryForm({ date, customerName, onClose }: { date: string; customerName?: string; onClose: () => void }) {
-  const { actions, customers, products, settings, customerAdv } = useData();
+  const { actions, customers, products, settings, customerAdv, fridge } = useData();
   const j = useJuice();
   const usual = useUsualJuice();
   const notify = useNotice();
@@ -201,6 +202,21 @@ export function DayEntryForm({ date, customerName, onClose }: { date: string; cu
             <MoneyInput value={price} onChange={setPrice} />
           </Field>
         </div>
+        <p className="rounded-lg bg-page px-3 py-2 text-sm">
+          {(() => {
+            // which bottles these are: left-over bottles first, then the day's new batch, then none recorded
+            let want = qty;
+            const parts: string[] = [];
+            for (const nb of nextBottles(fridge, productId, size, date)) {
+              if (want <= 0) break;
+              const take = Math.min(want, nb.left);
+              want -= take;
+              parts.push(nb.batch.date === date ? `${take} from the new batch (${nb.batch.number})` : `${take} left over from ${showDay(nb.batch.date)} (${nb.batch.number})`);
+            }
+            if (want > 0) parts.push(`${want} with no bottles recorded`);
+            return `These bottles: ${parts.join(', ')}.`;
+          })()}
+        </p>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Juice">
             <Select

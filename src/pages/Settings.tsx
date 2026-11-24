@@ -232,7 +232,7 @@ function Business() {
 }
 
 function Sizes() {
-  const { settings, actions, items } = useData();
+  const { settings, actions, items, lastCosts, itemsById } = useData();
   const notify = useNotice();
   const [sizes, setSizes] = useState<Size[]>(settings.sizes.map((s) => ({ ...s })));
   const [deposit, setDeposit] = useState(settings.bottleDeposit);
@@ -241,24 +241,35 @@ function Sizes() {
   const set = (i: number, patch: Partial<Size>) => setSizes((ss) => ss.map((s, n) => (n === i ? { ...s, ...patch } : s)));
   const bottles = items.filter((i) => i.kind === 'packaging' && !i.archived);
   return (
-    <Card title="Bottle sizes and prices">
+    <Card title="Selling prices">
       <FormError message={error} />
-      <p className="mb-3 rounded-xl bg-page px-3 py-2 text-xs text-muted">Filled in by Buying: a bottle bought with its size in the name (e.g. Bottles 500 ml) is linked to that size, and its cost becomes the price paid, plus the caps and labels every bottle uses. Change anything here if needed.</p>
+      <p className="mb-3 rounded-xl bg-page px-3 py-2 text-xs text-muted">Type the price you sell each size at. What a bottle costs you is worked out from Buying: record each purchase of bottles, caps and labels (single pieces or cartons) and the cost follows what you paid last.</p>
       <div className="space-y-3">
         {sizes.map((s, i) => (
           <div key={s.key} className="rounded-xl border border-line p-3">
             <p className="mb-2 font-semibold">{s.label}</p>
-            <div className="grid grid-cols-2 gap-2">
-              <Field label="Price">
-                <MoneyInput value={s.price} onChange={(n) => set(i, { price: n })} />
-              </Field>
-              <Field label="Bottle, cap, label">
-                <MoneyInput value={s.packCost} onChange={(n) => set(i, { packCost: n })} />
-              </Field>
-            </div>
-            <Field label="Uses up this bottle from Stock" className="mt-2">
-              <Select options={[{ value: '', label: 'None' }, ...bottles.map((b) => ({ value: b.id, label: b.name }))]} value={s.bottleItemId ?? ''} onChange={(e) => set(i, { bottleItemId: e.target.value })} />
+            <Field label="Selling price">
+              <MoneyInput value={s.price} onChange={(n) => set(i, { price: n })} />
             </Field>
+            <p className="mt-2 text-sm text-muted">
+              {(() => {
+                const bottle = s.bottleItemId ? itemsById.get(s.bottleItemId) : undefined;
+                if (!bottle) return `Its bottle cost: ${money(s.packCost, settings.currency)} (not linked to bottles in Stock yet: buy bottles with "${s.label}" in the name, e.g. Bottles ${s.label}).`;
+                const parts = [bottle, ...perBottle.filter((x) => x !== bottle.id).map((x) => itemsById.get(x))].filter((x): x is NonNullable<typeof x> => !!x);
+                return `Bottle, cap and label cost you ${money(s.packCost, settings.currency)}: ${parts.map((x) => `${x.name} ${lastCosts.has(x.id) ? money(Math.round(lastCosts.get(x.id)!), settings.currency) : '(not bought yet)'}`).join(' + ')}, from what you paid last on Buying.`;
+              })()}
+            </p>
+            <details className="mt-1 text-sm">
+              <summary className="cursor-pointer text-accent-dark">Change by hand</summary>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <Field label="Bottle, cap, label">
+                  <MoneyInput value={s.packCost} onChange={(n) => set(i, { packCost: n })} />
+                </Field>
+                <Field label="Uses up this bottle from Stock">
+                  <Select options={[{ value: '', label: 'None' }, ...bottles.map((b) => ({ value: b.id, label: b.name }))]} value={s.bottleItemId ?? ''} onChange={(e) => set(i, { bottleItemId: e.target.value })} />
+                </Field>
+              </div>
+            </details>
           </div>
         ))}
         <div>

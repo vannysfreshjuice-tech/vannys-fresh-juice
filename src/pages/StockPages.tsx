@@ -6,7 +6,7 @@ import { useSheets } from '../components/SheetHost';
 import { Badge, Button, Choice, Empty, PageHead, StatCard, cx } from '../components/ui';
 import { useData } from '../data/DataContext';
 import { relativeDay, showDate, showDay } from '../lib/dates';
-import { fridgeCount, fridgeTotal, purchaseTotals } from '../lib/juice';
+import { fridgeCount, fridgeTotal, purchaseTotals, purchaseValue } from '../lib/juice';
 import { qty as showQty, sum } from '../lib/money';
 import type { ItemKind, ProductKind } from '../lib/types';
 import { BalanceChecks } from '../components/BalanceChecks';
@@ -228,7 +228,7 @@ export function Buying() {
   const sheets = useSheets();
   const month = today.slice(0, 7);
   const thisMonth = purchases.filter((p) => p.date.slice(0, 7) === month);
-  const spent = sum(thisMonth, (p) => p.qty * p.price);
+  const spent = sum(thisMonth, (p) => purchaseValue(p));
   const owed = sum([...supplierBal.values()], (v) => v);
   const list = [...purchases].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
   // Price history of the most bought fruit, newest last.
@@ -253,7 +253,7 @@ export function Buying() {
             <div className="space-y-3">
               {[...new Set(list.map((p) => p.date))].map((day) => {
                 const ofDay = list.filter((p) => p.date === day);
-                const dayTotal = sum(ofDay, (p) => p.qty * p.price);
+                const dayTotal = sum(ofDay, (p) => purchaseValue(p));
                 const dayOwed = sum(ofDay, (p) => purchaseTotals(p, byRef.get(p.id)).balance);
                 return (
                   <section key={day} className="card overflow-hidden">
@@ -276,7 +276,8 @@ export function Buying() {
                                 {it?.name ?? 'Item'} · {showQty(p.qty)} {it?.unit}
                               </span>
                               <span className="block truncate text-sm text-muted">
-                                {p.supplierName} · {j.money(p.price)}/{it?.unit}
+                                {p.supplierName} · {p.pack ? `${p.pack.count} × ${p.pack.per} at ${j.money(p.pack.price)} · ` : ''}
+                                {j.money(Math.round(p.price))} each
                                 {p.quality ? ` · ${p.quality}` : ''}
                               </span>
                             </span>

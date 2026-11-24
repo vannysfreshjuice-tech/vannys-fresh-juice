@@ -5,7 +5,7 @@ import { JuiceBadge, PayBadge, useJuice } from '../components/bits';
 import { useSheets } from '../components/SheetHost';
 import { Button, Choice, DateInput, Field, FormError, Line, MoneyInput, Select, Sheet, SheetButtons, TextInput, useConfirm, useNotice, useSaver } from '../components/ui';
 import { useData } from '../data/DataContext';
-import { showDate } from '../lib/dates';
+import { showDate, showDay } from '../lib/dates';
 import { linesValue, orderTotals, purchaseTotals, saleTotals } from '../lib/juice';
 import { fmt, money } from '../lib/money';
 import { FROM_ADVANCE, type OrderLine, type PaymentKind } from '../lib/types';
@@ -176,7 +176,6 @@ export function SaleView({ id, onClose }: { id: string; onClose: () => void }) {
   const s = sales.find((x) => x.id === id);
   if (!s) return null;
   const t = saleTotals(s, byRef.get(s.id));
-  const batchNo = (bid?: string) => batches.find((b) => b.id === bid)?.number ?? '';
   return (
     <Sheet
       title={`Sale ${s.number}`}
@@ -212,7 +211,13 @@ export function SaleView({ id, onClose }: { id: string; onClose: () => void }) {
           <div key={i} className="flex items-center gap-3 py-2">
             <span className="min-w-0 flex-1">
               {j.lineText(l)}
-              {l.batchId && <span className="block text-xs text-muted">from batch {batchNo(l.batchId)}</span>}
+              <span className="block text-xs text-muted">
+                {(() => {
+                  const b = batches.find((x) => x.id === l.batchId);
+                  if (!b) return 'No bottles recorded for it';
+                  return b.date === s.date ? `From the new batch ${b.number} (made that day)` : `Left-over bottles from ${showDay(b.date)} (${b.number})`;
+                })()}
+              </span>
             </span>
             <span className="num">{j.money(l.qty * l.price)}</span>
           </div>

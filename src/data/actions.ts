@@ -33,6 +33,20 @@ import { accessRemoval, newId, type Op, type Store } from './store';
 import { startAgainPlan } from '../lib/startAgain';
 
 type Input<T> = Omit<T, 'id' | 'createdAt' | 'updatedAt'>;
+export interface PurchaseInput {
+  date: string;
+  supplierName: string;
+  itemId: string;
+  qty?: number;
+  /** the price of one piece (older way), or */
+  price?: number;
+  /** what was paid in all for the pieces */
+  total?: number;
+  pack?: { count: number; per: number; price: number };
+  quality?: string;
+  note?: string;
+}
+
 export interface PaidNow {
   amount: number;
   method: string;
@@ -203,6 +217,34 @@ export function makeActions(store: Store, now: () => Current) {
       else ops.push({ op: 'patch', col: 'payments', id: p.id, data: { kind: 'advance', refId: ref.customerId, note: `Kept from ${ref.number} (${why})`, ...touched() } });
     }
     return ops;
+  }
+
+  /**
+   * A purchase's figures from what was typed: single pieces (how many, and the total paid or the price of
+   * one) or cartons / packs (how many, how many in each, the price of one carton). The price of one piece
+   * is worked out from the total, so costs and stock follow what was really paid (Vanessa, 24 Nov 2026).
+   */
+  function purchaseFigures(input: PurchaseInput) {
+    let qty: number;
+    let total: number;
+    let pack: { count: number; per: number; price: number } | undefined;
+    if (input.pack) {
+      const count = cleanQty(input.pack.count);
+      const per = Math.round(num(input.pack.per));
+      const each = cleanAmount(input.pack.price);
+      need(count > 0, 'Type how many cartons were bought.');
+      need(per > 0, 'Type how many are in one carton.');
+      need(each > 0, 'Type the price of one carton.');
+      pack = { count, per, price: each };
+      qty = Math.round(count * per * 1000) / 1000;
+      total = Math.round(count * each);
+    } else {
+      qty = cleanQty(input.qty);
+      need(qty > 0, 'Type how much was bought.');
+      total = input.total !== undefined && num(input.total) > 0 ? cleanAmount(input.total) : Math.round(qty * cleanAmount(input.price ?? 0));
+    }
+    need(total > 0, 'Type what was paid in all.');
+    return { qty, total, pack, price: Math.round((total / qty) * 100) / 100 };
   }
 
   /** The juice's recipe as the average of its last batches, given the batches as they will be. */
@@ -425,12 +467,9 @@ export function makeActions(store: Store, now: () => Current) {
       need(!cur().purchases.some((p) => p.supplierId === id), 'This supplier has purchases, so the record is kept.');
       await store.commit([{ op: 'delete', col: 'suppliers', id }]);
     },
-    async savePurchase(input: { date: string; supplierName: string; itemId: string; qty: number; price: number; quality?: string; note?: string }, paidNow?: PaidNow): Promise<string> {
+    async savePurchase(input: PurchaseInput, paidNow?: PaidNow): Promise<string> {
       need(input.itemId, 'Choose what was bought.');
-      const qty = cleanQty(input.qty);
-      need(qty > 0, 'Type how much was bought.');
-      const price = cleanAmount(input.price);
-      need(price > 0, 'Type the price of one unit.');
+      const { qty, price, total, pack } = purchaseFigures(input);
       need(input.date, 'Choose the date.');
       const ops: Op[] = [];
       const sname = text(input.supplierName);
@@ -444,10 +483,10 @@ export function makeActions(store: Store, now: () => Current) {
         }
       }
       const id = newId();
-      ops.push({ op: 'set', col: 'purchases', id, data: { date: input.date, supplierId, supplierName: sname || 'Market', itemId: input.itemId, qty, price, quality: text(input.quality), note: text(input.note), ...created() } });
+      ops.push({ op: 'set', col: 'purchases', id, data: { date: input.date, supplierId, supplierName: sname || 'Market', itemId: input.itemId, qty, price, total, ...(pack ? { pack } : {}), quality: text(input.quality), note: text(input.note), ...created() } });
       const paid = cleanAmount(paidNow?.amount);
       if (paid > 0) {
-        need(paid <= qty * price, `The amount paid is more than the total of ${money(qty * price)}.`);
+        need(paid <= total, `The amount paid is more than the total of ${money(total)}.`);
         ops.push(paymentOp('purchase', id, paid, input.date, paidNow?.method ?? 'Cash'));
       }
       const sizes = bottleSizesAfterPurchase(input.itemId, { date: input.date, price, createdAt: Date.now() });
@@ -456,18 +495,15 @@ export function makeActions(store: Store, now: () => Current) {
       return id;
     },
     /** Changing a purchase already recorded (what, when, from whom, how much, the price). Its payments stay. */
-    async updatePurchase(id: string, input: { date: string; supplierName: string; itemId: string; qty: number; price: number; quality?: string; note?: string }) {
+    async updatePurchase(id: string, input: PurchaseInput) {
       const old = cur().purchases.find((p) => p.id === id);
       need(old, 'That purchase no longer exists.');
       need(input.itemId, 'Choose what was bought.');
-      const qty = cleanQty(input.qty);
-      need(qty > 0, 'Type how much was bought.');
-      const price = cleanAmount(input.price);
-      need(price > 0, 'Type the price of one unit.');
+      const { qty, price, total, pack } = purchaseFigures(input);
       need(input.date, 'Choose the date.');
       need(input.date <= todayYmd(), 'The day it was bought cannot be in the future.');
       const paid = sum(paymentsOf(id), (p) => p.amount);
-      need(qty * price >= paid, `${money(paid)} is already paid for this purchase, more than the new total of ${money(qty * price)}.`);
+      need(total >= paid, `${money(paid)} is already paid for this purchase, more than the new total of ${money(total)}.`);
       const ops: Op[] = [];
       const sname = text(input.supplierName);
       let supplierId = '';
@@ -479,7 +515,7 @@ export function makeActions(store: Store, now: () => Current) {
           ops.push({ op: 'set', col: 'suppliers', id: supplierId, data: { name: sname, phone: '', supplies: '', archived: false, ...created() } });
         }
       }
-      ops.push({ op: 'patch', col: 'purchases', id, data: { date: input.date, supplierId, supplierName: sname || 'Market', itemId: input.itemId, qty, price, quality: text(input.quality), note: text(input.note), ...touched() } });
+      ops.push({ op: 'patch', col: 'purchases', id, data: { date: input.date, supplierId, supplierName: sname || 'Market', itemId: input.itemId, qty, price, total, pack: pack ?? null, quality: text(input.quality), note: text(input.note), ...touched() } });
       const sizes = bottleSizesAfterPurchase(input.itemId, { date: input.date, price, createdAt: old!.createdAt });
       if (sizes) ops.push({ op: 'patch', col: 'settings', id: 'main', data: { sizes, ...touched() } });
       await store.commit(ops);

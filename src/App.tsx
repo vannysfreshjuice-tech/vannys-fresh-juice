@@ -24,6 +24,7 @@ import { Reports } from './pages/Reports';
 import { Sell } from './pages/Sell';
 import { SettingsPage } from './pages/Settings';
 import { Buying, Stock } from './pages/StockPages';
+import { Records } from './pages/Records';
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
@@ -95,6 +96,7 @@ function Pages() {
           <Route path="/customers" element={<Page to="/customers"><Customers /></Page>} />
           <Route path="/expenses" element={<Page to="/expenses"><Expenses /></Page>} />
           <Route path="/staff" element={<Page to="/staff"><StaffPage /></Page>} />
+          <Route path="/records" element={<Page to="/records"><Records /></Page>} />
           <Route path="/reports" element={<Page to="/reports"><Reports /></Page>} />
           <Route path="/settings" element={<Page to="/settings"><SettingsPage /></Page>} />
           <Route path="/help" element={<Page to="/help"><ManualPage /></Page>} />

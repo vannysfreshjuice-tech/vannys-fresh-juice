@@ -2,7 +2,9 @@
 // "Not balanced yet" checks.
 import { describe, expect, it } from 'vitest';
 import { balanceChecks } from '../src/lib/checks';
-import { customerAdvances, customerBalances, itemLevels, paymentsByRef } from '../src/lib/juice';
+import { customerAdvances, customerBalances, fridgeByBatch, itemLevels, paymentsByRef } from '../src/lib/juice';
+import type { Records } from '../src/lib/types';
+const fridgeByBatchOf = (r: Records) => fridgeByBatch(r.batches, r.sales, r.orders, r.writeOffs);
 import { testApp } from './helpers';
 
 async function juiceApp() {
@@ -283,5 +285,70 @@ describe('restore replaces the records (audit, 24 Nov 2026)', () => {
     const r = app.records();
     expect(r.payments).toHaveLength(1);
     expect(customerAdvances(r.customers, r.orders, r.sales, r.payments).get(id)).toBe(11000);
+  });
+});
+
+describe('left-over or new bottles', () => {
+  it('left-over bottles go first, then the new batch; batches made later are not offered', async () => {
+    const app = await juiceApp();
+    await app.actions.quickBatch({ date: '2026-11-17', productId: app.productId, size: '500', bottles: 3 });
+    await app.actions.saveSale({ date: '2026-11-17', lines: app.bottle(1), customerName: 'Test One', method: 'Cash' });
+    await app.actions.quickBatch({ date: '2026-11-18', productId: app.productId, size: '500', bottles: 10 });
+    await app.actions.quickBatch({ date: '2026-11-19', productId: app.productId, size: '500', bottles: 5 });
+    const r = app.records();
+    const { nextBottles } = await import('../src/lib/juice');
+    const f = fridgeByBatchOf(r);
+    expect(nextBottles(f, app.productId, '500', '2026-11-18').map((n) => [n.batch.date, n.left])).toEqual([
+      ['2026-11-17', 2],
+      ['2026-11-18', 10],
+    ]);
+    // a sale of 4 on the 18th: 2 left over, 2 new
+    await app.actions.saveSale({ date: '2026-11-18', lines: app.bottle(4), customerName: 'Test One', method: 'Cash' });
+    const s = app.records().sales.find((x) => x.date === '2026-11-18')!;
+    const dateOf = (id?: string) => app.records().batches.find((b) => b.id === id)?.date;
+    expect(s.lines.map((l) => [l.qty, dateOf(l.batchId)])).toEqual([
+      [2, '2026-11-17'],
+      [2, '2026-11-18'],
+    ]);
+  });
+});
+
+describe('buying by total paid or by the carton (24 Nov 2026)', () => {
+  it('a carton of 12 at 10,000: 12 go into Stock at 833.33 each, total 10,000', async () => {
+    const app = await juiceApp();
+    const bottles = await app.actions.saveItem({ name: 'Bottles 500 ml', kind: 'packaging', unit: 'pcs', reorderLevel: 0 });
+    const id = await app.actions.savePurchase({ date: '2026-11-20', supplierName: 'Shop', itemId: bottles, pack: { count: 2, per: 12, price: 10000 } }, { amount: 20000, method: 'Cash' });
+    const p = app.records().purchases.find((x) => x.id === id)!;
+    expect(p).toMatchObject({ qty: 24, total: 20000, price: 833.33, pack: { count: 2, per: 12, price: 10000 } });
+    const r = app.records();
+    const s = app.settings();
+    expect(itemLevels(r.items, r.purchases, r.batches, r.counts, s.sizes, s.perBottle).get(bottles)?.onHand).toBe(24);
+    // the 500 ml size is linked to these bottles and its cost follows what was paid
+    expect(s.sizes.find((z) => z.key === '500')).toMatchObject({ bottleItemId: bottles, packCost: 833 });
+    const { purchaseTotals } = await import('../src/lib/juice');
+    expect(purchaseTotals(p, app.records().payments.filter((x) => x.refId === id))).toMatchObject({ value: 20000, balance: 0 });
+  });
+  it('30 mangoes for 10,000 in all: total stays 10,000 (not 9,990)', async () => {
+    const app = await juiceApp();
+    const id = await app.actions.savePurchase({ date: '2026-11-20', supplierName: 'Market', itemId: app.mango, qty: 30, total: 10000 });
+    const p = app.records().purchases.find((x) => x.id === id)!;
+    expect(p).toMatchObject({ qty: 30, total: 10000, price: 333.33 });
+    const { purchaseValue } = await import('../src/lib/juice');
+    expect(purchaseValue(p)).toBe(10000);
+  });
+});
+
+describe('made against sold (24 Nov 2026)', () => {
+  it('left from before + made - sold - went bad = left, per juice and size, with sold not recorded', async () => {
+    const app = await juiceApp();
+    await app.actions.quickBatch({ date: '2026-11-16', productId: app.productId, size: '500', bottles: 10 });
+    await app.actions.saveSale({ date: '2026-11-16', lines: app.bottle(7), customerName: 'Test One', method: 'Cash' });
+    await app.actions.quickBatch({ date: '2026-11-17', productId: app.productId, size: '500', bottles: 5 });
+    await app.actions.saveSale({ date: '2026-11-18', lines: app.bottle(10), customerName: 'Test One', method: 'Cash' });
+    const r = app.records();
+    const { productionBalance } = await import('../src/lib/day');
+    expect(productionBalance(r.batches, r.sales, r.orders, r.writeOffs, '2026-11-17', '2026-11-18')).toEqual([
+      { productId: app.productId, size: '500', before: 3, made: 5, sold: 8, spoiled: 0, left: 0, unrecorded: 2 },
+    ]);
   });
 });
