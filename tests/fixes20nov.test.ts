@@ -2,7 +2,7 @@
 // "Not balanced yet" checks.
 import { describe, expect, it } from 'vitest';
 import { balanceChecks } from '../src/lib/checks';
-import { itemLevels } from '../src/lib/juice';
+import { customerAdvances, customerBalances, itemLevels, paymentsByRef } from '../src/lib/juice';
 import { testApp } from './helpers';
 
 async function juiceApp() {
@@ -207,5 +207,81 @@ describe('audit 24 Nov 2026', () => {
     const { dayStock } = await import('../src/lib/day');
     expect(dayStock('2026-11-16', r.batches, r.sales, r.orders, r.writeOffs)).toMatchObject({ sold: 0, unrecorded: 5 });
     expect(dayStock('2026-11-20', r.batches, r.sales, r.orders, r.writeOffs)).toMatchObject({ made: 20, left: 20 });
+  });
+});
+
+describe('nothing is cast in stone: corrections keep the money right (audit, 24 Nov 2026)', () => {
+  const setup = async () => {
+    const app = await juiceApp();
+    const id = await app.actions.saveCustomer({ name: 'Test One', type: 'Person' });
+    const figures = () => {
+      const r = app.records();
+      return { ahead: customerAdvances(r.customers, r.orders, r.sales, r.payments).get(id), owes: customerBalances(r.customers, r.orders, r.sales, paymentsByRef(r.payments)).get(id) };
+    };
+    return { app, id, figures };
+  };
+
+  it('undoing a sale keeps money received later as money paid ahead', async () => {
+    const { app, figures } = await setup();
+    const sid = await app.actions.saveSale({ date: '2026-11-18', lines: app.bottle(1), customerName: 'Test One', method: 'On credit' });
+    const s = app.records().sales.find((x) => x.id === sid)!;
+    // a payment recorded "later" than the sale
+    await app.store.commit([{ op: 'set', col: 'payments', id: 'p-later', data: { kind: 'sale', refId: sid, amount: 3000, date: '2026-11-19', method: 'Cash', note: '', createdAt: s.createdAt + 60000, updatedAt: s.createdAt + 60000 } }]);
+    await app.actions.deleteSale(sid);
+    expect(figures()).toEqual({ ahead: 3000, owes: 0 });
+  });
+
+  it('undoing a cash sale removes the cash paid with it; one paid from money ahead gives it back', async () => {
+    const { app, id, figures } = await setup();
+    const cash = await app.actions.saveSale({ date: '2026-11-18', lines: app.bottle(1), customerName: 'Test One', method: 'Cash' });
+    await app.actions.deleteSale(cash);
+    expect(app.records().payments).toHaveLength(0);
+    await app.actions.receiveMoney(id, { amount: 10000, date: '2026-11-18', method: 'Cash' });
+    const ahead = await app.actions.saveSale({ date: '2026-11-18', lines: app.bottle(1), customerName: 'Test One', method: 'From money paid ahead' });
+    expect(figures().ahead).toBe(7000);
+    await app.actions.deleteSale(ahead);
+    expect(figures().ahead).toBe(10000);
+  });
+
+  it('a cancelled order gives back money paid ahead and keeps a deposit as money paid ahead', async () => {
+    const { app, id, figures } = await setup();
+    await app.actions.receiveMoney(id, { amount: 20000, date: '2026-11-18', method: 'Cash' });
+    const oid = await app.actions.saveOrder({ customerName: 'Test One', date: '2026-11-18', dueDate: '2026-11-20', lines: [{ productId: app.productId, size: '500', qty: 4, price: 3000 }] }, undefined, { amount: 6000, method: 'Cash' });
+    await app.actions.addPayment('order', oid, { amount: 4000, date: '2026-11-18', method: 'From money paid ahead' });
+    expect(figures().ahead).toBe(16000);
+    await app.actions.setOrderStage(oid, 'Cancelled');
+    // 20,000 back in full, plus the 6,000 cash deposit kept as money paid ahead
+    expect(figures().ahead).toBe(26000);
+  });
+
+  it('moving a sale to another day moves its payment; changing bottles moves the money paid ahead', async () => {
+    const { app, id, figures } = await setup();
+    await app.actions.receiveMoney(id, { amount: 20000, date: '2026-11-18', method: 'Cash' });
+    const sid = await app.actions.saveSale({ date: '2026-11-20', lines: app.bottle(1), customerName: 'Test One', method: 'From money paid ahead' });
+    await app.actions.updateSale(sid, { date: '2026-11-19', customerName: 'Test One', lines: [{ productId: app.productId, size: '500', qty: 2, price: 3000 }] });
+    const pays = app.records().payments.filter((p) => p.refId === sid);
+    expect(pays.map((p) => [p.date, p.amount])).toEqual([['2026-11-19', 6000]]);
+    expect(figures()).toEqual({ ahead: 14000, owes: 0 });
+    // fewer bottles give it back
+    await app.actions.updateSale(sid, { date: '2026-11-19', customerName: 'Test One', lines: [{ productId: app.productId, size: '500', qty: 1, price: 2000 }] });
+    expect(figures()).toEqual({ ahead: 18000, owes: 0 });
+  });
+});
+
+describe('restore replaces the records (audit, 24 Nov 2026)', () => {
+  it('a backup restored over newer records gives exactly the backup, not both', async () => {
+    const app = await juiceApp();
+    const id = await app.actions.saveCustomer({ name: 'Test One', type: 'Person' });
+    await app.actions.receiveMoney(id, { amount: 11000, date: '2026-11-13', method: 'Cash' });
+    const { makeBackup, replaceOps } = await import('../src/lib/backup');
+    const backup = makeBackup(app.records(), app.settingsRow());
+    // afterwards: a different advance replaces it (as Start again did)
+    const old = app.records().payments[0];
+    await app.store.commit([{ op: 'delete', col: 'payments', id: old.id }]);
+    await app.actions.receiveMoney(id, { amount: 11000, date: '2026-11-13', method: 'Cash', note: 'Brought forward' });
+    await app.actions.commitRaw(replaceOps(app.records(), backup.data));
+    const r = app.records();
+    expect(r.payments).toHaveLength(1);
+    expect(customerAdvances(r.customers, r.orders, r.sales, r.payments).get(id)).toBe(11000);
   });
 });

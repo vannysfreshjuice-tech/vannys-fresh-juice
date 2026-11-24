@@ -7,7 +7,7 @@ import { PinInput, ownerPinKey, useLock } from '../components/Lock';
 import { Button, DateInput, Field, FormError, MoneyInput, PageHead, Select, TextArea, TextInput, useConfirm, useNotice, useSaver } from '../components/ui';
 import { useData } from '../data/DataContext';
 import { readDeviceRecords } from '../data/localStore';
-import { backupFileName, countRows, deleteAllOps, giveFile, makeBackup, readBackup, restoreOps } from '../lib/backup';
+import { backupFileName, countRows, deleteAllOps, giveFile, makeBackup, readBackup, replaceOps, restoreOps } from '../lib/backup';
 import { addDays, showDate, showDay } from '../lib/dates';
 import { money } from '../lib/money';
 import { startAgainPlan } from '../lib/startAgain';
@@ -368,9 +368,18 @@ function Backup() {
     try {
       const b = readBackup(await f.text());
       const n = countRows(b.data);
-      if (!(await confirm({ title: 'Restore this backup?', body: `It holds ${n} records, made ${showDate(b.madeAt.slice(0, 10))}. Records in it replace the same records here; nothing else is removed.`, yes: 'Restore' }))) return;
+      const made = showDate(b.madeAt.slice(0, 10));
+      // Replace (the usual meaning of restore): the records go back to exactly what the backup holds.
+      if (await confirm({ title: 'Replace the records with this backup?', body: `It holds ${n} records, made ${made}. Every sale, payment, batch, purchase, customer and other record here that is not in it is removed, so the records are exactly as they were then (staff and settings stay). A backup of the records as they are now is downloaded first.`, yes: 'Replace with the backup', danger: true, typeWord: 'REPLACE' })) {
+        if (!ready) return setErr('Wait until the records have loaded.');
+        await giveFile(`vannys-backup-before-restore-${d.today}.json`, JSON.stringify(makeBackup(d, settingsRow), null, 1), 'application/json');
+        await actions.commitRaw(replaceOps(d, b.data));
+        notify(`Records replaced with the backup of ${made}`);
+        return;
+      }
+      if (!(await confirm({ title: 'Add the backup to the records instead?', body: `Its ${n} records are added; records with the same id are replaced and nothing is removed. Only for adding records from another phone: adding an old backup to newer records can count money twice.`, yes: 'Add them' }))) return;
       await actions.commitRaw(restoreOps(b.data));
-      notify(`Restored ${n} records`);
+      notify(`Added ${n} records`);
     } catch (e) {
       setErr((e as Error).message);
     }

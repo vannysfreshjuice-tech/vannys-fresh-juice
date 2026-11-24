@@ -69,17 +69,19 @@ export function startAgainPlan(r: Records, cutoff: string, carryOwed: boolean, n
     const owed = Math.round(owedBy.get(c.id) ?? 0);
     const later = laterPays.get(c.id) ?? [];
     if (owed <= 0) continue;
-    if (!carryOwed) {
-      owedDropped += owed;
-      continue;
-    }
-    owedCarried += owed;
+    // Old debts forgotten: money paid for them on or after the day still came in, so a line for just
+    // that amount (fully paid) keeps those payments (audit, 24 Nov 2026).
+    const paidLater = Math.min(owed, Math.round(sum(later, (p) => num(p.amount))));
+    const line = carryOwed ? owed : paidLater;
+    if (!carryOwed) owedDropped += owed - paidLater;
+    if (line <= 0) continue;
+    if (carryOwed) owedCarried += owed;
     const id = newId();
     ops.push({
       op: 'set',
       col: 'sales',
       id,
-      data: { number: `BF-${String(++n).padStart(4, '0')}`, date: carryDay, time: '', customerId: c.id, customerName: c.name, lines: [{ productId: '', size: '', qty: 1, price: owed }], method: 'On credit', opening: true, note: `${OPENING_NOTE}: owed before ${cutoff}`, createdAt: now, updatedAt: now },
+      data: { number: `BF-${String(++n).padStart(4, '0')}`, date: carryDay, time: '', customerId: c.id, customerName: c.name, lines: [{ productId: '', size: '', qty: 1, price: line }], method: 'On credit', opening: true, note: carryOwed ? `${OPENING_NOTE}: owed before ${cutoff}` : `${OPENING_NOTE}: paid on or after ${cutoff} for days before it`, createdAt: now, updatedAt: now },
     });
     for (const p of later) {
       keepLater.add(p.id);

@@ -197,7 +197,7 @@ function DayView({ day, setDay, firstDay }: { day: string; setDay: (d: string) =
               return (
                 <button key={s.id} type="button" onClick={() => sheets.open({ t: 'saleView', id: s.id })} className={cx('flex min-h-11 items-center gap-3 rounded-xl border px-3 py-2 text-left', NAME_TONE[st])}>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium">{excelName(s, usualPrice)}</span>
+                    <span className="block truncate font-medium">{excelName(s, (l) => j.price(l.productId, l.size))}</span>
                     <span className="block truncate text-xs opacity-75">{s.lines.map((l) => `${l.qty > 1 ? `${l.qty} × ` : ''}${j.name(l.productId)} ${j.sizeLabel(l.size)}`).join(', ')}</span>
                   </span>
                   <span className="text-xs">{STATUS_WORDS[st]}</span>
@@ -332,8 +332,6 @@ function WeekView({ day, setDay, firstDay, openDay }: { day: string; setDay: (d:
   const { sales, orders, batches, writeOffs, byRef, settings, today } = useData();
   const j = useJuice();
   const sheets = useSheets();
-  const usual = useUsualJuice();
-  const usualPrice = j.price(usual.productId, usual.size);
   const mon = weekStart(day);
   const days = Array.from({ length: 7 }, (_, i) => {
     const d = addDays(mon, i);
@@ -372,7 +370,7 @@ function WeekView({ day, setDay, firstDay, openDay }: { day: string; setDay: (d:
             <div key={`${d.day}-n`} className="flex min-h-24 flex-col gap-1">
               {d.sales.map((s) => (
                 <button key={s.id} type="button" onClick={() => sheets.open({ t: 'saleView', id: s.id })} className={cx('truncate rounded-md border px-1.5 py-1 text-left text-xs font-medium', NAME_TONE[entryStatus(s, byRef.get(s.id))])}>
-                  {excelName(s, usualPrice)}
+                  {excelName(s, (l) => j.price(l.productId, l.size))}
                 </button>
               ))}
             </div>

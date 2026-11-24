@@ -187,7 +187,7 @@ export function SaleView({ id, onClose }: { id: string; onClose: () => void }) {
             variant="danger"
             icon={Undo2}
             onClick={async () => {
-              if (!(await confirm({ title: 'Undo this sale?', body: 'The bottles go back into the fridge and the money is taken off.', yes: 'Undo sale', danger: true }))) return;
+              if (!(await confirm({ title: 'Undo this sale?', body: s.customerId ? `The bottles go back into the fridge. Money paid with the sale is taken off; money paid from money paid ahead goes back to it; money ${s.customerName} paid later is kept as money paid ahead.` : 'The bottles go back into the fridge and the money is taken off.', yes: 'Undo sale', danger: true }))) return;
               await actions.deleteSale(s.id);
               notify('Sale undone');
               onClose();

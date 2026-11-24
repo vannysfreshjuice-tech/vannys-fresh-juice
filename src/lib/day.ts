@@ -23,14 +23,19 @@ export function weekStart(day: string): string {
   return addDays(day, wd === 0 ? -6 : 1 - wd);
 }
 
-/** Bottles in a sale, written the Excel way: "Apio", "Apio-2", "Wasswa-5k". */
-export function excelName(s: Sale, usualPrice: number): string {
+/**
+ * Bottles in a sale, written the Excel way: "Apio", "Apio-2", "Wasswa-5k". "Usual" is each bottle's own
+ * price-list price for its size (the same on every phone; 24 Nov 2026), or one price for all bottles.
+ */
+export function excelName(s: Sale, usual: number | ((l: Sale['lines'][number]) => number)): string {
+  const listOf = typeof usual === 'number' ? () => usual : usual;
   const qty = sum(s.lines, (l) => num(l.qty));
   const value = linesValue(s.lines);
+  const listed = sum(s.lines, (l) => num(l.qty) * listOf(l));
   const name = s.customerName || 'Walk-in';
-  if (qty === 1 && value === usualPrice) return name;
-  if (qty === 1) return `${name}-${value % 1000 === 0 ? `${value / 1000}k` : value}`;
-  return value === qty * usualPrice ? `${name}-${qty}` : `${name}-${qty} (${value % 1000 === 0 ? `${value / 1000}k` : value})`;
+  const k = (v: number) => (v % 1000 === 0 ? `${v / 1000}k` : String(v));
+  if (qty === 1) return value === listed ? name : `${name}-${k(value)}`;
+  return value === listed ? `${name}-${qty}` : `${name}-${qty} (${k(value)})`;
 }
 
 export type DayState = 'supplied' | 'none' | 'today' | 'weekend' | 'later' | 'before';

@@ -187,6 +187,24 @@ export function makeActions(store: Store, now: () => Current) {
     return ops;
   }
 
+  /**
+   * The payments of a sale or order that is undone, deleted or cancelled. Money is never lost:
+   * - paid from money paid ahead: removed, so it goes back to the customer's money paid ahead;
+   * - paid at the same time as it was recorded (cash at the sale, a deposit with the order): removed with
+   *   it unless keepAll (recording it again records that money again);
+   * - paid later (Money received, Record payment), or everything when keepAll (a cancelled order): kept
+   *   as money paid ahead for the customer. A walk-in with no customer cannot hold money ahead.
+   */
+  function settleOps(ref: { createdAt: number; customerId?: string; number: string }, refId: string, why: string, keepAll = false): Op[] {
+    const ops: Op[] = [];
+    for (const p of paymentsOf(refId)) {
+      const later = keepAll || num(p.createdAt) > num(ref.createdAt) + 10000;
+      if (p.method === FROM_ADVANCE || !later || !ref.customerId) ops.push({ op: 'delete', col: 'payments', id: p.id });
+      else ops.push({ op: 'patch', col: 'payments', id: p.id, data: { kind: 'advance', refId: ref.customerId, note: `Kept from ${ref.number} (${why})`, ...touched() } });
+    }
+    return ops;
+  }
+
   /** The juice's recipe as the average of its last batches, given the batches as they will be. */
   function averageData(productId: string, batches: Batch[], water: number) {
     const avg = averageRecipe(productId, batches, now().settings.sizes);
@@ -679,8 +697,22 @@ export function makeActions(store: Store, now: () => Current) {
         if (!moved && price === l.price) return l;
         return { ...rest, productId, size, qty, price, ...(moved || !l.batchId ? {} : { batchId: l.batchId }) };
       });
-      const paid = sum(pays, (p) => p.amount);
-      need(linesValue(lines) >= paid, `${money(paid)} is already paid for this sale, more than the new total of ${money(linesValue(lines))}.`);
+      // Money paid ahead follows the new total: more bottles take more of it (as far as it goes), fewer give it back.
+      const total = linesValue(lines);
+      const fromAhead = pays.filter((p) => p.method === FROM_ADVANCE);
+      const other = sum(pays.filter((p) => p.method !== FROM_ADVANCE), (p) => p.amount);
+      need(total >= other, `${money(other)} is already paid for this sale, more than the new total of ${money(total)}.`);
+      if (fromAhead.length && customerId) {
+        const had = sum(fromAhead, (p) => p.amount);
+        const want = Math.max(0, Math.min(total - other, had + Math.max(0, advanceLeft(customerId))));
+        fromAhead.forEach((p, i) => {
+          if (i === 0 && want > 0) ops.push({ op: 'patch', col: 'payments', id: p.id, data: { amount: want, ...touched() } });
+          else ops.push({ op: 'delete', col: 'payments', id: p.id });
+        });
+      }
+      // Moved to another day: the money paid with it on its old day (and from money paid ahead) moves too.
+      if (input.date !== s!.date)
+        for (const p of pays) if ((p.method === FROM_ADVANCE || p.date === s!.date) && !(fromAhead.length && customerId && p.method === FROM_ADVANCE && fromAhead.indexOf(p) > 0)) ops.push({ op: 'patch', col: 'payments', id: p.id, data: { date: input.date, ...touched() } });
       ops.push({
         op: 'patch',
         col: 'sales',
@@ -741,9 +773,9 @@ export function makeActions(store: Store, now: () => Current) {
     },
     /** Undo a sale: the bottles go back to the fridge and its payments are removed. */
     async deleteSale(id: string) {
-      const ops: Op[] = [{ op: 'delete', col: 'sales', id }];
-      for (const p of paymentsOf(id)) ops.push({ op: 'delete', col: 'payments', id: p.id });
-      await store.commit(ops);
+      const s = cur().sales.find((x) => x.id === id);
+      need(s, 'That sale no longer exists.');
+      await store.commit([{ op: 'delete', col: 'sales', id }, ...settleOps(s!, id, 'sale undone')]);
     },
 
     // ---------- orders ----------
@@ -799,11 +831,14 @@ export function makeActions(store: Store, now: () => Current) {
       if ((stage === 'Ready' || stage === 'Out for delivery' || stage === 'Delivered') && !packedNow) data.packed = takeFromFridge(fridge(), o!.lines, productName, sizeLabel, now().settings.fridgeCheck);
       if (stage === 'To make' || stage === 'Cancelled') data.packed = [];
       data.deliveredOn = stage === 'Delivered' ? todayYmd() : '';
-      await store.commit([{ op: 'patch', col: 'orders', id, data }]);
+      // A cancelled order holds no money: what was paid for it becomes money paid ahead (or goes back to it)
+      const money = stage === 'Cancelled' && o!.stage !== 'Cancelled' ? settleOps(o!, id, 'order cancelled', true) : [];
+      await store.commit([{ op: 'patch', col: 'orders', id, data }, ...money]);
     },
     async deleteOrder(id: string) {
-      const ops: Op[] = [{ op: 'delete', col: 'orders', id }];
-      for (const p of paymentsOf(id)) ops.push({ op: 'delete', col: 'payments', id: p.id });
+      const o = cur().orders.find((x) => x.id === id);
+      need(o, 'That order no longer exists.');
+      const ops: Op[] = [{ op: 'delete', col: 'orders', id }, ...settleOps(o!, id, 'order deleted')];
       for (const r of cur().reminders) if (r.orderId === id) ops.push({ op: 'delete', col: 'reminders', id: r.id });
       await store.commit(ops);
     },

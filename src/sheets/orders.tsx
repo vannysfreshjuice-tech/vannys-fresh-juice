@@ -307,7 +307,7 @@ export function OrderView({ id, onClose }: { id: string; onClose: () => void }) 
             small
             variant="plain"
             onClick={async () => {
-              if (await confirm({ title: 'Cancel this order?', body: 'Packed bottles go back into the fridge. Payments stay on the record.', yes: 'Cancel order', danger: true })) await move('Cancelled');
+              if (await confirm({ title: 'Cancel this order?', body: 'Packed bottles go back into the fridge. What was paid for it (deposit, payments) is kept as money paid ahead for the customer, and money taken from money paid ahead goes back to it.', yes: 'Cancel order', danger: true })) await move('Cancelled');
             }}
           >
             Cancel order
@@ -319,7 +319,7 @@ export function OrderView({ id, onClose }: { id: string; onClose: () => void }) 
             variant="danger"
             icon={Trash2}
             onClick={async () => {
-              if (!(await confirm({ title: `Delete ${o.number}?`, body: 'The order, its payments and its reminders are removed for good. To keep the history, use Cancel order instead.', yes: 'Delete', danger: true }))) return;
+              if (!(await confirm({ title: `Delete ${o.number}?`, body: 'The order and its reminders are removed for good. A deposit paid with it is removed too; money paid later is kept as money paid ahead for the customer. To keep the history, use Cancel order instead.', yes: 'Delete', danger: true }))) return;
               await actions.deleteOrder(o.id);
               notify('Order deleted');
               onClose();

@@ -51,6 +51,20 @@ export function restoreOps(data: Partial<Record<Col, Row[]>>): Op[] {
   return ops;
 }
 
+/**
+ * Restore as a replacement: records here that are not in the backup are removed first (staff and
+ * settings are kept, so sign-ins and PINs keep working), then the backup's records are put back.
+ */
+export function replaceOps(records: Records, data: Partial<Record<Col, Row[]>>): Op[] {
+  const ops: Op[] = [];
+  for (const col of COLLECTIONS) {
+    if (col === 'settings' || col === 'staff') continue;
+    const keep = new Set((data[col] ?? []).map((r) => r?.id));
+    for (const row of records[col] as unknown as Row[]) if (!keep.has(row.id)) ops.push({ op: 'delete', col, id: row.id });
+  }
+  return [...ops, ...restoreOps(data)];
+}
+
 export function countRows(data: Partial<Record<Col, Row[]>>): number {
   let n = 0;
   for (const col of COLLECTIONS) if (col !== 'settings') n += data[col]?.length ?? 0;

@@ -91,13 +91,16 @@ describe('start again from a date', () => {
     const app = await withHistory();
     const plan = await app.actions.startAgainFrom('2026-11-14', false);
     expect(plan.owedCarried).toBe(0);
-    expect(plan.owedDropped).toBe(4000);
+    // 4,000 was still owed on 13 Nov; 1,000 of it was paid on 16 Nov, so 3,000 is forgotten
+    expect(plan.owedDropped).toBe(3000);
     expect(plan.aheadCarried).toBe(7000);
     const after = app.figures();
     expect(after.owes.get(app.cust('Test One').id)).toBe(3000); // only the bottle of 16 Nov
     expect(after.ahead.get(app.cust('Test Two').id)).toBe(4000);
-    // the 1,000 paid on 16 Nov for the old sale goes with it
-    expect(app.records().payments.some((p) => p.amount === 1000)).toBe(false);
+    // the 1,000 paid on 16 Nov for the old sale is kept (audit, 24 Nov 2026), on a fully paid line
+    const r = app.records();
+    expect(r.payments.some((p) => p.amount === 1000)).toBe(true);
+    expect(dayFigures(r, '2026-11-16').moneyIn).toBe(1000);
   });
 
   it('refuses a day still to come', async () => {
