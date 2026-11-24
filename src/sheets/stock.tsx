@@ -41,6 +41,24 @@ export function ItemForm({ id, kind, onClose }: { id?: string; kind?: ItemKind; 
               {it.archived ? 'Show again' : 'Hide'}
             </Button>
           )}
+          {it && (
+            <Button
+              variant="danger"
+              icon={Trash2}
+              onClick={async () => {
+                if (!(await confirm({ title: `Delete ${it.name}?`, body: 'Only an item never bought, counted, used in a batch or in a recipe can be deleted. Otherwise use Hide.', yes: 'Delete', danger: true }))) return;
+                try {
+                  await actions.deleteItem(it.id);
+                  notify(`${it.name} deleted`);
+                  onClose();
+                } catch (e) {
+                  notify((e as Error).message, 'info');
+                }
+              }}
+            >
+              Delete
+            </Button>
+          )}
           <Button busy={busy} onClick={() => run(() => actions.saveItem({ name, kind: k, unit, reorderLevel: reorder }, id), () => { notify('Saved'); onClose(); })}>
             Save
           </Button>

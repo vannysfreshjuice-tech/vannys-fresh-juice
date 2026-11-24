@@ -36,7 +36,10 @@ export function BalanceChecks({ max = 6 }: { max?: number }) {
               : `${showQty(c.qty)} ${it?.unit ?? ''} not accounted for (last used ${showDay(c.date)}). Record the purchase on the day it was bought, or count what is there.`,
         };
       case 'sold':
-        return { title: `${c.qty} × ${juice} ${j.sizeLabel(c.size ?? '')} sold ${showDay(c.date)}`, sub: 'No bottles made recorded for them. Add the bottles made that day, or, if they were tapped as the wrong juice, change them to the juice they really were.' };
+        return {
+          title: `${c.qty} × ${juice} ${j.sizeLabel(c.size ?? '')} sold ${showDay(c.date)}`,
+          sub: `Up to that day ${c.madeSoFar ?? 0} × ${juice} ${j.sizeLabel(c.size ?? '')} were recorded as made and ${c.soldSoFar ?? 0} sold (orders included), so ${c.qty} had no bottle. Add the bottles made, or, if they were tapped as the wrong juice or size, change them.`,
+        };
       case 'bottling':
         return { title: `${number} ${juice} (${showDay(c.date)}) not bottled yet`, sub: `${showQty(c.qty)} litres made: fill in the bottles, or change or delete the batch.` };
       case 'fruit':

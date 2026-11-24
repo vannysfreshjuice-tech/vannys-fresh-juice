@@ -352,3 +352,13 @@ describe('made against sold (24 Nov 2026)', () => {
     ]);
   });
 });
+
+describe('the "sold with nothing made" warning explains itself', () => {
+  it('counts made and sold of that juice and size up to the day, orders included', async () => {
+    const app = await juiceApp();
+    await app.actions.quickBatch({ date: '2026-11-20', productId: app.productId, size: '1000', bottles: 1 });
+    await app.actions.saveSale({ date: '2026-11-20', lines: [{ productId: app.productId, size: '1000', qty: 1, price: 10000 }], customerName: 'Test One', method: 'Cash' });
+    await app.actions.saveSale({ date: '2026-11-22', lines: [{ productId: app.productId, size: '1000', qty: 1, price: 10000 }], customerName: 'Test One', method: 'Cash' });
+    expect(app.checks().filter((c) => c.what === 'sold')).toEqual([expect.objectContaining({ date: '2026-11-22', qty: 1, madeSoFar: 1, soldSoFar: 2 })]);
+  });
+});

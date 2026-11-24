@@ -27,6 +27,9 @@ export interface Check {
   used?: number;
   had?: number;
   batchId?: string;
+  /** bottles sold with nothing made: of that juice and size, made and sold (orders too) up to that day */
+  madeSoFar?: number;
+  soldSoFar?: number;
 }
 
 /**
@@ -57,7 +60,14 @@ export function balanceChecks(input: { items: StockItem[]; levels: Map<string, I
       if (c) c.qty += u.qty;
       else sold.set(key, { key, what: 'sold', date: u.date, productId: u.productId, size: u.size, qty: u.qty, fixes: [] });
     }
-    for (const c of sold.values()) c.fixes = [{ kind: 'made', productId: c.productId!, date: c.date }, { kind: 'soldAs', productId: c.productId!, size: c.size!, date: c.date, qty: c.qty }];
+    for (const c of sold.values()) {
+      c.fixes = [{ kind: 'made', productId: c.productId!, date: c.date }, { kind: 'soldAs', productId: c.productId!, size: c.size!, date: c.date, qty: c.qty }];
+      c.madeSoFar = sum(batches.filter((b) => b.productId === c.productId && b.date <= c.date), (b) => num(b.filled?.[c.size!]));
+      let n = 0;
+      for (const x of sales) if (!x.opening && x.date <= c.date) for (const l of x.lines ?? []) if (l.productId === c.productId && l.size === c.size) n += num(l.qty);
+      for (const o of orders) if (o.stage !== 'Cancelled' && (o.deliveredOn || o.dueDate) <= c.date) for (const l of o.packed ?? []) if (l.productId === c.productId && l.size === c.size) n += num(l.qty);
+      c.soldSoFar = n;
+    }
     out.push(...sold.values());
   }
   for (const b of batches) {
