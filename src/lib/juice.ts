@@ -214,6 +214,7 @@ export function fridgeFlow(batches: Batch[], sales: Sale[], orders: Order[], wri
   const unmatched: FridgeFlow['unmatched'] = [];
   const taken: FridgeFlow['taken'] = [];
   for (const o of outs) {
+    let need = o.qty;
     if (o.batchId) {
       const l = left.get(o.batchId);
       const t = l && l[o.size] !== undefined ? Math.min(o.qty, l[o.size]) : 0;
@@ -221,9 +222,12 @@ export function fridgeFlow(batches: Batch[], sales: Sale[], orders: Order[], wri
         l![o.size] -= t;
         taken.push({ date: o.date, qty: t, spoiled: !!o.spoiled });
       }
-      continue;
+      need -= t;
+      // A written-off bottle belongs to its batch only. A sold bottle whose batch is already empty (its
+      // bottles were changed after) is matched to other bottles like a sale without a batch, never dropped.
+      if (need <= 0 || o.spoiled) continue;
     }
-    let need = o.qty;
+    const wanted = need;
     for (const b of oldestFirst) {
       if (need <= 0) break;
       if (b.productId !== o.productId || b.date > o.date) continue;
@@ -234,9 +238,9 @@ export function fridgeFlow(batches: Batch[], sales: Sale[], orders: Order[], wri
         need -= take;
       }
     }
-    if (o.qty - need > 0) {
-      matched.push({ date: o.date, qty: o.qty - need });
-      taken.push({ date: o.date, qty: o.qty - need, spoiled: false });
+    if (wanted - need > 0) {
+      matched.push({ date: o.date, qty: wanted - need });
+      taken.push({ date: o.date, qty: wanted - need, spoiled: false });
     }
     if (need > 0 && !o.spoiled) unmatched.push({ date: o.date, qty: need, productId: o.productId, size: o.size });
   }
@@ -281,7 +285,7 @@ export function fridgeTotal(byBatch: Map<string, BatchLeft>, productId?: string)
  * strict (Settings: "Sell only bottles recorded in the fridge"): refuse when the batches do not hold enough.
  * Not strict: take what the batches hold, oldest first, and sell the rest without a batch (production not recorded).
  */
-export function takeFromFridge(byBatch: Map<string, BatchLeft>, wanted: OrderLine[], productName: (id: string) => string, sizeLabel: (k: string) => string, strict = true): BottleLine[] {
+export function takeFromFridge(byBatch: Map<string, BatchLeft>, wanted: OrderLine[], productName: (id: string) => string, sizeLabel: (k: string) => string, strict = true, day?: string): BottleLine[] {
   // A working copy, so two lines for the same juice and size do not take the same bottles.
   const left = new Map([...byBatch].map(([id, bl]) => [id, { ...bl.left }]));
   const ordered = [...byBatch.values()].sort((a, b) => (a.batch.bestBefore || '').localeCompare(b.batch.bestBefore || '') || a.batch.number.localeCompare(b.batch.number));
@@ -291,6 +295,8 @@ export function takeFromFridge(byBatch: Map<string, BatchLeft>, wanted: OrderLin
     for (const bl of ordered) {
       if (need <= 0) break;
       if (bl.batch.productId !== w.productId) continue;
+      // a sale written in for an earlier day cannot take bottles made after it (audit, 24 Nov 2026)
+      if (day && bl.batch.date > day) continue;
       const here = left.get(bl.batch.id)!;
       const take = Math.min(need, here[w.size] ?? 0);
       if (take > 0) {
@@ -395,6 +401,50 @@ export function customerAdvances(customers: Customer[], orders: Order[], sales: 
     }
   }
   return out;
+}
+
+export interface AdvanceRow {
+  date: string;
+  /** + money paid ahead, - bottles paid from it */
+  amount: number;
+  /** the payment (money in) or the sale / order it paid for */
+  paymentId: string;
+  refId: string;
+  kind: 'in' | 'out';
+  method: string;
+  note: string;
+  /** money paid ahead left after this line */
+  balance: number;
+}
+
+/**
+ * One customer's money paid ahead, line by line in date order: each amount paid ahead, each bottle (sale
+ * or order) paid from it, and what was left after each. The last balance is customerAdvances' figure.
+ */
+export function advanceHistory(customerId: string, orders: Order[], sales: Sale[], payments: Payment[]): AdvanceRow[] {
+  const mine = new Set<string>();
+  for (const s of sales) if (s.customerId === customerId) mine.add(s.id);
+  for (const o of orders) if (o.customerId === customerId) mine.add(o.id);
+  const rows = payments
+    .filter((p) => (p.kind === 'advance' && p.refId === customerId) || (p.method === FROM_ADVANCE && mine.has(p.refId)))
+    .map((p) => ({ p, at: num(p.createdAt) }))
+    .sort((a, b) => a.p.date.localeCompare(b.p.date) || a.at - b.at);
+  let balance = 0;
+  return rows.map(({ p }) => {
+    const amount = p.kind === 'advance' ? num(p.amount) : -num(p.amount);
+    balance += amount;
+    return { date: p.date, amount, paymentId: p.id, refId: p.refId, kind: p.kind === 'advance' ? 'in' : 'out', method: p.method, note: p.note ?? '', balance };
+  });
+}
+
+/** Money paid ahead left at the end of a day, for each customer (the Day list on a past day). */
+export function advancesAsOf(customers: Customer[], orders: Order[], sales: Sale[], payments: Payment[], day: string): Map<string, number> {
+  return customerAdvances(
+    customers,
+    orders,
+    sales,
+    payments.filter((p) => p.date <= day),
+  );
 }
 
 export interface Debt {

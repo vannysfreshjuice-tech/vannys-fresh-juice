@@ -9,6 +9,7 @@ export type CheckFix =
   | { kind: 'buy'; itemId: string; date?: string }
   | { kind: 'count'; itemId: string }
   | { kind: 'made'; productId: string; date: string }
+  | { kind: 'soldAs'; productId: string; size: string; date: string; qty: number }
   | { kind: 'bottle'; batchId: string }
   | { kind: 'whatWentIn'; productId: string; date: string };
 
@@ -54,8 +55,9 @@ export function balanceChecks(input: { items: StockItem[]; levels: Map<string, I
       const key = `sold|${u.date}|${u.productId}|${u.size}`;
       const c = sold.get(key);
       if (c) c.qty += u.qty;
-      else sold.set(key, { key, what: 'sold', date: u.date, productId: u.productId, size: u.size, qty: u.qty, fixes: [{ kind: 'made', productId: u.productId, date: u.date }] });
+      else sold.set(key, { key, what: 'sold', date: u.date, productId: u.productId, size: u.size, qty: u.qty, fixes: [] });
     }
+    for (const c of sold.values()) c.fixes = [{ kind: 'made', productId: c.productId!, date: c.date }, { kind: 'soldAs', productId: c.productId!, size: c.size!, date: c.date, qty: c.qty }];
     out.push(...sold.values());
   }
   for (const b of batches) {

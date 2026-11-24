@@ -12,7 +12,7 @@ import { DayEntryForm } from '../sheets/day';
 import { MessagePreview } from '../sheets/message';
 import { EventQuoteSheet } from '../sheets/quote';
 import { StatementCardSheet } from '../sheets/statement';
-import { Checkout, PaymentForm, Receipt, ReceiveForm, SaleView, SaleChangeForm } from '../sheets/sales';
+import { Checkout, PaymentForm, Receipt, ReceiveForm, SaleView, SaleChangeForm, SoldAsForm } from '../sheets/sales';
 import { CountForm, ItemForm, PurchaseForm, PurchaseView, ReadingForm, SupplierForm } from '../sheets/stock';
 
 export type SheetSpec =
@@ -33,6 +33,7 @@ export type SheetSpec =
   | { t: 'batch'; productId?: string; id?: string; date?: string }
   | { t: 'batchView'; id: string }
   | { t: 'saleChange'; id: string }
+  | { t: 'soldAs'; productId: string; size: string; date: string; qty: number }
   | { t: 'bottle'; id: string }
   | { t: 'writeOff'; batchId?: string }
   | { t: 'product'; id?: string; kind?: ProductKind }
@@ -93,6 +94,8 @@ function render(spec: SheetSpec, close: () => void) {
       return <OrderView id={spec.id} onClose={close} />;
     case 'batch':
       return <BatchForm productId={spec.productId} id={spec.id} date={spec.date} onClose={close} />;
+    case 'soldAs':
+      return <SoldAsForm productId={spec.productId} size={spec.size} date={spec.date} qty={spec.qty} onClose={close} />;
     case 'saleChange':
       return <SaleChangeForm id={spec.id} onClose={close} />;
     case 'batchView':

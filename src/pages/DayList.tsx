@@ -3,16 +3,17 @@
 // the way chosen above the names). Week: Monday to Friday side by side (Saturday and Sunday when used),
 // a day with juice in yellow, a weekday without in red, names in blue when paid, green when paid ahead.
 import { CalendarDays, ChevronLeft, ChevronRight, HandCoins, Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useJuice } from '../components/bits';
 import { useSheets } from '../components/SheetHost';
 import { Button, Choice, DateInput, Empty, IconButton, PageHead, QtyInput, Select, cx, useNotice } from '../components/ui';
 import { useData } from '../data/DataContext';
 import { addDays, showDay, weekdayShort } from '../lib/dates';
 import { dayStock, daySummary, entryStatus, excelName, regulars, STATUS_WORDS, weekStart, type DayState, type EntryStatus } from '../lib/day';
-import { linesValue } from '../lib/juice';
+import { linesValue, advancesAsOf } from '../lib/juice';
 import { money } from '../lib/money';
 import { DiscountControl, lastDiscount, payFor, useUsualJuice } from '../sheets/day';
+import { useBalanceChecks } from '../components/BalanceChecks';
 
 const NAME_TONE: Record<EntryStatus, string> = {
   paid: 'bg-sky-soft text-sky border-sky/20',
@@ -68,7 +69,9 @@ function Legend() {
 }
 
 function DayView({ day, setDay, firstDay }: { day: string; setDay: (d: string) => void; firstDay: string }) {
-  const { sales, orders, byRef, customersById, customerAdv, actions, settings, today, products } = useData();
+  const { sales, orders, byRef, customersById, customerAdv, actions, settings, today, products, customers, payments } = useData();
+  // what each customer had paid ahead at the end of the day shown (today: what they have now)
+  const aheadThen = useMemo(() => (day >= today ? customerAdv : advancesAsOf(customers, orders, sales, payments, day)), [day, today, customerAdv, customers, orders, sales, payments]);
   const j = useJuice();
   const sheets = useSheets();
   const notify = useNotice();
@@ -153,13 +156,13 @@ function DayView({ day, setDay, firstDay }: { day: string; setDay: (d: string) =
           <div className="mt-3">
             <DiscountControl on={tapDiscOn} setOn={setTapDiscOn} amount={tapDisc} setAmount={setTapDisc} total={usualPrice} />
           </div>
-          <p className="mt-1 text-xs text-muted">Customers with money paid ahead (green) pay from it. A customer with a standing discount (shown on their name) always gets it. For more bottles, another juice or another price, use Someone else.</p>
+          <p className="mt-1 text-xs text-muted">{day < today ? `The green amounts are what each customer had paid ahead at the end of ${showDay(day)}; a tap still pays from what they have now. ` : ''}Customers with money paid ahead (green) pay from it. A customer with a standing discount (shown on their name) always gets it. For more bottles, another juice or another price, use Someone else.</p>
           {regs.length === 0 ? (
             <p className="mt-3 text-sm text-muted">Names you add appear here as quick buttons.</p>
           ) : (
             <div className="mt-3 flex flex-wrap gap-2">
               {regs.map((c) => {
-                const ahead = customerAdv.get(c!.id) ?? 0;
+                const ahead = aheadThen.get(c!.id) ?? 0;
                 return (
                   <button
                     key={c!.id}
@@ -193,7 +196,10 @@ function DayView({ day, setDay, firstDay }: { day: string; setDay: (d: string) =
               const st = entryStatus(s, byRef.get(s.id));
               return (
                 <button key={s.id} type="button" onClick={() => sheets.open({ t: 'saleView', id: s.id })} className={cx('flex min-h-11 items-center gap-3 rounded-xl border px-3 py-2 text-left', NAME_TONE[st])}>
-                  <span className="min-w-0 flex-1 truncate font-medium">{excelName(s, usualPrice)}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{excelName(s, usualPrice)}</span>
+                    <span className="block truncate text-xs opacity-75">{s.lines.map((l) => `${l.qty > 1 ? `${l.qty} × ` : ''}${j.name(l.productId)} ${j.sizeLabel(l.size)}`).join(', ')}</span>
+                  </span>
                   <span className="text-xs">{STATUS_WORDS[st]}</span>
                   <span className="num w-20 text-right">{cur(linesValue(s.lines))}</span>
                 </button>
@@ -224,6 +230,7 @@ function MadeCard({ day }: { day: string }) {
   const [busy, setBusy] = useState(false);
   const made = batches.filter((b) => b.date === day).sort((a, b) => a.createdAt - b.createdAt);
   const st = dayStock(day, batches, sales, orders, writeOffs);
+  const unrecorded = useBalanceChecks().filter((c) => c.what === 'sold' && c.date === day);
   // The oldest batch with bottles still in the fridge (made on or before this day): where "left" comes from.
   const oldestLeft = batches
     .filter((b) => b.date <= day && (fridge.get(b.id)?.total ?? 0) > 0)
@@ -269,7 +276,14 @@ function MadeCard({ day }: { day: string }) {
       </p>
       {st.unrecorded > 0 && (
         <p className="mb-3 rounded-lg bg-butter-soft px-3 py-2 text-sm">
-          <b>{st.unrecorded} more sold with no bottles made recorded.</b> Add the bottles made {day === today ? 'today' : 'that day'} below: those sold come off them by themselves, so the fridge stays right.
+          <b>{st.unrecorded} more sold with no bottles made recorded.</b> Add the bottles made {day === today ? 'today' : 'that day'} below: those sold come off them by themselves, so the fridge stays right. Tapped as the wrong juice? Change them:
+          <span className="mt-1.5 flex flex-wrap gap-1.5">
+            {unrecorded.map((c) => (
+              <Button key={c.key} small variant="soft" onClick={() => sheets.open({ t: 'soldAs', productId: c.productId!, size: c.size!, date: day, qty: c.qty })}>
+                {c.qty} × {j.name(c.productId!)} {j.sizeLabel(c.size!)}
+              </Button>
+            ))}
+          </span>
         </p>
       )}
       {made.length > 0 && (

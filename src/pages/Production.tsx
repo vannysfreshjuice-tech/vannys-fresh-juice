@@ -3,7 +3,7 @@ import { Blend, CupSoda, Plus, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { BatchBadge, Card, JuiceBadge, Margin, useJuice } from '../components/bits';
 import { useSheets } from '../components/SheetHost';
-import { Badge, Button, Choice, Empty, IconButton, PageHead, StatCard, useNotice, useSaver } from '../components/ui';
+import { Badge, Button, Choice, Empty, PageHead, StatCard, useNotice, useSaver } from '../components/ui';
 import { useData } from '../data/DataContext';
 import { addDays, showDate, weekdayShort } from '../lib/dates';
 import { batchCost, bottleCost, bottledLitres, fridgeCount, priceOf, recipeCostPerLitre } from '../lib/juice';
@@ -216,7 +216,9 @@ export function Recipes() {
                     Reconcile bottles made
                   </Button>
                   <span className="flex-1" />
-                  <IconButton icon={Trash2} label={`Delete ${p.name}`} onClick={() => sheets.open({ t: 'deleteJuice', id: p.id })} />
+                  <Button small variant="plain" icon={Trash2} onClick={() => sheets.open({ t: 'deleteJuice', id: p.id })}>
+                    Delete
+                  </Button>
                 </div>
               )}
             </section>

@@ -10,6 +10,7 @@ import { applyDiscount, averageRecipe, countsForRecipe, customerAdvances, debtsO
 import { cleanAmount, cleanQty, money, num, sum } from '../lib/money';
 import { DAY_LIST_NOTE, FROM_ADVANCE } from '../lib/types';
 import type {
+  BottleLine,
   Batch,
   Customer,
   Expense,
@@ -165,6 +166,25 @@ export function makeActions(store: Store, now: () => Current) {
     const sv = save('products', id, data, { archived: false });
     ops.push(sv.op);
     return { ops, id: sv.id, itemIds };
+  }
+
+  /**
+   * Sales and packed orders that name a batch, unlinked from it (all sizes, or only some). The fridge count
+   * then matches those bottles to other bottles of the same juice and size made that day or before
+   * (fridgeFlow); with none, they show in "Not balanced yet".
+   */
+  function unlinkOps(batchId: string, sizes?: Set<string>): Op[] {
+    const r = cur();
+    const ops: Op[] = [];
+    const hit = (l: BottleLine) => l.batchId === batchId && (!sizes || sizes.has(l.size));
+    const strip = (l: BottleLine) => {
+      if (!hit(l)) return l;
+      const { batchId: _b, ...rest } = l;
+      return rest;
+    };
+    for (const s of r.sales) if (s.lines.some(hit)) ops.push({ op: 'patch', col: 'sales', id: s.id, data: { lines: s.lines.map(strip), ...touched() } });
+    for (const o of r.orders) if ((o.packed ?? []).some(hit)) ops.push({ op: 'patch', col: 'orders', id: o.id, data: { packed: (o.packed ?? []).map(strip), ...touched() } });
+    return ops;
   }
 
   /** The juice's recipe as the average of its last batches, given the batches as they will be. */
@@ -503,14 +523,18 @@ export function makeActions(store: Store, now: () => Current) {
       for (const [k, n] of Object.entries(input.filled ?? {})) if (Math.round(num(n)) > 0) filled[k] = Math.round(num(n));
       const bottled = Object.entries(filled).reduce((t, [k, n]) => t + n * num(sizeOf(now().settings.sizes, k)?.litres), 0);
       need(bottled <= litres + 0.05, `Those bottles hold ${Math.round(bottled * 10) / 10} litres, more than the ${litres} litres made.`);
-      // bottles that name this batch: sold, packed for an order, written off
-      const gone = new Map<string, number>();
-      const add = (k: string, n: number) => gone.set(k, (gone.get(k) ?? 0) + num(n));
-      for (const s of r.sales) for (const l of s.lines ?? []) if (l.batchId === id) add(l.size, l.qty);
-      for (const o of r.orders) if (o.stage !== 'Cancelled') for (const l of o.packed ?? []) if (l.batchId === id) add(l.size, l.qty);
-      for (const w of r.writeOffs) if (w.batchId === id) add(w.size, w.qty);
-      if (product!.id !== old!.productId) need(!gone.size, `Bottles from ${old!.number} are already sold or written off, so its juice stays the same.`);
-      for (const [k, n] of gone) need((filled[k] ?? 0) >= n, `${n} × ${sizeLabel(k)} from ${old!.number} are already sold or written off, so it cannot have fewer.`);
+      // Bottles sold from this batch stay sold. When its juice changes, or a size has fewer bottles than were
+      // sold from it, those sales are unlinked and matched again to other bottles (fridgeFlow).
+      // Written-off bottles name the batch for good, so a size cannot go below them.
+      const sold = new Map<string, number>();
+      for (const s of r.sales) for (const l of s.lines ?? []) if (l.batchId === id) sold.set(l.size, (sold.get(l.size) ?? 0) + num(l.qty));
+      for (const o of r.orders) if (o.stage !== 'Cancelled') for (const l of o.packed ?? []) if (l.batchId === id) sold.set(l.size, (sold.get(l.size) ?? 0) + num(l.qty));
+      const spoiled = new Map<string, number>();
+      for (const w of r.writeOffs) if (w.batchId === id) spoiled.set(w.size, (spoiled.get(w.size) ?? 0) + num(w.qty));
+      for (const [k, n] of spoiled) need((filled[k] ?? 0) >= n, `${n} × ${sizeLabel(k)} from ${old!.number} were written off, so it cannot have fewer (delete the write-off first).`);
+      const juiceChanged = product!.id !== old!.productId;
+      if (juiceChanged) need(!spoiled.size, `Bottles from ${old!.number} were written off as ${productName(old!.productId)}: delete the write-off first to change its juice.`);
+      const unlink = juiceChanged ? new Set(sold.keys()) : new Set([...sold].filter(([k, n]) => (filled[k] ?? 0) - (spoiled.get(k) ?? 0) < n).map(([k]) => k));
       const data = {
         date: input.date,
         productId: product!.id,
@@ -523,7 +547,7 @@ export function makeActions(store: Store, now: () => Current) {
         measured: input.measured ?? old!.measured ?? true,
         ...(input.water !== undefined ? { water: cleanQty(input.water) } : {}),
       };
-      const ops: Op[] = [{ op: 'patch', col: 'batches', id, data: { ...data, ...touched() } }];
+      const ops: Op[] = [{ op: 'patch', col: 'batches', id, data: { ...data, ...touched() } }, ...(unlink.size ? unlinkOps(id, unlink) : [])];
       const fresh = { ...old!, ...data };
       const after = r.batches.map((b) => (b.id === id ? fresh : b));
       for (const pid of new Set([old!.productId, product!.id])) {
@@ -569,10 +593,12 @@ export function makeActions(store: Store, now: () => Current) {
     },
     async deleteBatch(id: string) {
       const r = cur();
-      const used = r.sales.some((s) => s.lines.some((l) => l.batchId === id)) || r.orders.some((o) => o.packed?.some((l) => l.batchId === id)) || r.writeOffs.some((w) => w.batchId === id);
-      need(!used, 'Bottles from this batch are already sold, packed or written off, so it is kept.');
+      // Bottles sold from it stay sold (matched again to other bottles, or shown in Not balanced yet);
+      // bottles written off from it go with it.
       const b = r.batches.find((x) => x.id === id);
-      const ops: Op[] = [{ op: 'delete', col: 'batches', id }];
+      need(b, 'That batch no longer exists.');
+      const ops: Op[] = [{ op: 'delete', col: 'batches', id }, ...unlinkOps(id)];
+      for (const w of r.writeOffs) if (w.batchId === id) ops.push({ op: 'delete', col: 'writeOffs', id: w.id });
       if (b && countsForRecipe(b)) {
         const rest = r.batches.filter((x) => x.id !== id);
         const avg = averageOp(b.productId, rest);
@@ -595,11 +621,40 @@ export function makeActions(store: Store, now: () => Current) {
 
     // ---------- counter sales ----------
     /**
+     * Bottles tapped as the wrong juice (e.g. "Fresh juice" when the fridge held Mangoes): every sale on
+     * that day with that juice and size becomes the other juice; they leave any batch and the fridge count
+     * matches them again.
+     */
+    async changeSoldJuice(date: string, fromProductId: string, size: string, toProductId: string): Promise<number> {
+      need(fromProductId !== toProductId, 'Choose the juice they really were.');
+      need(cur().products.some((p) => p.id === toProductId), 'Choose the juice they really were.');
+      const ops: Op[] = [];
+      let n = 0;
+      for (const s of cur().sales) {
+        if (s.date !== date || s.opening || !s.lines.some((l) => l.productId === fromProductId && l.size === size)) continue;
+        const lines = s.lines.map((l) => {
+          if (l.productId !== fromProductId || l.size !== size) return l;
+          n += num(l.qty);
+          const { batchId: _b, ...rest } = l;
+          return { ...rest, productId: toProductId };
+        });
+        ops.push({ op: 'patch', col: 'sales', id: s.id, data: { lines, ...touched() } });
+      }
+      need(ops.length, 'No sales of that juice on that day.');
+      await store.commit(ops);
+      return n;
+    },
+    /** The recipe only (the juice and its history stay); the next measured batch starts a new one. */
+    async clearRecipe(id: string) {
+      need(cur().products.some((p) => p.id === id), 'That juice no longer exists.');
+      await store.commit([{ op: 'patch', col: 'products', id, data: { recipe: [], water: 0, recipeAvg: null, ...touched() } }]);
+    },
+    /**
      * Changing a sale already recorded: its day, the customer, and the price of each bottle. The bottles
      * themselves stay (Undo sale, then record again, for a different juice or number). Not below what is
      * paid; the customer stays when it was paid from their money paid ahead.
      */
-    async updateSale(id: string, input: { date: string; customerName: string; prices: number[] }) {
+    async updateSale(id: string, input: { date: string; customerName: string; prices?: number[]; lines?: { productId: string; size: string; qty: number; price: number }[] }) {
       const s = cur().sales.find((x) => x.id === id);
       need(s, 'That sale no longer exists.');
       need(!s!.opening, 'This is a balance brought forward; it cannot be changed here.');
@@ -609,10 +664,20 @@ export function makeActions(store: Store, now: () => Current) {
       const pays = paymentsOf(id);
       need(!(s!.method === 'On credit' && !customerId && sum(pays, (p) => p.amount) < linesValue(s!.lines)), "A sale on credit needs the customer's name.");
       if (customerId !== (s!.customerId || '')) need(!pays.some((p) => p.method === FROM_ADVANCE), "This sale was paid from the customer's money paid ahead, so the customer stays the same.");
+      // A line whose juice, size or number changes leaves its batch: the fridge count matches it again.
       const lines = s!.lines.map((l, i) => {
-        const price = input.prices[i] === undefined ? l.price : cleanAmount(input.prices[i]);
-        const { fullPrice: _drop, ...rest } = l;
-        return price === l.price ? l : { ...rest, price };
+        const w = input.lines?.[i];
+        const price = w ? cleanAmount(w.price) : input.prices?.[i] === undefined ? l.price : cleanAmount(input.prices[i]);
+        const productId = w?.productId ?? l.productId;
+        const size = w?.size ?? l.size;
+        const qty = w ? Math.round(num(w.qty)) : l.qty;
+        need(qty > 0, 'Each line needs at least one bottle (Undo sale to remove it all).');
+        need(cur().products.some((p) => p.id === productId), 'Choose the juice.');
+        need(sizeOf(now().settings.sizes, size), 'Choose the bottle size.');
+        const moved = productId !== l.productId || size !== l.size || qty !== l.qty;
+        const { fullPrice: _drop, batchId: _batch, ...rest } = l;
+        if (!moved && price === l.price) return l;
+        return { ...rest, productId, size, qty, price, ...(moved || !l.batchId ? {} : { batchId: l.batchId }) };
       });
       const paid = sum(pays, (p) => p.amount);
       need(linesValue(lines) >= paid, `${money(paid)} is already paid for this sale, more than the new total of ${money(linesValue(lines))}.`);
@@ -631,7 +696,8 @@ export function makeActions(store: Store, now: () => Current) {
     async saveSale(input: { lines: OrderLine[]; customerName: string; method: string; received?: number; emptiesBack?: number; note?: string; date?: string; discount?: number }): Promise<string> {
       const wanted = cleanOrderLines(input.lines);
       need(wanted.length, 'Add at least one bottle.');
-      const full = takeFromFridge(fridge(), wanted, productName, sizeLabel, now().settings.fridgeCheck);
+      const saleDay = input.date || todayYmd();
+      const full = takeFromFridge(fridge(), wanted, productName, sizeLabel, now().settings.fridgeCheck, saleDay);
       const discount = cleanAmount(input.discount);
       need(discount <= linesValue(full), `The discount is more than the sale's total of ${money(linesValue(full))}.`);
       // The discount comes off the bottle prices, so every total, report and balance follows it.

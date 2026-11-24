@@ -9,10 +9,10 @@ import { PinInput, useLock } from '../components/Lock';
 import { pinKeys, removePin, setPin } from '../lib/pinLock';
 import { useData } from '../data/DataContext';
 import { addDays, showDate, showDay } from '../lib/dates';
-import { orderTotals, saleTotals } from '../lib/juice';
+import { advanceHistory, orderTotals, saleTotals } from '../lib/juice';
 import { money } from '../lib/money';
 import { reminderIcs } from '../lib/reminders';
-import { CUSTOMER_TYPES, ROLES, ROLE_NAMES, type Reminder, type ReminderWay, type Repeat, type Role, type Staff } from '../lib/types';
+import { CUSTOMER_TYPES, OPENING_NOTE, ROLES, ROLE_NAMES, type Reminder, type ReminderWay, type Repeat, type Role, type Staff } from '../lib/types';
 
 export function CustomerForm({ id, onClose }: { id?: string; onClose: () => void }) {
   const { customers, actions } = useData();
@@ -76,6 +76,8 @@ export function CustomerView({ id, onClose }: { id: string; onClose: () => void 
   const owes = customerBal.get(id) ?? 0;
   const ahead = customerAdv.get(id) ?? 0;
   const paidAhead = payments.filter((p) => p.kind === 'advance' && p.refId === id).sort((a, b) => b.date.localeCompare(a.date));
+  const history = advanceHistory(id, orders, sales, payments);
+  const numberOf = (refId: string) => sales.find((s) => s.id === refId)?.number ?? orders.find((o) => o.id === refId)?.number ?? '';
   const cur = (n: number) => money(n, settings.currency);
   return (
     <Sheet
@@ -163,15 +165,25 @@ export function CustomerView({ id, onClose }: { id: string; onClose: () => void 
       )}
       {paidAhead.length > 0 && (
         <>
-          <h3 className="mt-4 mb-1 text-sm font-semibold">Money paid ahead</h3>
+          <h3 className="mt-4 mb-1 text-sm font-semibold">Money paid ahead, line by line</h3>
+          <div className="num grid grid-cols-[1fr_auto_auto_2rem] items-center gap-x-3 border-b border-line pb-1 text-xs text-muted">
+            <span>Day</span>
+            <span className="text-right">In / out</span>
+            <span className="text-right">Left</span>
+            <span />
+          </div>
           <div className="divide-y divide-line">
-            {paidAhead.map((p) => (
-              <div key={p.id} className="flex items-center gap-3 py-2 text-sm">
-                <span className="min-w-0 flex-1">
-                  {showDay(p.date)} · {p.method}
-                  {p.note && <span className="block text-xs text-muted">{p.note}</span>}
+            {[...history].reverse().map((h) => {
+              const p = h.kind === 'in' ? paidAhead.find((x) => x.id === h.paymentId) : undefined;
+              return (
+              <div key={h.paymentId} className="num grid grid-cols-[1fr_auto_auto_2rem] items-center gap-x-3 py-2 text-sm">
+                <span className="min-w-0">
+                  {showDay(h.date)} · {h.kind === 'in' ? (h.note === OPENING_NOTE ? 'Brought forward' : `Paid ahead (${h.method})`) : `Bottles ${numberOf(h.refId)}`}
+                  {h.kind === 'in' && h.note && h.note !== OPENING_NOTE && <span className="block text-xs text-muted">{h.note}</span>}
                 </span>
-                <span className="num text-leaf">{cur(p.amount)}</span>
+                <span className={cx('text-right', h.amount > 0 ? 'text-leaf' : 'text-muted')}>{h.amount > 0 ? '+' : '−'}{cur(Math.abs(h.amount))}</span>
+                <span className="text-right font-semibold">{cur(h.balance)}</span>
+                {p ? (
                 <button
                   type="button"
                   className="rounded-lg p-1.5 text-muted hover:text-cherry"
@@ -188,10 +200,14 @@ export function CustomerView({ id, onClose }: { id: string; onClose: () => void 
                 >
                   <Trash2 size={16} />
                 </button>
+                ) : (
+                  <span />
+                )}
               </div>
-            ))}
+              );
+            })}
           </div>
-          <p className="mt-1 text-xs text-muted">Bottles paid from it so far: {cur(Math.max(0, paidAhead.reduce((t, p) => t + p.amount, 0) - ahead))}.</p>
+          <p className="mt-1 text-xs text-muted">Paid ahead in all {cur(paidAhead.reduce((t, p) => t + p.amount, 0))} − bottles paid from it {cur(Math.max(0, paidAhead.reduce((t, p) => t + p.amount, 0) - ahead))} = {cur(ahead)} left.</p>
         </>
       )}
       {!os.length && !credit.length && !paidAhead.length && !sales.some((s) => s.customerId === id) && (

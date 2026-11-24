@@ -75,7 +75,6 @@ export function BatchForm({ productId, id, date: day, onClose }: { productId?: s
   const { busy, error, run } = useSaver();
 
   const changeProduct = (pick: string) => {
-    if (bottlesGone) return;
     const p = live.find((x) => x.id === pick);
     setPid(pick);
     setRows(rowsFor(p));
@@ -125,12 +124,12 @@ export function BatchForm({ productId, id, date: day, onClose }: { productId?: s
             <span className="label">1. Which juice?</span>
             <div className="flex flex-wrap gap-2">
               {live.map((p) => (
-                <button key={p.id} type="button" disabled={bottlesGone && p.id !== pid} className={cx('chip', p.id === pid && 'chip-on', bottlesGone && p.id !== pid && 'opacity-40')} onClick={() => changeProduct(p.id)}>
+                <button key={p.id} type="button" className={cx('chip', p.id === pid && 'chip-on')} onClick={() => changeProduct(p.id)}>
                   {p.icon} {p.name}
                 </button>
               ))}
             </div>
-            {bottlesGone && <p className="mt-1 text-xs text-muted">Bottles from this batch are already sold or written off, so its juice stays the same. You can still change the bottles (not below those gone), the day and what went in.</p>}
+            {bottlesGone && <p className="mt-1 text-xs text-muted">Bottles from this batch are already sold. They stay sold: if you change the juice or record fewer bottles, those sales are matched to other bottles of that juice made that day or before (or show in Not balanced yet).</p>}
           </div>
 
           <div>
@@ -347,7 +346,7 @@ export function BatchView({ id, onClose }: { id: string; onClose: () => void }) 
           icon={Trash2}
           className="mt-4"
           onClick={async () => {
-            if (!(await confirm({ title: `Delete ${b.number}?`, body: 'Only a batch with nothing sold or written off can be deleted. The fruit it used goes back into stock.', yes: 'Delete', danger: true }))) return;
+            if (!(await confirm({ title: `Delete ${b.number}?`, body: 'The fruit it used goes back into Stock. Bottles already sold from it stay sold: they are matched to other bottles of that juice made that day or before, or show in Not balanced yet. Bottles written off from it are removed with it.', yes: 'Delete', danger: true }))) return;
             try {
               await actions.deleteBatch(b.id);
               notify('Batch deleted');
@@ -925,6 +924,23 @@ export function DeleteJuiceForm({ id, onClose }: { id: string; onClose: () => vo
   return (
     <Sheet title={`Delete ${p.name}?`} onClose={onClose}>
       <FormError message={error} />
+      {p.recipe.length > 0 && (
+        <div className="mb-4 rounded-xl border border-line p-3">
+          <p className="font-semibold">Delete only the recipe of {p.name}</p>
+          <p className="mb-2 text-sm text-muted">The juice and its history stay. The next batch you record with what went in becomes its new recipe.</p>
+          <Button
+            variant="plain"
+            className="w-full"
+            busy={busy}
+            onClick={async () => {
+              if (!(await confirm({ title: `Delete the recipe of ${p.name}?`, body: 'Its ingredients and water for 10 litres are cleared. Batches already recorded stay as they are.', yes: 'Delete the recipe', danger: true }))) return;
+              run(() => actions.clearRecipe(id), () => (notify(`Recipe of ${p.name} deleted`), onClose()));
+            }}
+          >
+            Delete only the recipe
+          </Button>
+        </div>
+      )}
       {!used ? (
         <div className="space-y-3">
           <p className="text-[15px]">{p.name} has never been made, sold or ordered. Deleting it removes the juice and its recipe for good (its ingredients stay in Stock).</p>

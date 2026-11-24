@@ -97,7 +97,7 @@ export function CountForm({ itemId, onClose }: { itemId: string; onClose: () => 
           <QtyInput value={counted} onChange={setCounted} />
         </Field>
         <Field label="Why it is different">
-          <Select options={['Count', 'Rotten, thrown away', 'Lost', 'Used for samples', 'Found', 'Bought but not recorded']} value={reason} onChange={(e) => setReason(e.target.value)} />
+          <Select options={['Count', 'Rotten, thrown away', 'Lost', 'Used for samples', 'Found', 'Bought but not recorded', 'Washed and used again']} value={reason} onChange={(e) => setReason(e.target.value)} />
         </Field>
         <Field label="Day of the count" className="max-w-56">
           <DateInput value={date} max={today} onChange={(v) => v && setDate(v)} />

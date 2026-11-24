@@ -180,13 +180,22 @@ export async function removeStaffAccess(person: Staff): Promise<void> {
   await commitNow([...accessRemoval(person), { op: 'patch', col: 'staff', id: person.id, data: { loginUid: '', loginPhone: '', updatedAt: new Date().toISOString() } }]);
 }
 
+/**
+ * A patch replaces each field it names, whole, and leaves the others: { merge: true } would merge nested
+ * maps instead, so a bottle size removed from a batch's `filled` stayed in the cloud (audit, 24 Nov 2026).
+ * Same as the device store (localStore), which the tests use.
+ */
+function patchOptions(data: Record<string, unknown> | undefined) {
+  return { mergeFields: Object.keys(clean(data ?? {})) };
+}
+
 async function commitNow(ops: Op[]): Promise<void> {
   const batch = writeBatch(db);
   for (const o of ops) {
     const r = ref(o.col, o.id);
     if (o.op === 'delete') batch.delete(r);
     else if (o.op === 'set') batch.set(r, clean(o.data));
-    else batch.set(r, clean(o.data), { merge: true });
+    else batch.set(r, clean(o.data), patchOptions(o.data));
   }
   await batch.commit();
 }
@@ -236,7 +245,7 @@ export function makeCloudStore(isOwner: boolean): Store {
           const r = ref(o.col, o.id);
           if (o.op === 'delete') batch.delete(r);
           else if (o.op === 'set') batch.set(r, clean(o.data));
-          else batch.set(r, clean(o.data), { merge: true });
+          else batch.set(r, clean(o.data), patchOptions(o.data));
         }
         // Not awaited: the change is already kept on the device and shows at once. The promise only
         // settles when the cloud answers, which with no signal could be hours away.

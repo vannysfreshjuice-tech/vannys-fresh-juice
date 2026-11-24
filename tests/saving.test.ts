@@ -166,12 +166,15 @@ describe('orders', () => {
 });
 
 describe('write-offs and deletes', () => {
-  it('writes off no more than is left, and keeps a batch with bottles gone', async () => {
+  it('writes off no more than is left; deleting a batch takes its write-offs with it', async () => {
     const app = await stocked();
     const b1 = app.records().batches.find((b) => b.number === 'B-0001')!;
     await expect(app.actions.writeOff({ batchId: b1.id, size: '500', qty: 11, reason: 'Went sour' })).rejects.toThrow('Only 10 bottles');
     await app.actions.writeOff({ batchId: b1.id, size: '500', qty: 4, reason: 'Went sour' });
-    await expect(app.actions.deleteBatch(b1.id)).rejects.toThrow(/so it is kept/);
+    // since 24 Nov 2026 a batch can be deleted whatever happened to its bottles (Vanessa)
+    await app.actions.deleteBatch(b1.id);
+    expect(app.records().batches.some((b) => b.id === b1.id)).toBe(false);
+    expect(app.records().writeOffs).toHaveLength(0);
   });
   it('keeps a customer with orders, an item in a recipe and a juice with batches', async () => {
     const app = await stocked();

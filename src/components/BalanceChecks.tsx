@@ -30,10 +30,13 @@ export function BalanceChecks({ max = 6 }: { max?: number }) {
       case 'stock':
         return {
           title: `${it?.name ?? 'An item'}: ${showQty(c.used ?? 0)} used, only ${showQty(c.had ?? 0)} bought`,
-          sub: `${showQty(c.qty)} ${it?.unit ?? ''} not accounted for (last used ${showDay(c.date)}). Record the purchase on the day it was bought, or count what is there.`,
+          sub:
+            it?.kind === 'packaging'
+              ? `${showQty(c.qty)} ${it?.unit ?? ''} not accounted for (last used ${showDay(c.date)}). Washed bottles used again? Count what you have (reason: Washed and used again). Otherwise record the purchase.`
+              : `${showQty(c.qty)} ${it?.unit ?? ''} not accounted for (last used ${showDay(c.date)}). Record the purchase on the day it was bought, or count what is there.`,
         };
       case 'sold':
-        return { title: `${c.qty} × ${juice} ${j.sizeLabel(c.size ?? '')} sold ${showDay(c.date)}`, sub: 'No bottles made recorded for them. Add the bottles made that day; those sold come off them by themselves.' };
+        return { title: `${c.qty} × ${juice} ${j.sizeLabel(c.size ?? '')} sold ${showDay(c.date)}`, sub: 'No bottles made recorded for them. Add the bottles made that day, or, if they were tapped as the wrong juice, change them to the juice they really were.' };
       case 'bottling':
         return { title: `${number} ${juice} (${showDay(c.date)}) not bottled yet`, sub: `${showQty(c.qty)} litres made: fill in the bottles, or change or delete the batch.` };
       case 'fruit':
@@ -58,6 +61,12 @@ export function BalanceChecks({ max = 6 }: { max?: number }) {
         return (
           <Button key="made" small variant="soft" onClick={() => sheets.open({ t: 'batch', productId: f.productId, date: f.date })}>
             Add bottles made
+          </Button>
+        );
+      case 'soldAs':
+        return (
+          <Button key="soldAs" small variant="plain" onClick={() => sheets.open({ t: 'soldAs', productId: f.productId, size: f.size, date: f.date, qty: f.qty })}>
+            Wrong juice?
           </Button>
         );
       case 'bottle':

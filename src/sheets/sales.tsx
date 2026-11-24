@@ -230,15 +230,49 @@ export function SaleView({ id, onClose }: { id: string; onClose: () => void }) {
   );
 }
 
+/** Bottles tapped as the wrong juice on a day: all of them become the juice they really were. */
+export function SoldAsForm({ productId, size, date, qty, onClose }: { productId: string; size: string; date: string; qty: number; onClose: () => void }) {
+  const { products, batches, actions } = useData();
+  const j = useJuice();
+  const notify = useNotice();
+  // juices made that day or before with that size: the likely ones first
+  const made = [...new Set(batches.filter((b) => b.date <= date && (b.filled?.[size] ?? 0) > 0).sort((a, b) => b.date.localeCompare(a.date)).map((b) => b.productId))];
+  const choices = [...made, ...products.filter((p) => !p.archived && !made.includes(p.id)).map((p) => p.id)].filter((x) => x !== productId);
+  const [to, setTo] = useState(choices[0] ?? '');
+  const { busy, error, run } = useSaver();
+  return (
+    <Sheet
+      title="Tapped as the wrong juice?"
+      onClose={onClose}
+      footer={
+        <SheetButtons>
+          <Button busy={busy} disabled={!to} onClick={() => run(() => actions.changeSoldJuice(date, productId, size, to), (n) => (notify(`${n} bottles changed to ${j.name(to)}`), onClose()))}>
+            Change them to {j.name(to)}
+          </Button>
+        </SheetButtons>
+      }
+    >
+      <FormError message={error} />
+      <p className="mb-3 text-[15px]">
+        On {showDate(date)}, <b>{qty}</b> bottles were recorded as <b>{j.name(productId)} {j.sizeLabel(size)}</b> with no bottles of it made. If they were really another juice, choose it: every {j.name(productId)} {j.sizeLabel(size)} sold that day changes, and they come off the bottles of that juice made that day or before.
+      </p>
+      <Field label="They were really">
+        <Select options={choices.map((id) => ({ value: id, label: `${j.name(id)}${made.includes(id) ? ' (made by then)' : ''}` }))} value={to} onChange={(e) => setTo(e.target.value)} />
+      </Field>
+    </Sheet>
+  );
+}
+
 /** Changing a sale already recorded: its day, the customer and the price of each bottle. */
 export function SaleChangeForm({ id, onClose }: { id: string; onClose: () => void }) {
-  const { sales, customers, actions, today } = useData();
-  const j = useJuice();
+  const { sales, customers, actions, today, products, settings } = useData();
   const notify = useNotice();
   const s = sales.find((x) => x.id === id);
   const [date, setDate] = useState(s?.date ?? today);
   const [who, setWho] = useState(s?.customerId ? s.customerName : '');
-  const [prices, setPrices] = useState<number[]>(s?.lines.map((l) => l.price) ?? []);
+  const [lines, setLines] = useState(s?.lines.map((l) => ({ productId: l.productId, size: l.size, qty: l.qty, price: l.price })) ?? []);
+  const set = (i: number, patch: Partial<(typeof lines)[number]>) => setLines((ls) => ls.map((l, k) => (k === i ? { ...l, ...patch } : l)));
+  const juices = products.filter((p) => !p.archived || lines.some((l) => l.productId === p.id));
   const { busy, error, run } = useSaver();
   if (!s) return null;
   return (
@@ -247,7 +281,7 @@ export function SaleChangeForm({ id, onClose }: { id: string; onClose: () => voi
       onClose={onClose}
       footer={
         <SheetButtons>
-          <Button busy={busy} onClick={() => run(() => actions.updateSale(s.id, { date, customerName: who, prices }), () => (notify('Sale changed'), onClose()))}>
+          <Button busy={busy} onClick={() => run(() => actions.updateSale(s.id, { date, customerName: who, lines }), () => (notify('Sale changed'), onClose()))}>
             Save changes
           </Button>
         </SheetButtons>
@@ -269,16 +303,18 @@ export function SaleChangeForm({ id, onClose }: { id: string; onClose: () => voi
           </Field>
         </div>
         <div>
-          <span className="label">Price of each bottle</span>
+          <span className="label">What was sold</span>
           <div className="card divide-y divide-line px-3">
-            {s.lines.map((l, i) => (
-              <div key={i} className="flex items-center gap-3 py-2">
-                <span className="min-w-0 flex-1">{j.lineText(l)}</span>
-                <MoneyInput className="w-28" value={prices[i] ?? 0} onChange={(n) => setPrices((ps) => ps.map((p, k) => (k === i ? n : p)))} />
+            {lines.map((l, i) => (
+              <div key={i} className="grid grid-cols-2 gap-2 py-2 sm:grid-cols-[1fr_7rem_4.5rem_7rem]">
+                <Select aria-label="Juice" options={juices.map((p) => ({ value: p.id, label: p.name }))} value={l.productId} onChange={(e) => set(i, { productId: e.target.value })} />
+                <Select aria-label="Size" options={settings.sizes.map((z) => ({ value: z.key, label: z.label }))} value={l.size} onChange={(e) => set(i, { size: e.target.value })} />
+                <TextInput aria-label="Bottles" inputMode="numeric" className="num text-right" value={String(l.qty || '')} onChange={(e) => set(i, { qty: Number(e.target.value.replace(/\D/g, '')) || 0 })} />
+                <MoneyInput aria-label="Price of one bottle" value={l.price} onChange={(n) => set(i, { price: n })} />
               </div>
             ))}
           </div>
-          <p className="mt-1 text-xs text-muted">For another juice or a different number of bottles: Undo sale, then record it again on the right day.</p>
+          <p className="mt-1 text-xs text-muted">Juice, size, number of bottles and the price of one bottle. Bottles changed here are matched to the bottles made that day or before. To remove the sale: Undo sale.</p>
         </div>
       </div>
     </Sheet>

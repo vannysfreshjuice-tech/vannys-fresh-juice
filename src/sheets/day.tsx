@@ -145,7 +145,10 @@ export function DayEntryForm({ date, customerName, onClose }: { date: string; cu
   const known = customers.find((c) => c.name.trim().toLowerCase() === name.trim().toLowerCase());
   const ahead = known ? (customerAdv.get(known.id) ?? 0) : 0;
   const methods = ['On credit', ...settings.methods.filter((m) => m !== 'Bank'), ...(ahead > 0 ? [FROM_ADVANCE] : [])];
-  const [chosen, setMethod] = useState(ahead > 0 ? FROM_ADVANCE : 'On credit');
+  // The way of paying follows the customer typed (money paid ahead when they have some) until it is
+  // picked by hand; it used to stay on credit, so bottles went on credit beside their money paid ahead.
+  const [picked, setMethod] = useState<string | null>(null);
+  const chosen = picked ?? (ahead > 0 ? FROM_ADVANCE : 'On credit');
   const method = methods.includes(chosen) ? chosen : 'On credit';
   const disc = useDiscount(known);
   const full = qty * price;

@@ -1,6 +1,6 @@
 # Vanny's Fresh Juice user manual
 
-Last updated: 20 November 2026 (fridge sum, recipes from the average of batches)
+Last updated: 24 November 2026 (wrong-juice fix, changing and deleting batches and recipes)
 
 This app keeps the whole juice business in one place: the fruit you buy, the juice you make, what is in the fridge, what you sell and deliver, what customers owe, reminders, expenses, staff and profit. It works on a phone like an app and on a laptop in the browser.
 
@@ -85,15 +85,16 @@ Staff who should not see money see counts instead of shillings.
 
 | What it says | What it means | What to do |
 |---|---|---|
-| Mangoes: 11 used, only 8 bought | Batches used more than Buying (and counts) recorded: 3 mangoes are not accounted for | **Record purchase** (it opens on the day they were last used; change the day to when they were bought), or **Count** what is there |
-| 3 × Mango 500 ml sold Fri 20 Nov | Bottles sold with no bottles made recorded for them | **Add bottles made** for that day: those sold come off them by themselves |
+| Mangoes: 11 used, only 8 bought | Batches used more than Buying (and counts) recorded: 3 mangoes are not accounted for | **Record purchase** (it opens on the day they were last used; change the day to when they were bought), or **Count** what is there. For bottles washed and used again, **Count** them with the reason **Washed and used again** |
+| 3 × Mango 500 ml sold Fri 20 Nov | Bottles sold with no bottles made recorded for them | **Add bottles made** for that day (those sold come off them by themselves), or **Wrong juice?** if they were tapped as the wrong juice |
 | B-0003 Mango (Thu 19 Nov) not bottled yet | A batch from an earlier day still marked as being made | **Open batch**: fill the bottles, change it or delete it |
 | 6 × Soursop made Thu 19 Nov | Bottles made with nothing recorded about what went in | **Change batch** and add the fruit used |
 
 **Recorded something wrong or late?** Everything can be put right afterwards:
-- **Production:** open the batch, **Change** (juice, day, bottles, litres, what went in, water, made by). Bottles already sold from it cannot be taken away, and its juice stays once any are sold. The recipe average is worked out again.
+- **Production:** open the batch, **Change** (juice, day, bottles, litres, what went in, water, made by) or **Delete batch**. Bottles already sold stay sold: if the batch changes juice, has fewer bottles than were sold from it, or is deleted, those sales are matched to other bottles of that juice made that day or before (or show in Not balanced yet). Bottles written off from a batch go when it is deleted. The recipe average is worked out again.
 - **Buying:** open the purchase, **Change** (what, day, supplier, quantity, price). Its payments stay. A forgotten purchase is recorded with **Buy** and the day it was bought.
-- **Sales:** open the sale (tap it on the Day list or in Today's sales), **Change** (day, customer, price of each bottle). For another juice or number of bottles: **Undo sale**, then record it again on the right day (Day list: go to that day).
+- **Sales:** open the sale (tap it on the Day list or in Today's sales), **Change** (day, customer, and for each line the juice, size, number of bottles and price). **Undo sale** removes it.
+- **Tapped as the wrong juice:** each name on the Day list now shows the juice under it. If bottles were tapped as a juice that was not made (for example "Fresh juice" when the fridge held Mangoes), the Day list's yellow note and **Not balanced yet** show a button for them (**Wrong juice?**): choose the juice they really were, and every bottle of that juice and size sold that day changes and comes off the right bottles.
 - **Stock:** **Count** takes the day of the count, and a reason such as **Bought but not recorded**.
 
 ## Day list
@@ -221,7 +222,7 @@ Where each batch of juice is recorded.
 5. The app shows the **batch cost**, the **cost per litre**, what the bottles bring in if all are sold, and the **best-before** date.
 6. Tick the **hygiene checks**, then **Save batch**. The fruit and bottles come off stock, the bottles go into the fridge, and the recipe is updated.
 
-Open a batch to see what went in, what was filled and what is left, its cost, and to **Change** it, **Fill the bottles** (for a batch still being made) or **Write off spoiled**. **Change** opens the same form, filled in: correct the juice, the day, the bottles, the litres, what went in or the water. Bottles already sold from the batch cannot be taken away, and its juice stays once any are sold. A Day list count joins the recipe average once you type what went into it.
+Open a batch to see what went in, what was filled and what is left, its cost, and to **Change** it, **Delete** it, **Fill the bottles** (for a batch still being made) or **Write off spoiled**. **Change** opens the same form, filled in: correct the juice, the day, the bottles, the litres, what went in or the water. Bottles already sold stay sold whatever you change; they are matched to the bottles of that juice made that day or before. A Day list count joins the recipe average once you type what went into it.
 
 ## Recipes and prices
 
@@ -235,7 +236,7 @@ Each card shows the recipe for **10 litres** (once batches are recorded, the **a
   - A new name that looks like one already in Stock (Mango and Mangoes) shows **Use Mangoes**, to keep one name. New ingredients are added to Stock when you save.
   - The cost and margin of each size show as you go (once fruit has been bought on Buying), so you can try mixes before you make them.
 - **Reconcile bottles made** (on each juice, and at the top of the page; also **What went into these bottles?** on the Day list): for bottles already counted, e.g. this week's bottles made, with nothing recorded about what went in. Choose the juice and the days (**From** starts at the oldest bottles not yet reconciled, and can go back to any date). Tick the counts it lists, type everything that went into all of them together and the water, and save. The app shares it out over those bottles by litres (so Stock and the cost of those bottles are right) and, with **Make this the juice's recipe for 10 litres** ticked, works out the recipe from the same sums.
-- **Change recipe** opens the same form. **Hide** takes a juice off Sell, the Day list, Production and new orders but keeps its history.
+- **Change recipe** opens the same form. **Delete** (on each card) offers: **Delete only the recipe** (the juice and its history stay; the next batch with what went in becomes the new recipe), delete the juice (only if never made, sold or ordered), move its history to another juice then delete, or hide it. **Hide** takes a juice off Sell, the Day list, Production and new orders but keeps its history.
 - **Delete** (the bin on each juice, or at the bottom of its form): a juice that has never been made, sold or ordered is deleted with its recipe. One that has (such as "Fresh juice" from the Excel sheet) can be **moved to another juice, then deleted**: every sale, order and batch becomes the other juice, amounts and payments unchanged. Or **Hide** it.
 
 ## Stock
@@ -339,6 +340,8 @@ Each person's own PIN decides what they can open. The cloud checks it too: a sta
 
 ## What's new
 
+- **24 November 2026 (later):** a customer's page shows **Money paid ahead, line by line** (each amount paid ahead, each bottle paid from it, what was left after); on a past day the Day list's green amounts show what was left at the end of that day; **Someone else** now starts on **From money paid ahead** for a customer who has some (it used to start on credit); a sale written in for an earlier day no longer takes bottles made after it; a bottle size removed from a batch is now really removed in the cloud.
+- **24 November 2026:** batches can be changed or deleted even after bottles were sold (the sales stay and are matched to other bottles); a sale can change juice, size and number of bottles; **Wrong juice?** turns a day's bottles tapped as the wrong juice into the right one; the Day list shows each name's juice; recipes have a **Delete** button with **Delete only the recipe**; **Washed and used again** for bottle counts.
 - **20 November 2026 (later):** **Change** for batches, purchases and sales already recorded; stock counts on an earlier day; **Not balanced yet** on Home, Production and Stock lists what does not add up (fruit used but not bought, bottles sold with nothing made, batches not bottled, bottles made with no fruit recorded), each with a fix button.
 - **20 November 2026:** the Day list's fridge card shows the day's sum (left from before + made − sold = left), always the same as Stock; bottles sold before the bottles made were written in now come off them when they are added (they used to be counted again); a note shows bottles sold with nothing made recorded. **New batch** shows only the chosen juice's ingredients, takes what really went in, and each juice's recipe becomes the average of its last 10 batches.
 - **18 November 2026:** Buying grouped by the day bought; Stock as a table of what is left; a **Money received** button on the Day list; **The last 8 weeks** chart on Home; **Event quote** for weddings and other events; the statement card shows Airtel Money and Cash, the WhatsApp and calls number and the Airtel Money number; **Start again from a date** in Settings > Backup.
